@@ -4,24 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quizmo Pro - Dvir</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&display=swap');
-        body { font-family: 'Assistant', sans-serif; background-color: #f2f2f2; overflow-x: hidden; }
-        .animate-bounce-short { animation: bounce 1s infinite; }
-        @keyframes bounce { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(0); } }
+        body { font-family: 'Assistant', sans-serif; background-color: #f2f2f2; margin: 0; padding: 0; }
+        #error-display { color: red; padding: 20px; text-align: center; display: none; }
     </style>
 </head>
 <body>
+    <div id="error-display">משהו השתבש בטעינה. בדוק את חיבור האינטרנט או את הגדרות ה-Firebase.</div>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        
-        // Firebase Configuration
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
             authDomain: "quizmo-kahoot.firebaseapp.com",
@@ -31,218 +37,207 @@
             appId: "1:738657082184:web:076d9ccf27706d356bb17d"
         };
 
-        // Initialize Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, onSnapshot, query, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        // Initialize
+        try {
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            
+            // הגדרת משתנים גלובליים כדי ש-Babel יוכל לגשת אליהם
+            window.fbAuth = auth;
+            window.fbDb = db;
+            window.fbMethods = { signInAnonymously, onAuthStateChanged, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc };
+            
+            console.log("Firebase Initialized Successfully");
+        } catch (error) {
+            console.error("Firebase Init Error:", error);
+            document.getElementById('error-display').style.display = 'block';
+            document.getElementById('error-display').innerText = "שגיאת Firebase: " + error.message;
+        }
+    </script>
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
         function App() {
             const [user, setUser] = useState(null);
             const [view, setView] = useState('home');
             const [pin, setPin] = useState('');
             const [nickname, setNickname] = useState('');
-            const [gameState, setGameState] = useState(null);
             const [players, setPlayers] = useState([]);
             const [savedQuizzes, setSavedQuizzes] = useState([]);
             const [loginName, setLoginName] = useState('');
             const [loginPass, setLoginPass] = useState('');
             const [quizTitle, setQuizTitle] = useState('');
-            const [questions, setQuestions] = useState([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0, time: 20 }]);
+            const [questions, setQuestions] = useState([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
+
+            const { fbAuth, fbDb, fbMethods } = window;
 
             useEffect(() => {
-                const unsubscribe = onAuthStateChanged(auth, async (u) => {
-                    if (u) {
-                        setUser(u);
-                    } else {
-                        try {
-                            await signInAnonymously(auth);
-                        } catch (err) {
-                            console.error("Auth error:", err);
-                        }
-                    }
+                if (!fbAuth) return;
+                const unsub = fbMethods.onAuthStateChanged(fbAuth, async (u) => {
+                    if (u) setUser(u);
+                    else await fbMethods.signInAnonymously(fbAuth);
                 });
-                return () => unsubscribe();
+                return () => unsub();
             }, []);
 
             useEffect(() => {
                 if (!pin || ['home', 'login', 'dashboard', 'create', 'join'].includes(view)) return;
                 
-                const unsubGame = onSnapshot(doc(db, 'games', pin), (s) => {
-                    if (s.exists()) setGameState(s.data());
-                });
-
-                const unsubPlayers = onSnapshot(collection(db, 'players'), (s) => {
+                const unsubPlayers = fbMethods.onSnapshot(fbMethods.collection(fbDb, 'players'), (s) => {
                     const pList = [];
                     s.forEach(d => {
                         if (d.data().pin === pin) pList.push({id: d.id, ...d.data()});
                     });
-                    setPlayers(pList.sort((a,b) => (b.score || 0) - (a.score || 0)));
+                    setPlayers(pList);
                 });
 
-                return () => { unsubGame(); unsubPlayers(); };
+                return () => unsubPlayers();
             }, [pin, view]);
 
             const handleLogin = async () => {
                 if (loginName === 'דביר' && loginPass === '2160') {
-                    const s = await getDocs(collection(db, 'quizzes'));
+                    const s = await fbMethods.getDocs(fbMethods.collection(fbDb, 'quizzes'));
                     const list = [];
                     s.forEach(d => list.push({id: d.id, ...d.data()}));
                     setSavedQuizzes(list);
                     setView('dashboard');
                 } else {
-                    alert("פרטים שגויים - רק דביר יכול להיכנס");
+                    alert("פרטים שגויים");
                 }
             };
 
             const handleSaveQuiz = async () => {
-                if (!quizTitle) return alert("תנו שם לחידון");
-                try {
-                    await addDoc(collection(db, 'quizzes'), {
-                        title: quizTitle,
-                        questions: questions,
-                        createdAt: Date.now()
-                    });
-                    alert("החידון נשמר בהצלחה!");
-                    const s = await getDocs(collection(db, 'quizzes'));
-                    const list = [];
-                    s.forEach(d => list.push({id: d.id, ...d.data()}));
-                    setSavedQuizzes(list);
-                    setView('dashboard');
-                } catch (e) {
-                    alert("שגיאה בשמירה");
-                }
+                if (!quizTitle) return alert("שם לחידון חובה");
+                await fbMethods.addDoc(fbMethods.collection(fbDb, 'quizzes'), {
+                    title: quizTitle,
+                    questions,
+                    createdAt: Date.now()
+                });
+                alert("נשמר!");
+                handleLogin();
             };
 
-            const startHosting = async (quiz) => {
+            const startHosting = async (q) => {
                 const newPin = Math.floor(100000 + Math.random() * 899999).toString();
-                await setDoc(doc(db, 'games', newPin), {
+                await fbMethods.setDoc(fbMethods.doc(fbDb, 'games', newPin), {
                     status: 'lobby',
-                    quiz: quiz,
-                    currentQuestion: 0,
-                    questionStartTime: 0
+                    quiz: q
                 });
                 setPin(newPin);
                 setView('host_lobby');
             };
 
             const handleJoin = async () => {
-                if (!pin || !nickname) return alert("מלאו את כל הפרטים");
-                const gameRef = doc(db, 'games', pin);
-                const gameSnap = await getDoc(gameRef);
-                if (gameSnap.exists()) {
-                    await setDoc(doc(db, 'players', auth.currentUser.uid), {
+                const snap = await fbMethods.getDoc(fbMethods.doc(fbDb, 'games', pin));
+                if (snap.exists()) {
+                    await fbMethods.setDoc(fbMethods.doc(fbDb, 'players', fbAuth.currentUser.uid), {
                         name: nickname,
-                        pin: pin,
-                        score: 0,
-                        hasAnswered: false
+                        pin,
+                        score: 0
                     });
                     setView('player_lobby');
                 } else {
-                    alert("קוד לא תקין");
+                    alert("PIN לא נמצא");
                 }
             };
 
             if (view === 'home') return (
-                <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white p-4">
-                    <h1 className="text-8xl font-black mb-12 animate-bounce">Quizmo</h1>
+                <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white p-4 text-center">
+                    <h1 className="text-7xl md:text-9xl font-black mb-12 animate-bounce">Quizmo</h1>
                     <div className="flex flex-col gap-4 w-full max-w-xs">
-                        <button onClick={() => setView('join')} className="bg-white text-[#46178f] py-6 rounded-xl text-3xl font-black shadow-xl">הצטרף</button>
-                        <button onClick={() => setView('login')} className="bg-[#1368ce] text-white py-6 rounded-xl text-3xl font-black shadow-xl">ניהול</button>
+                        <button onClick={() => setView('join')} className="bg-white text-[#46178f] py-5 rounded-xl text-2xl font-black shadow-xl">הצטרפות שחקן</button>
+                        <button onClick={() => setView('login')} className="bg-[#1368ce] text-white py-5 rounded-xl text-2xl font-black shadow-xl">ניהול דביר</button>
                     </div>
                 </div>
             );
 
             if (view === 'login') return (
                 <div className="h-screen bg-[#46178f] flex items-center justify-center p-4">
-                    <div className="bg-white p-10 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center">
-                        <h2 className="text-2xl font-black mb-4">כניסת מנהל</h2>
-                        <input className="p-4 border-2 rounded-xl text-center text-black" placeholder="שם משתמש" onChange={e => setLoginName(e.target.value)} />
-                        <input type="password" className="p-4 border-2 rounded-xl text-center text-black" placeholder="סיסמה" onChange={e => setLoginPass(e.target.value)} />
-                        <button onClick={handleLogin} className="bg-purple-600 text-white py-4 rounded-xl font-black">כניסה</button>
-                        <button onClick={() => setView('home')} className="text-gray-400">ביטול</button>
+                    <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center">
+                        <h2 className="text-2xl font-black text-black">כניסת מנהל</h2>
+                        <input className="p-4 border rounded-xl text-black" placeholder="שם משתמש" onChange={e => setLoginName(e.target.value)} />
+                        <input type="password" className="p-4 border rounded-xl text-black" placeholder="סיסמה" onChange={e => setLoginPass(e.target.value)} />
+                        <button onClick={handleLogin} className="bg-purple-600 text-white py-4 rounded-xl font-bold">כניסה</button>
+                        <button onClick={() => setView('home')} className="text-gray-400">חזור</button>
                     </div>
                 </div>
             );
 
             if (view === 'dashboard') return (
-                <div className="min-h-screen p-8 max-w-4xl mx-auto">
-                    <div className="flex justify-between items-center mb-10">
-                        <h2 className="text-4xl font-black text-[#46178f]">החידונים שלי</h2>
-                        <button onClick={() => setView('create')} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold">+ חידון חדש</button>
+                <div className="min-h-screen p-6 max-w-4xl mx-auto">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-3xl font-black text-[#46178f]">החידונים שלי</h2>
+                        <button onClick={() => setView('create')} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold">+ חדש</button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {savedQuizzes.map(q => (
-                            <div key={q.id} className="bg-white p-6 rounded-2xl shadow-md border flex justify-between items-center">
-                                <span className="text-xl font-bold">{q.title}</span>
-                                <button onClick={() => startHosting(q)} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">הפעל</button>
+                            <div key={q.id} className="bg-white p-6 rounded-2xl shadow border flex justify-between items-center">
+                                <span className="font-bold text-xl text-black">{q.title}</span>
+                                <button onClick={() => startHosting(q)} className="bg-blue-600 text-white px-4 py-2 rounded-lg">הפעל</button>
                             </div>
                         ))}
                     </div>
+                    <button onClick={() => setView('home')} className="mt-8 text-gray-500">יציאה</button>
                 </div>
             );
 
             if (view === 'create') return (
-                <div className="min-h-screen bg-white p-8 max-w-3xl mx-auto">
-                    <input className="text-4xl font-black w-full border-b-4 mb-10 outline-none p-2" placeholder="שם החידון..." value={quizTitle} onChange={e => setQuizTitle(e.target.value)} />
+                <div className="min-h-screen bg-white p-6 max-w-2xl mx-auto text-black">
+                    <input className="text-3xl font-black w-full border-b mb-8 outline-none" placeholder="שם החידון..." value={quizTitle} onChange={e => setQuizTitle(e.target.value)} />
                     {questions.map((q, i) => (
-                        <div key={i} className="bg-gray-100 p-6 rounded-2xl mb-6 shadow-sm">
-                            <input className="w-full text-xl p-3 rounded-lg mb-4" placeholder="השאלה..." value={q.text} onChange={e => {
-                                const newQ = [...questions];
-                                newQ[i].text = e.target.value;
-                                setQuestions(newQ);
+                        <div key={i} className="bg-gray-100 p-4 rounded-xl mb-4">
+                            <input className="w-full p-2 mb-2 rounded" placeholder="השאלה..." value={q.text} onChange={e => {
+                                const n = [...questions]; n[i].text = e.target.value; setQuestions(n);
                             }} />
                             <div className="grid grid-cols-2 gap-2">
-                                {q.opts.map((opt, oi) => (
-                                    <input key={oi} className="p-2 border rounded" placeholder={`תשובה ${oi+1}`} value={opt} onChange={e => {
-                                        const newQ = [...questions];
-                                        newQ[i].opts[oi] = e.target.value;
-                                        setQuestions(newQ);
+                                {q.opts.map((o, oi) => (
+                                    <input key={oi} className="p-1 border rounded" placeholder={`תשובה ${oi+1}`} value={o} onChange={e => {
+                                        const n = [...questions]; n[i].opts[oi] = e.target.value; setQuestions(n);
                                     }} />
                                 ))}
                             </div>
                         </div>
                     ))}
-                    <div className="flex gap-4">
-                        <button onClick={() => setQuestions([...questions, {id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0, time: 20}])} className="flex-1 bg-gray-200 py-4 rounded-xl font-bold">+ הוסף שאלה</button>
-                        <button onClick={handleSaveQuiz} className="flex-1 bg-green-600 text-white py-4 rounded-xl font-bold">שמור חידון</button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setQuestions([...questions, {id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0}])} className="bg-gray-200 p-4 rounded flex-1">הוסף שאלה</button>
+                        <button onClick={handleSaveQuiz} className="bg-green-600 text-white p-4 rounded flex-1 font-bold">שמור</button>
                     </div>
                 </div>
             );
 
             if (view === 'join') return (
-                <div className="h-screen bg-[#46178f] flex items-center justify-center p-6">
-                    <div className="bg-white p-10 rounded-[2rem] w-full max-w-sm flex flex-col gap-4 shadow-2xl text-center">
-                        <input className="p-5 border-4 rounded-2xl text-center text-3xl font-black text-black" placeholder="קוד PIN" onChange={e => setPin(e.target.value)} />
-                        <input className="p-4 border-2 rounded-2xl text-center text-xl font-bold text-black" placeholder="כינוי" onChange={e => setNickname(e.target.value)} />
-                        <button onClick={handleJoin} className="bg-black text-white py-5 rounded-2xl text-2xl font-black">כניסה</button>
+                <div className="h-screen bg-[#46178f] flex items-center justify-center p-4">
+                    <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center">
+                        <input className="p-4 border-4 rounded-xl text-center text-3xl font-black text-black" placeholder="קוד PIN" onChange={e => setPin(e.target.value)} />
+                        <input className="p-4 border rounded-xl text-center text-black" placeholder="כינוי" onChange={e => setNickname(e.target.value)} />
+                        <button onClick={handleJoin} className="bg-black text-white py-4 rounded-xl text-xl font-bold">הצטרפות</button>
+                        <button onClick={() => setView('home')} className="text-gray-400">חזור</button>
                     </div>
                 </div>
             );
 
             if (view === 'host_lobby') return (
                 <div className="h-screen bg-[#46178f] text-white flex flex-col items-center justify-center">
-                    <h2 className="text-3xl font-bold mb-4">הצטרפו עם הקוד:</h2>
-                    <div className="text-9xl font-black bg-white/10 px-16 py-8 rounded-3xl border-4 mb-10">{pin}</div>
-                    <div className="text-2xl">שחקנים בלובי: {players.length}</div>
-                    <div className="flex flex-wrap gap-2 mt-6 justify-center">
-                        {players.map(p => <div key={p.id} className="bg-white text-purple-900 px-4 py-2 rounded-lg font-black">{p.name}</div>)}
+                    <h2 className="text-2xl mb-2">קוד הצטרפות:</h2>
+                    <div className="text-8xl font-black bg-white/20 px-10 py-5 rounded-2xl mb-8 border-2 border-white">{pin}</div>
+                    <div className="text-xl mb-4 font-bold text-yellow-400">שחקנים מחוברים: {players.length}</div>
+                    <div className="flex flex-wrap gap-2 px-4 justify-center">
+                        {players.map(p => <div key={p.id} className="bg-white text-purple-900 px-4 py-2 rounded-full font-bold shadow-lg">{p.name}</div>)}
                     </div>
                 </div>
             );
 
             if (view === 'player_lobby') return (
-                <div className="h-screen bg-green-600 flex flex-col items-center justify-center text-white">
+                <div className="h-screen bg-green-600 flex flex-col items-center justify-center text-white p-6 text-center">
                     <h2 className="text-4xl font-black mb-4">אתה בפנים!</h2>
-                    <div className="text-6xl font-black bg-black/20 p-8 rounded-3xl">{nickname}</div>
-                    <p className="mt-8 text-xl animate-pulse">חכה שהמארח יתחיל...</p>
+                    <div className="text-7xl font-black mb-8">{nickname}</div>
+                    <p className="text-xl animate-pulse">חכה שהמארח יתחיל את החידון...</p>
                 </div>
             );
 
-            return <div className="h-screen flex items-center justify-center bg-[#46178f] text-white">טוען...</div>;
+            return null;
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
