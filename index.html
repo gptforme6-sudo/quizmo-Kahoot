@@ -10,13 +10,10 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&display=swap');
         body { font-family: 'Assistant', sans-serif; background-color: #f2f2f2; margin: 0; padding: 0; overflow-x: hidden; }
-        .kahoot-shadow { shadow-offset: 0 4px; filter: drop-shadow(0 4px 0 rgba(0,0,0,0.2)); }
         .animate-bounce-short { animation: bounce 1s infinite; }
         @keyframes bounce { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(0); } }
     </style>
@@ -27,10 +24,10 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
             authDomain: "quizmo-kahoot.firebaseapp.com",
             projectId: "quizmo-kahoot",
@@ -42,7 +39,9 @@
         const app = initializeApp(firebaseConfig);
         window.fbAuth = getAuth(app);
         window.fbDb = getFirestore(app);
-        window.fbMethods = { signInAnonymously, onAuthStateChanged, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc };
+        window.fbMethods = { signInAnonymously, signInWithCustomToken, onAuthStateChanged, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc };
+        window.__app_id_val = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-default';
+        window.__initial_token_val = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     </script>
 
     <script type="text/babel">
@@ -65,37 +64,49 @@
             const [loginName, setLoginName] = useState('');
             const [loginPass, setLoginPass] = useState('');
             
-            // בונה החידון
             const [quizTitle, setQuizTitle] = useState('');
             const [questions, setQuestions] = useState([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
 
             const { fbAuth, fbDb, fbMethods } = window;
+            const appId = window.__app_id_val;
 
+            // Auth Logic
             useEffect(() => {
-                const checkAuth = setInterval(() => {
-                    if (fbAuth) {
-                        fbMethods.onAuthStateChanged(fbAuth, async (u) => {
-                            if (u) setUser(u);
-                            else await fbMethods.signInAnonymously(fbAuth);
-                        });
-                        clearInterval(checkAuth);
+                const initAuth = async () => {
+                    if (window.__initial_token_val) {
+                        await fbMethods.signInWithCustomToken(fbAuth, window.__initial_token_val);
+                    } else {
+                        await fbMethods.signInAnonymously(fbAuth);
                     }
-                }, 500);
+                };
+                
+                if (fbAuth) {
+                    initAuth();
+                    const unsub = fbMethods.onAuthStateChanged(fbAuth, (u) => setUser(u));
+                    return () => unsub();
+                }
             }, []);
 
+            // Sync Players in Lobby
             useEffect(() => {
-                if (!pin || view !== 'host_lobby') return;
-                const unsub = fbMethods.onSnapshot(fbMethods.collection(fbDb, 'players'), (s) => {
+                if (!user || !pin || view !== 'host_lobby') return;
+                
+                const playersCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'players');
+                const unsub = fbMethods.onSnapshot(playersCol, (s) => {
                     const pList = [];
-                    s.forEach(d => { if (d.data().pin === pin) pList.push({id: d.id, ...d.data()}); });
+                    s.forEach(d => { 
+                        if (d.data().pin === pin) pList.push({id: d.id, ...d.data()}); 
+                    });
                     setPlayers(pList);
-                });
+                }, (err) => console.error("Snapshot error:", err));
+                
                 return () => unsub();
-            }, [pin, view]);
+            }, [user, pin, view]);
 
             const handleLogin = async () => {
                 if (loginName === 'דביר' && loginPass === '2160') {
-                    const s = await fbMethods.getDocs(fbMethods.collection(fbDb, 'quizzes'));
+                    const quizzesCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes');
+                    const s = await fbMethods.getDocs(quizzesCol);
                     const list = [];
                     s.forEach(d => list.push({id: d.id, ...d.data()}));
                     setSavedQuizzes(list);
@@ -105,7 +116,8 @@
 
             const handleSaveQuiz = async () => {
                 if (!quizTitle || questions.some(q => !q.text)) return alert("מלא את כל הפרטים");
-                await fbMethods.addDoc(fbMethods.collection(fbDb, 'quizzes'), {
+                const quizzesCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes');
+                await fbMethods.addDoc(quizzesCol, {
                     title: quizTitle,
                     questions,
                     createdAt: Date.now()
@@ -116,12 +128,37 @@
 
             const startHosting = async (q) => {
                 const newPin = Math.floor(100000 + Math.random() * 899999).toString();
-                await fbMethods.setDoc(fbMethods.doc(fbDb, 'games', newPin), { status: 'lobby', quiz: q });
+                const gameDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'games', newPin);
+                await fbMethods.setDoc(gameDoc, { 
+                    status: 'lobby', 
+                    quiz: q,
+                    hostId: user.uid 
+                });
                 setPin(newPin);
                 setView('host_lobby');
             };
 
-            // תצוגת בית
+            const handleJoinGame = async () => {
+                if (!pin || !nickname) return alert("הכנס קוד וכינוי");
+                
+                const gameDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'games', pin);
+                const snap = await fbMethods.getDoc(gameDoc);
+                
+                if (snap.exists()) {
+                    const playerDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'players', user.uid);
+                    await fbMethods.setDoc(playerDoc, { 
+                        name: nickname, 
+                        pin: pin, 
+                        score: 0,
+                        joinedAt: Date.now()
+                    });
+                    setView('player_wait');
+                } else {
+                    alert("קוד PIN לא נמצא במערכת");
+                }
+            };
+
+            // Views
             if (view === 'home') return (
                 <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white text-center">
                     <h1 className="text-8xl font-black mb-12 drop-shadow-2xl animate-bounce-short">Quizmo!</h1>
@@ -132,7 +169,6 @@
                 </div>
             );
 
-            // תצוגת כניסת מנהל
             if (view === 'login') return (
                 <div className="h-screen bg-[#46178f] flex items-center justify-center p-4">
                     <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center shadow-2xl">
@@ -145,7 +181,6 @@
                 </div>
             );
 
-            // תצוגת רשימת חידונים
             if (view === 'dashboard') return (
                 <div className="min-h-screen p-6 max-w-5xl mx-auto">
                     <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-2xl shadow-sm">
@@ -163,7 +198,6 @@
                 </div>
             );
 
-            // תצוגת בונה החידון (עם התיקון שביקשת!)
             if (view === 'create') return (
                 <div className="min-h-screen bg-[#f2f2f2] pb-20">
                     <div className="bg-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center px-10">
@@ -232,19 +266,18 @@
                 </div>
             );
 
-            // תצוגת לובי (Host)
             if (view === 'host_lobby') return (
                 <div className="h-screen bg-[#46178f] flex flex-col">
                     <div className="bg-white p-10 text-center shadow-2xl">
-                        <p className="text-2xl font-bold text-gray-500 mb-2">הצטרפו בכתובת האתר עם הקוד:</p>
+                        <p className="text-2xl font-bold text-gray-500 mb-2">הצטרפו ב-Quizmo עם הקוד:</p>
                         <h1 className="text-9xl font-black tracking-tighter">{pin}</h1>
                     </div>
                     <div className="flex-1 p-10 flex flex-col items-center">
                         <div className="w-full max-w-5xl flex justify-between items-center mb-10">
                             <div className="bg-black/20 text-white px-8 py-3 rounded-full text-2xl font-bold flex items-center gap-3">
-                                <span className="animate-pulse">●</span> {players.length} שחקנים
+                                <span className="animate-pulse text-green-400">●</span> {players.length} שחקנים
                             </div>
-                            <button className="bg-[#1368ce] text-white px-12 py-4 rounded-xl text-3xl font-black shadow-[0_6px_0_#0c4891]">התחל משחק</button>
+                            <button className="bg-[#1368ce] text-white px-12 py-4 rounded-xl text-3xl font-black shadow-[0_6px_0_#0c4891] hover:translate-y-1">התחל משחק</button>
                         </div>
                         <div className="flex flex-wrap gap-4 justify-center">
                             {players.map(p => (
@@ -257,21 +290,14 @@
                 </div>
             );
 
-            // תצוגת הצטרפות שחקן
             if (view === 'join') return (
                 <div className="h-screen bg-[#46178f] flex items-center justify-center p-4">
                     <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center shadow-2xl">
                         <h1 className="text-4xl font-black mb-4">Quizmo!</h1>
                         <input className="p-4 border-4 border-gray-200 rounded-xl text-center text-3xl font-black text-black outline-none focus:border-purple-500" placeholder="קוד PIN" value={pin} onChange={e => setPin(e.target.value)} />
                         <input className="p-4 border-2 border-gray-200 rounded-xl text-center text-xl font-bold text-black outline-none focus:border-purple-500" placeholder="כינוי" value={nickname} onChange={e => setNickname(e.target.value)} />
-                        <button onClick={async () => {
-                            const snap = await fbMethods.getDoc(fbMethods.doc(fbDb, 'games', pin));
-                            if (snap.exists()) {
-                                await fbMethods.setDoc(fbMethods.doc(fbDb, 'players', fbAuth.currentUser.uid), { name: nickname, pin, score: 0 });
-                                setView('player_wait');
-                            } else alert("PIN לא תקין");
-                        }} className="bg-black text-white py-4 rounded-xl text-2xl font-black hover:bg-gray-800 transition">הצטרף</button>
-                        <button onClick={() => setView('home')} className="text-gray-400">ביטול</button>
+                        <button onClick={handleJoinGame} className="bg-black text-white py-4 rounded-xl text-2xl font-black hover:bg-gray-800 transition">הצטרף</button>
+                        <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
                     </div>
                 </div>
             );
