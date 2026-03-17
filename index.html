@@ -16,6 +16,7 @@
         body { font-family: 'Assistant', sans-serif; background-color: #f2f2f2; margin: 0; padding: 0; overflow-x: hidden; }
         .animate-bounce-short { animation: bounce 1s infinite; }
         @keyframes bounce { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(0); } }
+        .custom-shadow { shadow-[0_6px_0_#ccc]; }
     </style>
 </head>
 <body>
@@ -25,7 +26,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
@@ -39,7 +40,10 @@
         const app = initializeApp(firebaseConfig);
         window.fbAuth = getAuth(app);
         window.fbDb = getFirestore(app);
-        window.fbMethods = { signInAnonymously, signInWithCustomToken, onAuthStateChanged, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc };
+        window.fbMethods = { 
+            signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
+            doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc, deleteDoc 
+        };
         window.__app_id_val = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-default';
         window.__initial_token_val = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     </script>
@@ -64,6 +68,8 @@
             const [loginName, setLoginName] = useState('');
             const [loginPass, setLoginPass] = useState('');
             
+            // Edit/Create State
+            const [editingQuizId, setEditingQuizId] = useState(null);
             const [quizTitle, setQuizTitle] = useState('');
             const [questions, setQuestions] = useState([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
 
@@ -103,27 +109,61 @@
                 return () => unsub();
             }, [user, pin, view]);
 
+            const fetchQuizzes = async () => {
+                const quizzesCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes');
+                const s = await fbMethods.getDocs(quizzesCol);
+                const list = [];
+                s.forEach(d => list.push({id: d.id, ...d.data()}));
+                setSavedQuizzes(list);
+            };
+
             const handleLogin = async () => {
                 if (loginName === 'דביר' && loginPass === '2160') {
-                    const quizzesCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes');
-                    const s = await fbMethods.getDocs(quizzesCol);
-                    const list = [];
-                    s.forEach(d => list.push({id: d.id, ...d.data()}));
-                    setSavedQuizzes(list);
+                    await fetchQuizzes();
                     setView('dashboard');
-                } else alert("גישה נדחתה");
+                } else {
+                    alert("פרטי גישה שגויים");
+                }
             };
 
             const handleSaveQuiz = async () => {
                 if (!quizTitle || questions.some(q => !q.text)) return alert("מלא את כל הפרטים");
                 const quizzesCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes');
-                await fbMethods.addDoc(quizzesCol, {
+                
+                const quizData = {
                     title: quizTitle,
                     questions,
-                    createdAt: Date.now()
-                });
-                alert("החידון נשמר בהצלחה!");
-                handleLogin();
+                    updatedAt: Date.now()
+                };
+
+                if (editingQuizId) {
+                    const quizDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes', editingQuizId);
+                    await fbMethods.updateDoc(quizDoc, quizData);
+                } else {
+                    quizData.createdAt = Date.now();
+                    await fbMethods.addDoc(quizzesCol, quizData);
+                }
+                
+                setEditingQuizId(null);
+                setQuizTitle('');
+                setQuestions([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
+                await fetchQuizzes();
+                setView('dashboard');
+            };
+
+            const handleEditQuiz = (q) => {
+                setEditingQuizId(q.id);
+                setQuizTitle(q.title);
+                setQuestions(q.questions);
+                setView('create');
+            };
+
+            const handleDeleteQuiz = async (id) => {
+                if (confirm("האם אתה בטוח שברצונך למחוק את החידון?")) {
+                    const quizDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes', id);
+                    await fbMethods.deleteDoc(quizDoc);
+                    await fetchQuizzes();
+                }
             };
 
             const startHosting = async (q) => {
@@ -132,7 +172,8 @@
                 await fbMethods.setDoc(gameDoc, { 
                     status: 'lobby', 
                     quiz: q,
-                    hostId: user.uid 
+                    hostId: user.uid,
+                    createdAt: Date.now()
                 });
                 setPin(newPin);
                 setView('host_lobby');
@@ -173,8 +214,8 @@
                 <div className="h-screen bg-[#46178f] flex items-center justify-center p-4">
                     <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center shadow-2xl">
                         <h2 className="text-3xl font-black text-gray-800">שלום דביר</h2>
-                        <input className="p-4 bg-gray-100 border-2 rounded-xl text-black font-bold outline-none focus:border-purple-500" placeholder="שם משתמש" onChange={e => setLoginName(e.target.value)} />
-                        <input type="password" className="p-4 bg-gray-100 border-2 rounded-xl text-black font-bold outline-none focus:border-purple-500" placeholder="סיסמה" onChange={e => setLoginPass(e.target.value)} />
+                        <input className="p-4 bg-gray-100 border-2 rounded-xl text-black font-bold outline-none focus:border-purple-500 text-center" placeholder="שם משתמש" onChange={e => setLoginName(e.target.value)} />
+                        <input type="password" className="p-4 bg-gray-100 border-2 rounded-xl text-black font-bold outline-none focus:border-purple-500 text-center" placeholder="סיסמה" onChange={e => setLoginPass(e.target.value)} />
                         <button onClick={handleLogin} className="bg-[#46178f] text-white py-4 rounded-xl text-xl font-bold hover:bg-purple-800 transition">כניסה למערכת</button>
                         <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
                     </div>
@@ -185,15 +226,29 @@
                 <div className="min-h-screen p-6 max-w-5xl mx-auto">
                     <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-2xl shadow-sm">
                         <h2 className="text-4xl font-black text-[#46178f]">החידונים שלי</h2>
-                        <button onClick={() => setView('create')} className="bg-[#26890c] text-white px-8 py-3 rounded-xl font-black text-xl shadow-[0_4px_0_#195c08] hover:translate-y-1 transition-all">+ צור חידון</button>
+                        <div className="flex gap-3">
+                            <button onClick={() => { setEditingQuizId(null); setQuizTitle(''); setQuestions([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]); setView('create'); }} className="bg-[#26890c] text-white px-8 py-3 rounded-xl font-black text-xl shadow-[0_4px_0_#195c08] hover:translate-y-1 transition-all">+ חדש</button>
+                            <button onClick={() => setView('home')} className="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-black hover:bg-gray-300">יציאה</button>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {savedQuizzes.map(q => (
-                            <div key={q.id} className="bg-white p-8 rounded-3xl shadow-lg border-2 border-transparent hover:border-purple-500 transition-all flex justify-between items-center group">
-                                <span className="font-black text-2xl text-gray-800">{q.title}</span>
-                                <button onClick={() => startHosting(q)} className="bg-[#1368ce] text-white px-6 py-3 rounded-xl font-bold shadow-[0_4px_0_#0c4891] group-hover:scale-105 transition-all">הפעל עכשיו</button>
-                            </div>
-                        ))}
+                    <div className="grid grid-cols-1 gap-6">
+                        {savedQuizzes.length === 0 ? (
+                            <div className="bg-white p-12 rounded-3xl text-center text-gray-400 text-2xl font-bold">אין חידונים שמורים. צור אחד חדש!</div>
+                        ) : (
+                            savedQuizzes.map(q => (
+                                <div key={q.id} className="bg-white p-6 rounded-3xl shadow-lg border-2 border-transparent hover:border-purple-500 transition-all flex flex-col md:flex-row justify-between items-center gap-4">
+                                    <div className="flex flex-col">
+                                        <span className="font-black text-2xl text-gray-800">{q.title}</span>
+                                        <span className="text-sm text-gray-400 font-bold">{q.questions?.length || 0} שאלות</span>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => handleEditQuiz(q)} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold shadow-[0_4px_0_#b48608] hover:translate-y-0.5">עריכה</button>
+                                        <button onClick={() => handleDeleteQuiz(q.id)} className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold shadow-[0_4px_0_#b91c1c] hover:translate-y-0.5">מחיקה</button>
+                                        <button onClick={() => startHosting(q)} className="bg-[#1368ce] text-white px-8 py-2 rounded-lg font-black text-lg shadow-[0_4px_0_#0c4891] hover:translate-y-0.5">הפעל עכשיו</button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             );
@@ -204,7 +259,7 @@
                         <input className="text-3xl font-black text-[#46178f] outline-none w-1/2" placeholder="שם החידון..." value={quizTitle} onChange={e => setQuizTitle(e.target.value)} />
                         <div className="flex gap-4">
                             <button onClick={() => setView('dashboard')} className="text-gray-500 font-bold">ביטול</button>
-                            <button onClick={handleSaveQuiz} className="bg-[#26890c] text-white px-10 py-3 rounded-xl font-black shadow-[0_4px_0_#195c08]">שמור חידון</button>
+                            <button onClick={handleSaveQuiz} className="bg-[#26890c] text-white px-10 py-3 rounded-xl font-black shadow-[0_4px_0_#195c08]">{editingQuizId ? 'עדכן חידון' : 'שמור חידון'}</button>
                         </div>
                     </div>
 
@@ -213,10 +268,12 @@
                             <div key={qIndex} className="bg-white p-8 rounded-3xl shadow-xl mb-10 relative border-t-8 border-[#46178f]">
                                 <div className="flex justify-between mb-6">
                                     <span className="bg-purple-100 text-[#46178f] px-4 py-1 rounded-full font-bold">שאלה {qIndex + 1}</span>
-                                    <button onClick={() => {
-                                        const n = questions.filter((_, i) => i !== qIndex);
-                                        setQuestions(n);
-                                    }} className="text-red-500 font-bold">מחק</button>
+                                    {questions.length > 1 && (
+                                        <button onClick={() => {
+                                            const n = questions.filter((_, i) => i !== qIndex);
+                                            setQuestions(n);
+                                        }} className="text-red-500 font-bold">מחק שאלה</button>
+                                    )}
                                 </div>
 
                                 <textarea 
@@ -277,14 +334,21 @@
                             <div className="bg-black/20 text-white px-8 py-3 rounded-full text-2xl font-bold flex items-center gap-3">
                                 <span className="animate-pulse text-green-400">●</span> {players.length} שחקנים
                             </div>
-                            <button className="bg-[#1368ce] text-white px-12 py-4 rounded-xl text-3xl font-black shadow-[0_6px_0_#0c4891] hover:translate-y-1">התחל משחק</button>
+                            <div className="flex gap-4">
+                                <button onClick={() => setView('dashboard')} className="bg-white/10 text-white px-6 py-4 rounded-xl font-bold">ביטול</button>
+                                <button className="bg-[#1368ce] text-white px-12 py-4 rounded-xl text-3xl font-black shadow-[0_6px_0_#0c4891] hover:translate-y-1">התחל משחק</button>
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-4 justify-center">
-                            {players.map(p => (
-                                <div key={p.id} className="bg-white text-[#46178f] px-8 py-4 rounded-xl text-3xl font-black shadow-xl animate-bounce-short">
-                                    {p.name}
-                                </div>
-                            ))}
+                            {players.length === 0 ? (
+                                <p className="text-white/40 text-2xl font-bold mt-20">מחכים לשחקנים שיצטרפו...</p>
+                            ) : (
+                                players.map(p => (
+                                    <div key={p.id} className="bg-white text-[#46178f] px-8 py-4 rounded-xl text-3xl font-black shadow-xl animate-bounce-short">
+                                        {p.name}
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
@@ -307,6 +371,7 @@
                     <h2 className="text-5xl font-black mb-4">אתה בפנים!</h2>
                     <p className="text-2xl opacity-80">חכה שהמנחה יתחיל את החידון...</p>
                     <div className="mt-12 text-6xl font-black bg-white/20 p-8 rounded-3xl border-4 border-white">{nickname}</div>
+                    <button onClick={() => setView('home')} className="mt-20 text-white/50 underline">צא מהמשחק</button>
                 </div>
             );
 
