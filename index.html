@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { LucidePlus, LucideTrash2, LucideEdit3, LucidePlay, LucideChevronLeft, LucideCheck } from 'lucide-react';
+import { LucidePlus, LucideTrash2, LucideEdit3, LucidePlay, LucideChevronLeft, LucideCheck, LucideSettings } from 'lucide-react';
 
+// Configuration
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-    apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
+    apiKey: "",
     authDomain: "quizmo-kahoot.firebaseapp.com",
     projectId: "quizmo-kahoot",
     storageBucket: "quizmo-kahoot.firebasestorage.app",
@@ -19,10 +20,10 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-dvir-app';
 
 const COLOR_THEMES = [
-    { bg: 'bg-[#e21b3c]', border: 'border-[#e21b3c]', light: 'bg-[#fce8eb]', icon: '▲' }, // Red
-    { bg: 'bg-[#1368ce]', border: 'border-[#1368ce]', light: 'bg-[#e7effa]', icon: '◆' }, // Blue
-    { bg: 'bg-[#d89e00]', border: 'border-[#d89e00]', light: 'bg-[#fcf5e5]', icon: '●' }, // Yellow
-    { bg: 'bg-[#26890c]', border: 'border-[#26890c]', light: 'bg-[#e9f3e6]', icon: '■' }  // Green
+    { bg: 'bg-[#e21b3c]', border: 'border-[#e21b3c]', light: 'bg-[#fce8eb]', icon: '▲', colorName: 'אדום' },
+    { bg: 'bg-[#1368ce]', border: 'border-[#1368ce]', light: 'bg-[#e7effa]', icon: '◆', colorName: 'כחול' },
+    { bg: 'bg-[#d89e00]', border: 'border-[#d89e00]', light: 'bg-[#fcf5e5]', icon: '●', colorName: 'צהוב' },
+    { bg: 'bg-[#26890c]', border: 'border-[#26890c]', light: 'bg-[#e9f3e6]', icon: '■', colorName: 'ירוק' }
 ];
 
 export default function App() {
@@ -35,10 +36,12 @@ export default function App() {
     const [loginName, setLoginName] = useState('');
     const [loginPass, setLoginPass] = useState('');
     
+    // Editor State
     const [editingQuizId, setEditingQuizId] = useState(null);
     const [quizTitle, setQuizTitle] = useState('');
     const [questions, setQuestions] = useState([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
 
+    // Auth Initialization
     useEffect(() => {
         const initAuth = async () => {
             try {
@@ -50,24 +53,26 @@ export default function App() {
             } catch (e) { console.error("Auth error", e); }
         };
         initAuth();
-        const unsub = onAuthStateChanged(auth, (u) => {
-            setUser(u);
-        });
+        const unsub = onAuthStateChanged(auth, (u) => setUser(u));
         return () => unsub();
     }, []);
 
+    // Load Quizzes
     useEffect(() => {
         if (!user) return;
         const fetchQuizzes = async () => {
-            const quizzesCol = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
-            const s = await getDocs(quizzesCol);
-            const list = [];
-            s.forEach(d => list.push({id: d.id, ...d.data()}));
-            setSavedQuizzes(list);
+            try {
+                const quizzesCol = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+                const s = await getDocs(quizzesCol);
+                const list = [];
+                s.forEach(d => list.push({id: d.id, ...d.data()}));
+                setSavedQuizzes(list);
+            } catch (e) { console.error("Fetch error", e); }
         };
         fetchQuizzes();
     }, [user, view]);
 
+    // Players Listener for Host
     useEffect(() => {
         if (!user || !pin || view !== 'host_lobby') return;
         const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
@@ -90,7 +95,10 @@ export default function App() {
     };
 
     const handleSaveQuiz = async () => {
-        if (!quizTitle || questions.some(q => !q.text)) return alert("מלא את כל הפרטים");
+        if (!quizTitle || questions.some(q => !q.text)) {
+            alert("נא למלא שם חידון ואת כל השאלות");
+            return;
+        }
         const quizzesCol = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
         const quizData = { title: quizTitle, questions, updatedAt: Date.now() };
 
@@ -107,9 +115,6 @@ export default function App() {
     };
 
     const startHosting = async (q) => {
-        if (!auth.currentUser) {
-            await signInAnonymously(auth);
-        }
         const newPin = Math.floor(100000 + Math.random() * 899999).toString();
         try {
             const gameDoc = doc(db, 'artifacts', appId, 'public', 'data', 'games', newPin);
@@ -128,128 +133,171 @@ export default function App() {
     };
 
     const handleDeleteQuiz = async (id) => {
-        if (confirm("בטוח שרוצה למחוק?")) {
-            const quizDoc = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id);
-            await deleteDoc(quizDoc);
-            setView('dashboard'); // Trigger re-fetch
+        if (window.confirm("בטוח שרוצה למחוק את החידון?")) {
+            try {
+                const quizDoc = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id);
+                await deleteDoc(quizDoc);
+                setSavedQuizzes(prev => prev.filter(q => q.id !== id));
+            } catch (e) { console.error("Delete error", e); }
         }
     };
 
+    // Views
     if (view === 'home') return (
-        <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white text-center p-4 dir-rtl">
-            <h1 className="text-7xl md:text-9xl font-black mb-12 drop-shadow-2xl animate-bounce">Quizmo!</h1>
+        <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white text-center p-4" dir="rtl">
+            <div className="mb-12">
+                <h1 className="text-8xl md:text-9xl font-black drop-shadow-2xl mb-2">Quizmo!</h1>
+                <p className="text-xl font-bold opacity-80">מערכת החידונים של דביר</p>
+            </div>
             <div className="flex flex-col gap-5 w-full max-w-xs">
-                <button onClick={() => setView('join')} className="bg-white text-black py-4 rounded-xl text-2xl font-black shadow-[0_6px_0_#ccc] hover:translate-y-1 transition-all">הצטרפות</button>
-                <button onClick={() => setView('login')} className="bg-[#1368ce] text-white py-4 rounded-xl text-2xl font-black shadow-[0_6px_0_#0c4891] hover:translate-y-1 transition-all">ניהול דביר</button>
+                <button onClick={() => setView('join')} className="bg-white text-black py-5 rounded-2xl text-2xl font-black shadow-[0_6px_0_#ccc] active:translate-y-1 active:shadow-none transition-all">הצטרפות למשחק</button>
+                <button onClick={() => setView('login')} className="bg-[#1368ce] text-white py-5 rounded-2xl text-2xl font-black shadow-[0_6px_0_#0c4891] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2">
+                    <LucideSettings size={24} /> ניהול דביר
+                </button>
             </div>
         </div>
     );
 
     if (view === 'login') return (
-        <div className="h-screen bg-[#46178f] flex items-center justify-center p-4 dir-rtl text-right">
-            <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 shadow-2xl">
-                <h2 className="text-3xl font-black text-gray-800 text-center">שלום דביר</h2>
-                <input className="p-4 bg-gray-100 border-2 rounded-xl font-bold text-center" placeholder="שם משתמש" value={loginName} onChange={e => setLoginName(e.target.value)} />
-                <input type="password" className="p-4 bg-gray-100 border-2 rounded-xl font-bold text-center" placeholder="סיסמה" value={loginPass} onChange={e => setLoginPass(e.target.value)} />
-                <button onClick={handleLogin} className="bg-[#46178f] text-white py-4 rounded-xl text-xl font-bold hover:bg-purple-800 transition">כניסה</button>
-                <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
+        <div className="h-screen bg-[#46178f] flex items-center justify-center p-4" dir="rtl">
+            <div className="bg-white p-10 rounded-3xl w-full max-w-sm flex flex-col gap-5 shadow-2xl text-right">
+                <h2 className="text-3xl font-black text-gray-800 text-center mb-4">שלום דביר</h2>
+                <div className="space-y-4">
+                    <input className="w-full p-4 bg-gray-100 border-2 border-transparent focus:border-purple-500 rounded-xl font-bold text-center outline-none transition-all" placeholder="שם משתמש" value={loginName} onChange={e => setLoginName(e.target.value)} />
+                    <input type="password" className="w-full p-4 bg-gray-100 border-2 border-transparent focus:border-purple-500 rounded-xl font-bold text-center outline-none transition-all" placeholder="סיסמה" value={loginPass} onChange={e => setLoginPass(e.target.value)} />
+                </div>
+                <button onClick={handleLogin} className="bg-[#46178f] text-white py-4 rounded-xl text-xl font-black hover:bg-purple-800 transition shadow-lg">כניסה למערכת</button>
+                <button onClick={() => setView('home')} className="text-gray-400 font-bold hover:text-gray-600">ביטול וחזרה</button>
             </div>
         </div>
     );
 
     if (view === 'dashboard') return (
-        <div className="min-h-screen p-6 max-w-5xl mx-auto dir-rtl text-right">
-            <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-2xl shadow-sm">
-                <h2 className="text-3xl md:text-4xl font-black text-[#46178f]">החידונים שלי</h2>
-                <div className="flex gap-3">
-                    <button onClick={() => {setEditingQuizId(null); setQuizTitle(''); setQuestions([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]); setView('create');}} className="bg-[#26890c] text-white px-4 md:px-8 py-3 rounded-xl font-black text-lg md:text-xl shadow-[0_4px_0_#195c08]">חדש +</button>
-                    <button onClick={() => setView('home')} className="bg-gray-200 text-gray-700 px-4 md:px-6 py-3 rounded-xl font-black">יציאה</button>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 gap-6">
-                {savedQuizzes.map(q => (
-                    <div key={q.id} className="bg-white p-6 rounded-3xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4 border-r-8 border-purple-500">
-                        <div className="flex flex-col flex-1 w-full md:w-auto">
-                            <span className="font-black text-2xl text-gray-800">{q.title}</span>
-                            <span className="text-sm text-gray-400 font-bold">{q.questions?.length || 0} שאלות</span>
-                        </div>
-                        <div className="flex gap-2 w-full md:w-auto justify-end">
-                            <button onClick={() => {setEditingQuizId(q.id); setQuizTitle(q.title); setQuestions(q.questions); setView('create');}} className="bg-amber-500 text-white p-3 rounded-lg font-bold shadow-[0_4px_0_#b48608]"><LucideEdit3 size={20}/></button>
-                            <button onClick={() => handleDeleteQuiz(q.id)} className="bg-red-500 text-white p-3 rounded-lg font-bold shadow-[0_4px_0_#b91c1c]"><LucideTrash2 size={20}/></button>
-                            <button onClick={() => startHosting(q)} className="bg-[#1368ce] text-white px-6 py-2 rounded-lg font-black text-lg shadow-[0_4px_0_#0c4891] flex items-center gap-2"><LucidePlay size={20}/> הפעל עכשיו</button>
-                        </div>
+        <div className="min-h-screen bg-gray-50 p-6 md:p-10" dir="rtl">
+            <div className="max-w-5xl mx-auto">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-10 bg-white p-8 rounded-3xl shadow-sm gap-4">
+                    <h2 className="text-4xl font-black text-[#46178f]">החידונים שלי</h2>
+                    <div className="flex gap-4">
+                        <button onClick={() => {
+                            setEditingQuizId(null); 
+                            setQuizTitle(''); 
+                            setQuestions([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]); 
+                            setView('create');
+                        }} className="bg-[#26890c] text-white px-8 py-3 rounded-xl font-black text-xl shadow-[0_4px_0_#195c08] active:translate-y-1 active:shadow-none transition-all">חידון חדש +</button>
+                        <button onClick={() => setView('home')} className="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-black hover:bg-gray-300">יציאה</button>
                     </div>
-                ))}
+                </div>
+                
+                <div className="grid grid-cols-1 gap-6">
+                    {savedQuizzes.length === 0 ? (
+                        <div className="text-center py-20 bg-white rounded-3xl border-4 border-dashed border-gray-200 text-gray-400 font-bold text-2xl">
+                            אין חידונים עדיין. צור את הראשון שלך!
+                        </div>
+                    ) : (
+                        savedQuizzes.map(q => (
+                            <div key={q.id} className="bg-white p-6 rounded-3xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-6 border-r-[12px] border-purple-500 hover:scale-[1.01] transition-transform">
+                                <div className="flex flex-col flex-1 text-right">
+                                    <span className="font-black text-3xl text-gray-800">{q.title}</span>
+                                    <span className="text-lg text-gray-400 font-bold mt-1">{q.questions?.length || 0} שאלות</span>
+                                </div>
+                                <div className="flex gap-3 w-full md:w-auto justify-end">
+                                    <button onClick={() => {
+                                        setEditingQuizId(q.id); 
+                                        setQuizTitle(q.title); 
+                                        setQuestions(q.questions); 
+                                        setView('create');
+                                    }} className="bg-amber-500 text-white p-4 rounded-xl font-bold shadow-[0_4px_0_#b48608] hover:bg-amber-600 transition-colors"><LucideEdit3 size={24}/></button>
+                                    <button onClick={() => handleDeleteQuiz(q.id)} className="bg-red-500 text-white p-4 rounded-xl font-bold shadow-[0_4px_0_#b91c1c] hover:bg-red-600 transition-colors"><LucideTrash2 size={24}/></button>
+                                    <button onClick={() => startHosting(q)} className="bg-[#1368ce] text-white px-8 py-4 rounded-xl font-black text-xl shadow-[0_4px_0_#0c4891] flex items-center gap-3 active:translate-y-1 active:shadow-none transition-all"><LucidePlay size={24}/> הפעל עכשיו</button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     );
 
     if (view === 'create') return (
-        <div className="min-h-screen bg-[#f2f2f2] pb-20 dir-rtl text-right">
-            <div className="bg-white p-4 shadow-md sticky top-0 z-20 flex justify-between items-center px-4 md:px-10">
-                <input className="text-2xl md:text-3xl font-black text-[#46178f] outline-none w-1/2 bg-transparent" placeholder="שם החידון..." value={quizTitle} onChange={e => setQuizTitle(e.target.value)} />
-                <div className="flex gap-2 md:gap-4">
-                    <button onClick={() => setView('dashboard')} className="text-gray-500 font-bold px-2">ביטול</button>
-                    <button onClick={handleSaveQuiz} className="bg-[#26890c] text-white px-6 md:px-10 py-3 rounded-xl font-black shadow-[0_4px_0_#195c08]">שמור</button>
+        <div className="min-h-screen bg-[#f2f2f2] pb-24" dir="rtl">
+            <div className="bg-white p-5 shadow-lg sticky top-0 z-50 flex justify-between items-center px-6 md:px-16 border-b-2 border-gray-100">
+                <input className="text-3xl font-black text-[#46178f] outline-none w-2/3 bg-transparent placeholder-purple-200" placeholder="כותרת החידון המרהיב שלך..." value={quizTitle} onChange={e => setQuizTitle(e.target.value)} />
+                <div className="flex gap-4">
+                    <button onClick={() => setView('dashboard')} className="text-gray-400 font-black px-4 hover:text-gray-600">ביטול</button>
+                    <button onClick={handleSaveQuiz} className="bg-[#26890c] text-white px-10 py-3 rounded-xl font-black text-xl shadow-[0_4px_0_#195c08] active:translate-y-1 active:shadow-none transition-all">שמור חידון</button>
                 </div>
             </div>
-            <div className="max-w-4xl mx-auto mt-10 px-4">
+            
+            <div className="max-w-4xl mx-auto mt-12 px-4">
                 {questions.map((q, qIndex) => (
-                    <div key={qIndex} className="bg-white p-6 md:p-8 rounded-3xl shadow-xl mb-10 overflow-hidden relative">
-                        <div className="absolute top-0 right-0 left-0 h-2 bg-[#46178f]"></div>
-                        <div className="flex justify-between items-start mb-6">
-                            <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold text-sm">שאלה {qIndex + 1}</span>
+                    <div key={qIndex} className="bg-white p-8 md:p-12 rounded-[40px] shadow-xl mb-12 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 left-0 h-3 bg-[#46178f]"></div>
+                        <div className="flex justify-between items-center mb-8">
+                            <span className="bg-purple-100 text-purple-700 px-5 py-2 rounded-full font-black text-lg">שאלה {qIndex + 1}</span>
                             {questions.length > 1 && (
-                                <button onClick={() => {const n = [...questions]; n.splice(qIndex,1); setQuestions(n);}} className="text-red-400 hover:text-red-600"><LucideTrash2 size={20}/></button>
+                                <button onClick={() => {const n = [...questions]; n.splice(qIndex,1); setQuestions(n);}} className="text-red-300 hover:text-red-500 transition-colors"><LucideTrash2 size={28}/></button>
                             )}
                         </div>
-                        <textarea className="w-full p-4 md:p-6 text-xl md:text-2xl font-bold border-2 border-gray-100 rounded-2xl mb-8 text-center bg-gray-50 outline-none focus:border-purple-300" placeholder="הקלד את השאלה כאן..." value={q.text} onChange={e => { const n = [...questions]; n[qIndex].text = e.target.value; setQuestions(n); }} />
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <textarea className="w-full p-8 text-3xl font-black border-4 border-gray-50 rounded-3xl mb-10 text-center bg-gray-50 outline-none focus:border-purple-200 transition-all resize-none" placeholder="הקלד את השאלה כאן..." rows="2" value={q.text} onChange={e => { const n = [...questions]; n[qIndex].text = e.target.value; setQuestions(n); }} />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {q.opts.map((opt, optIndex) => (
-                                <div key={optIndex} className={`flex items-center p-3 rounded-2xl border-4 transition-all ${q.correct === optIndex ? COLOR_THEMES[optIndex].border + ' ' + COLOR_THEMES[optIndex].light : 'border-gray-100 bg-white'}`}>
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white text-xl shadow-md ${COLOR_THEMES[optIndex].bg}`}>
+                                <div key={optIndex} className={`flex items-center p-4 rounded-2xl border-[6px] transition-all cursor-pointer ${q.correct === optIndex ? COLOR_THEMES[optIndex].border + ' ' + COLOR_THEMES[optIndex].light : 'border-gray-50 bg-white hover:border-gray-200'}`} onClick={() => { const n = [...questions]; n[qIndex].correct = optIndex; setQuestions(n); }}>
+                                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-white text-3xl shadow-lg shrink-0 ${COLOR_THEMES[optIndex].bg}`}>
                                         {COLOR_THEMES[optIndex].icon}
                                     </div>
-                                    <input className="flex-1 p-2 font-bold bg-transparent outline-none text-lg mr-2" placeholder={`תשובה ${optIndex + 1}`} value={opt} onChange={e => { const n = [...questions]; n[qIndex].opts[optIndex] = e.target.value; setQuestions(n); }} />
-                                    <button onClick={() => { const n = [...questions]; n[qIndex].correct = optIndex; setQuestions(n); }} className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors ${q.correct === optIndex ? COLOR_THEMES[optIndex].bg + ' border-transparent text-white' : 'border-gray-200 text-transparent'}`}>
-                                        <LucideCheck size={20}/>
-                                    </button>
+                                    <input className="flex-1 p-3 font-black bg-transparent outline-none text-xl mr-4 text-right" placeholder={`הוסף תשובה...`} value={opt} onClick={(e) => e.stopPropagation()} onChange={e => { const n = [...questions]; n[qIndex].opts[optIndex] = e.target.value; setQuestions(n); }} />
+                                    <div className={`w-10 h-10 rounded-full border-4 flex items-center justify-center transition-all ${q.correct === optIndex ? COLOR_THEMES[optIndex].bg + ' border-transparent text-white scale-110' : 'border-gray-100 text-transparent'}`}>
+                                        <LucideCheck size={24} strokeWidth={4}/>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 ))}
-                <button onClick={() => setQuestions([...questions, { id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }])} className="w-full py-8 border-4 border-dashed border-gray-300 rounded-3xl text-gray-400 text-2xl font-black hover:bg-white hover:text-purple-400 transition-all">+ הוסף שאלה חדשה</button>
+                
+                <button onClick={() => setQuestions([...questions, { id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }])} className="w-full py-12 border-4 border-dashed border-gray-300 rounded-[40px] text-gray-400 text-3xl font-black hover:bg-white hover:text-purple-500 hover:border-purple-300 transition-all mb-10">+ הוסף שאלה</button>
             </div>
         </div>
     );
 
     if (view === 'host_lobby') return (
-        <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white p-4 dir-rtl">
-            <div className="bg-white text-black p-6 md:p-10 rounded-3xl shadow-2xl text-center mb-10 border-b-8 border-gray-200 w-full max-w-lg">
-                <p className="text-xl md:text-2xl font-bold text-gray-400 mb-2">קוד הצטרפות:</p>
-                <h1 className="text-7xl md:text-[120px] leading-none font-black tracking-tighter">{pin}</h1>
+        <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white p-4" dir="rtl">
+            <div className="bg-white text-black p-10 md:p-16 rounded-[50px] shadow-2xl text-center mb-12 border-b-[12px] border-gray-200 w-full max-w-2xl transform hover:scale-105 transition-transform">
+                <p className="text-2xl md:text-3xl font-black text-gray-400 mb-4 uppercase tracking-widest">קוד הצטרפות</p>
+                <h1 className="text-8xl md:text-[160px] leading-none font-black tracking-tighter text-[#46178f] tabular-nums">{pin}</h1>
             </div>
-            <div className="text-2xl md:text-3xl font-bold mb-8 bg-black/20 px-6 py-2 rounded-full">{players.length} שחקנים מחוברים</div>
-            <div className="flex flex-wrap gap-4 justify-center max-w-4xl px-4 mb-10 overflow-y-auto max-h-40">
-                {players.map(p => <div key={p.id} className="bg-white text-[#46178f] px-6 py-3 rounded-xl text-xl md:text-2xl font-black shadow-lg">{p.name}</div>)}
+            
+            <div className="text-3xl font-black mb-10 bg-white/10 backdrop-blur-md px-10 py-4 rounded-full border border-white/20">
+                {players.length} שחקנים כבר בפנים!
             </div>
-            <div className="flex gap-4">
-                <button onClick={() => setView('dashboard')} className="bg-red-500 px-8 py-4 rounded-xl font-bold shadow-[0_4px_0_#b91c1c]">סגור</button>
-                <button className="bg-[#26890c] px-10 md:px-16 py-4 rounded-xl text-2xl md:text-3xl font-black shadow-[0_6px_0_#195c08] hover:scale-105 transition-transform">התחל!</button>
+            
+            <div className="flex flex-wrap gap-5 justify-center max-w-5xl px-6 mb-16 overflow-y-auto max-h-60 custom-scrollbar">
+                {players.length === 0 ? (
+                    <div className="text-white/50 text-2xl font-bold animate-pulse">מחכים לשחקן הראשון...</div>
+                ) : (
+                    players.map(p => <div key={p.id} className="bg-white text-[#46178f] px-8 py-4 rounded-2xl text-2xl md:text-3xl font-black shadow-xl animate-in zoom-in duration-300">{p.name}</div>)
+                )}
+            </div>
+            
+            <div className="flex gap-6 w-full max-w-md">
+                <button onClick={() => setView('dashboard')} className="flex-1 bg-red-500 py-5 rounded-2xl text-xl font-black shadow-[0_6px_0_#b91c1c] active:translate-y-1 active:shadow-none transition-all">סגור</button>
+                <button className={`flex-[2] bg-[#26890c] py-5 rounded-2xl text-3xl font-black shadow-[0_8px_0_#195c08] active:translate-y-1 active:shadow-none transition-all ${players.length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105'}`}>התחל!</button>
             </div>
         </div>
     );
 
     if (view === 'join') return (
-        <div className="h-screen bg-[#46178f] flex items-center justify-center p-4 dir-rtl">
-            <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center shadow-2xl">
-                <h2 className="text-2xl font-black">הצטרפות</h2>
-                <input className="p-4 border-4 border-gray-100 rounded-xl text-center text-3xl font-black focus:border-blue-400 outline-none" placeholder="קוד PIN" value={pin} onChange={e => setPin(e.target.value)} />
-                <input className="p-4 border-2 border-gray-100 rounded-xl text-center text-xl font-bold focus:border-blue-400 outline-none" placeholder="שם שיופיע" value={nickname} onChange={e => setNickname(e.target.value)} />
-                <button onClick={() => alert("המשחק יתחיל בקרוב!")} className="bg-black text-white py-4 rounded-xl text-2xl font-black">כניסה</button>
-                <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
+        <div className="h-screen bg-[#46178f] flex items-center justify-center p-4" dir="rtl">
+            <div className="bg-white p-10 rounded-[40px] w-full max-w-sm flex flex-col gap-6 text-center shadow-2xl">
+                <h2 className="text-4xl font-black text-gray-800">הצטרפות</h2>
+                <div className="space-y-4">
+                    <input className="w-full p-5 border-4 border-gray-100 rounded-2xl text-center text-4xl font-black focus:border-[#1368ce] outline-none transition-all" placeholder="PIN" value={pin} onChange={e => setPin(e.target.value)} maxLength={6} />
+                    <input className="w-full p-4 border-2 border-gray-100 rounded-2xl text-center text-2xl font-black focus:border-[#1368ce] outline-none transition-all" placeholder="כינוי" value={nickname} onChange={e => setNickname(e.target.value)} />
+                </div>
+                <button onClick={() => alert("בקרוב...")} className="bg-black text-white py-5 rounded-2xl text-3xl font-black shadow-xl active:scale-95 transition-transform">קדימה!</button>
+                <button onClick={() => setView('home')} className="text-gray-400 font-bold hover:text-gray-600">ביטול</button>
             </div>
         </div>
     );
