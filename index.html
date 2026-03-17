@@ -1,323 +1,258 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quizmo Pro - Dvir Edition</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from "firebase/app";
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { LucidePlus, LucideTrash2, LucideEdit3, LucidePlay, LucideChevronLeft, LucideCheck } from 'lucide-react';
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&display=swap');
-        body { font-family: 'Assistant', sans-serif; background-color: #f2f2f2; margin: 0; padding: 0; overflow-x: hidden; }
-        .animate-bounce-short { animation: bounce 1s infinite; }
-        @keyframes bounce { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(0); } }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+    apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
+    authDomain: "quizmo-kahoot.firebaseapp.com",
+    projectId: "quizmo-kahoot",
+    storageBucket: "quizmo-kahoot.firebasestorage.app",
+    messagingSenderId: "738657082184",
+    appId: "1:738657082184:web:076d9ccf27706d356bb17d"
+};
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-dvir-app';
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
-            authDomain: "quizmo-kahoot.firebaseapp.com",
-            projectId: "quizmo-kahoot",
-            storageBucket: "quizmo-kahoot.firebasestorage.app",
-            messagingSenderId: "738657082184",
-            appId: "1:738657082184:web:076d9ccf27706d356bb17d"
-        };
+const COLOR_THEMES = [
+    { bg: 'bg-[#e21b3c]', border: 'border-[#e21b3c]', light: 'bg-[#fce8eb]', icon: '▲' }, // Red
+    { bg: 'bg-[#1368ce]', border: 'border-[#1368ce]', light: 'bg-[#e7effa]', icon: '◆' }, // Blue
+    { bg: 'bg-[#d89e00]', border: 'border-[#d89e00]', light: 'bg-[#fcf5e5]', icon: '●' }, // Yellow
+    { bg: 'bg-[#26890c]', border: 'border-[#26890c]', light: 'bg-[#e9f3e6]', icon: '■' }  // Green
+];
 
-        const app = initializeApp(firebaseConfig);
-        window.fbAuth = getAuth(app);
-        window.fbDb = getFirestore(app);
-        window.fbMethods = { 
-            signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
-            doc, setDoc, getDoc, collection, onSnapshot, getDocs, addDoc, updateDoc, deleteDoc 
-        };
-        window.__app_id_val = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-dvir-app';
-        window.__initial_token_val = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-    </script>
+export default function App() {
+    const [user, setUser] = useState(null);
+    const [view, setView] = useState('home');
+    const [pin, setPin] = useState('');
+    const [nickname, setNickname] = useState('');
+    const [players, setPlayers] = useState([]);
+    const [savedQuizzes, setSavedQuizzes] = useState([]);
+    const [loginName, setLoginName] = useState('');
+    const [loginPass, setLoginPass] = useState('');
+    
+    const [editingQuizId, setEditingQuizId] = useState(null);
+    const [quizTitle, setQuizTitle] = useState('');
+    const [questions, setQuestions] = useState([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-
-        const COLORS = [
-            { id: 0, name: 'red', bg: 'bg-[#e21b3c]', icon: '▲' },
-            { id: 1, name: 'blue', bg: 'bg-[#1368ce]', icon: '◆' },
-            { id: 2, name: 'yellow', bg: 'bg-[#d89e00]', icon: '●' },
-            { id: 3, name: 'green', bg: 'bg-[#26890c]', icon: '■' }
-        ];
-
-        function App() {
-            const [user, setUser] = useState(null);
-            const [view, setView] = useState('home');
-            const [pin, setPin] = useState('');
-            const [nickname, setNickname] = useState('');
-            const [players, setPlayers] = useState([]);
-            const [savedQuizzes, setSavedQuizzes] = useState([]);
-            const [loginName, setLoginName] = useState('');
-            const [loginPass, setLoginPass] = useState('');
-            
-            const [editingQuizId, setEditingQuizId] = useState(null);
-            const [quizTitle, setQuizTitle] = useState('');
-            const [questions, setQuestions] = useState([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
-
-            const { fbAuth, fbDb, fbMethods } = window;
-            const appId = window.__app_id_val;
-
-            useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        if (window.__initial_token_val) {
-                            await fbMethods.signInWithCustomToken(fbAuth, window.__initial_token_val);
-                        } else {
-                            await fbMethods.signInAnonymously(fbAuth);
-                        }
-                    } catch (e) { console.error("Auth error", e); }
-                };
-                
-                if (fbAuth) {
-                    initAuth();
-                    const unsub = fbMethods.onAuthStateChanged(fbAuth, (u) => {
-                        setUser(u);
-                        if (u) fetchQuizzes();
-                    });
-                    return () => unsub();
-                }
-            }, []);
-
-            useEffect(() => {
-                if (!user || !pin || view !== 'host_lobby') return;
-                const playersCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'players');
-                const unsub = fbMethods.onSnapshot(playersCol, (s) => {
-                    const pList = [];
-                    s.forEach(d => { 
-                        if (d.data().pin === pin) pList.push({id: d.id, ...d.data()}); 
-                    });
-                    setPlayers(pList);
-                }, (err) => console.error("Snapshot error:", err));
-                return () => unsub();
-            }, [user, pin, view]);
-
-            const fetchQuizzes = async () => {
-                try {
-                    const quizzesCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes');
-                    const s = await fbMethods.getDocs(quizzesCol);
-                    const list = [];
-                    s.forEach(d => list.push({id: d.id, ...d.data()}));
-                    setSavedQuizzes(list);
-                } catch (e) { console.error("Fetch error", e); }
-            };
-
-            const handleLogin = async () => {
-                if (loginName === 'דביר' && loginPass === '2160') {
-                    await fetchQuizzes();
-                    setView('dashboard');
+    useEffect(() => {
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    alert("פרטי גישה שגויים");
+                    await signInAnonymously(auth);
                 }
-            };
+            } catch (e) { console.error("Auth error", e); }
+        };
+        initAuth();
+        const unsub = onAuthStateChanged(auth, (u) => {
+            setUser(u);
+        });
+        return () => unsub();
+    }, []);
 
-            const handleSaveQuiz = async () => {
-                if (!quizTitle || questions.some(q => !q.text)) return alert("מלא את כל הפרטים");
-                const quizzesCol = fbMethods.collection(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes');
-                const quizData = { title: quizTitle, questions, updatedAt: Date.now() };
+    useEffect(() => {
+        if (!user) return;
+        const fetchQuizzes = async () => {
+            const quizzesCol = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+            const s = await getDocs(quizzesCol);
+            const list = [];
+            s.forEach(d => list.push({id: d.id, ...d.data()}));
+            setSavedQuizzes(list);
+        };
+        fetchQuizzes();
+    }, [user, view]);
 
-                try {
-                    if (editingQuizId) {
-                        const quizDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes', editingQuizId);
-                        await fbMethods.updateDoc(quizDoc, quizData);
-                    } else {
-                        quizData.createdAt = Date.now();
-                        await fbMethods.addDoc(quizzesCol, quizData);
-                    }
-                    setEditingQuizId(null);
-                    setQuizTitle('');
-                    setQuestions([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]);
-                    await fetchQuizzes();
-                    setView('dashboard');
-                } catch (e) { console.error("Save error", e); }
-            };
+    useEffect(() => {
+        if (!user || !pin || view !== 'host_lobby') return;
+        const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
+        const unsub = onSnapshot(playersCol, (s) => {
+            const pList = [];
+            s.forEach(d => { 
+                if (d.data().pin === pin) pList.push({id: d.id, ...d.data()}); 
+            });
+            setPlayers(pList);
+        }, (err) => console.error("Snapshot error:", err));
+        return () => unsub();
+    }, [user, pin, view]);
 
-            const handleEditQuiz = (q) => {
-                setEditingQuizId(q.id);
-                setQuizTitle(q.title);
-                setQuestions(q.questions);
-                setView('create');
-            };
-
-            const handleDeleteQuiz = async (id) => {
-                if (confirm("האם אתה בטוח שברצונך למחוק את החידון?")) {
-                    try {
-                        const quizDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'quizzes', id);
-                        await fbMethods.deleteDoc(quizDoc);
-                        await fetchQuizzes();
-                    } catch (e) { console.error("Delete error", e); }
-                }
-            };
-
-            const startHosting = async (q) => {
-                if (!user) {
-                    alert("מתחבר למערכת, נסה שוב בעוד רגע...");
-                    return;
-                }
-                const newPin = Math.floor(100000 + Math.random() * 899999).toString();
-                try {
-                    const gameDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'games', newPin);
-                    await fbMethods.setDoc(gameDoc, { 
-                        status: 'lobby', 
-                        quiz: q,
-                        hostId: user.uid,
-                        createdAt: Date.now()
-                    });
-                    setPin(newPin);
-                    setView('host_lobby');
-                } catch (e) {
-                    console.error("Hosting error", e);
-                    alert("שגיאה בהפעלת המשחק");
-                }
-            };
-
-            const handleJoinGame = async () => {
-                if (!pin || !nickname) return alert("הכנס קוד וכינוי");
-                try {
-                    const gameDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'games', pin);
-                    const snap = await fbMethods.getDoc(gameDoc);
-                    if (snap.exists()) {
-                        const playerDoc = fbMethods.doc(fbDb, 'artifacts', appId, 'public', 'data', 'players', user.uid);
-                        await fbMethods.setDoc(playerDoc, { 
-                            name: nickname, pin: pin, score: 0, joinedAt: Date.now()
-                        });
-                        setView('player_wait');
-                    } else { alert("קוד PIN לא נמצא"); }
-                } catch (e) { console.error("Join error", e); }
-            };
-
-            // UI Layouts
-            if (view === 'home') return (
-                <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white text-center">
-                    <h1 className="text-8xl font-black mb-12 drop-shadow-2xl animate-bounce-short">Quizmo!</h1>
-                    <div className="flex flex-col gap-5 w-72">
-                        <button onClick={() => setView('join')} className="bg-white text-black py-4 rounded-xl text-2xl font-black shadow-[0_6px_0_#ccc] hover:translate-y-1 transition-all">הצטרפות</button>
-                        <button onClick={() => setView('login')} className="bg-[#1368ce] text-white py-4 rounded-xl text-2xl font-black shadow-[0_6px_0_#0c4891] hover:translate-y-1 transition-all">ניהול דביר</button>
-                    </div>
-                </div>
-            );
-
-            if (view === 'login') return (
-                <div className="h-screen bg-[#46178f] flex items-center justify-center p-4">
-                    <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center shadow-2xl">
-                        <h2 className="text-3xl font-black text-gray-800">שלום דביר</h2>
-                        <input className="p-4 bg-gray-100 border-2 rounded-xl text-black font-bold text-center" placeholder="שם משתמש" onChange={e => setLoginName(e.target.value)} />
-                        <input type="password" className="p-4 bg-gray-100 border-2 rounded-xl text-black font-bold text-center" placeholder="סיסמה" onChange={e => setLoginPass(e.target.value)} />
-                        <button onClick={handleLogin} className="bg-[#46178f] text-white py-4 rounded-xl text-xl font-bold hover:bg-purple-800 transition">כניסה</button>
-                        <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
-                    </div>
-                </div>
-            );
-
-            if (view === 'dashboard') return (
-                <div className="min-h-screen p-6 max-w-5xl mx-auto">
-                    <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-2xl shadow-sm">
-                        <h2 className="text-4xl font-black text-[#46178f]">החידונים שלי</h2>
-                        <div className="flex gap-3">
-                            <button onClick={() => setView('create')} className="bg-[#26890c] text-white px-8 py-3 rounded-xl font-black text-xl shadow-[0_4px_0_#195c08]">חדש +</button>
-                            <button onClick={() => setView('home')} className="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-black">יציאה</button>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-6">
-                        {savedQuizzes.map(q => (
-                            <div key={q.id} className="bg-white p-6 rounded-3xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="flex flex-col">
-                                    <span className="font-black text-2xl text-gray-800">{q.title}</span>
-                                    <span className="text-sm text-gray-400 font-bold">{q.questions?.length || 0} שאלות</span>
-                                </div>
-                                <div className="flex gap-3">
-                                    <button onClick={() => handleEditQuiz(q)} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold shadow-[0_4px_0_#b48608]">עריכה</button>
-                                    <button onClick={() => handleDeleteQuiz(q.id)} className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold shadow-[0_4px_0_#b91c1c]">מחיקה</button>
-                                    <button onClick={() => startHosting(q)} className="bg-[#1368ce] text-white px-8 py-2 rounded-lg font-black text-lg shadow-[0_4px_0_#0c4891] hover:scale-105 transition-transform">הפעל עכשיו</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-
-            if (view === 'create') return (
-                <div className="min-h-screen bg-[#f2f2f2] pb-20">
-                    <div className="bg-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center px-10">
-                        <input className="text-3xl font-black text-[#46178f] outline-none w-1/2" placeholder="שם החידון..." value={quizTitle} onChange={e => setQuizTitle(e.target.value)} />
-                        <div className="flex gap-4">
-                            <button onClick={() => setView('dashboard')} className="text-gray-500 font-bold">ביטול</button>
-                            <button onClick={handleSaveQuiz} className="bg-[#26890c] text-white px-10 py-3 rounded-xl font-black shadow-[0_4px_0_#195c08]">שמור</button>
-                        </div>
-                    </div>
-                    <div className="max-w-4xl mx-auto mt-10 px-4">
-                        {questions.map((q, qIndex) => (
-                            <div key={qIndex} className="bg-white p-8 rounded-3xl shadow-xl mb-10 border-t-8 border-[#46178f]">
-                                <textarea className="w-full p-6 text-2xl font-bold border-2 rounded-2xl mb-8 text-center bg-gray-50 outline-none" placeholder="שאלה..." value={q.text} onChange={e => { const n = [...questions]; n[qIndex].text = e.target.value; setQuestions(n); }} />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {q.opts.map((opt, optIndex) => (
-                                        <div key={optIndex} className={`flex items-center p-2 rounded-2xl border-4 ${q.correct === optIndex ? 'border-green-500 bg-green-50' : 'border-gray-100'}`}>
-                                            <input className="flex-1 p-3 font-bold bg-transparent outline-none" placeholder={`תשובה ${optIndex + 1}`} value={opt} onChange={e => { const n = [...questions]; n[qIndex].opts[optIndex] = e.target.value; setQuestions(n); }} />
-                                            <button onClick={() => { const n = [...questions]; n[qIndex].correct = optIndex; setQuestions(n); }} className={`w-8 h-8 rounded-full border-2 ${q.correct === optIndex ? 'bg-green-500 text-white' : 'border-gray-300 text-transparent'}`}>✓</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                        <button onClick={() => setQuestions([...questions, { id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }])} className="w-full py-6 border-4 border-dashed border-gray-300 rounded-3xl text-gray-400 text-2xl font-black">+ הוסף שאלה</button>
-                    </div>
-                </div>
-            );
-
-            if (view === 'host_lobby') return (
-                <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white">
-                    <div className="bg-white text-black p-10 rounded-3xl shadow-2xl text-center mb-10">
-                        <p className="text-2xl font-bold text-gray-400">הצטרפו עם הקוד:</p>
-                        <h1 className="text-9xl font-black">{pin}</h1>
-                    </div>
-                    <div className="text-3xl font-bold mb-8">{players.length} שחקנים מחוברים</div>
-                    <div className="flex flex-wrap gap-4 justify-center max-w-4xl px-4 mb-10">
-                        {players.map(p => <div key={p.id} className="bg-white text-[#46178f] px-6 py-3 rounded-xl text-2xl font-black shadow-lg animate-bounce-short">{p.name}</div>)}
-                    </div>
-                    <div className="flex gap-4">
-                        <button onClick={() => setView('dashboard')} className="bg-red-500 px-8 py-4 rounded-xl font-bold">סגור</button>
-                        <button className="bg-[#1368ce] px-12 py-4 rounded-xl text-3xl font-black shadow-[0_6px_0_#0c4891]">התחל משחק!</button>
-                    </div>
-                </div>
-            );
-
-            if (view === 'join') return (
-                <div className="h-screen bg-[#46178f] flex items-center justify-center p-4">
-                    <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center">
-                        <input className="p-4 border-4 border-gray-200 rounded-xl text-center text-3xl font-black" placeholder="קוד PIN" value={pin} onChange={e => setPin(e.target.value)} />
-                        <input className="p-4 border-2 border-gray-200 rounded-xl text-center text-xl font-bold" placeholder="כינוי" value={nickname} onChange={e => setNickname(e.target.value)} />
-                        <button onClick={handleJoinGame} className="bg-black text-white py-4 rounded-xl text-2xl font-black">הצטרף</button>
-                        <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
-                    </div>
-                </div>
-            );
-
-            if (view === 'player_wait') return (
-                <div className="h-screen bg-[#26890c] flex flex-col items-center justify-center text-white text-center">
-                    <h2 className="text-5xl font-black mb-4">אתה בפנים!</h2>
-                    <p className="text-2xl opacity-80">חכה שהמנחה יתחיל...</p>
-                    <div className="mt-12 text-6xl font-black bg-white/20 p-8 rounded-3xl border-4 border-white">{nickname}</div>
-                </div>
-            );
-
-            return null;
+    const handleLogin = () => {
+        if (loginName === 'דביר' && loginPass === '2160') {
+            setView('dashboard');
+        } else {
+            alert("פרטי גישה שגויים");
         }
+    };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+    const handleSaveQuiz = async () => {
+        if (!quizTitle || questions.some(q => !q.text)) return alert("מלא את כל הפרטים");
+        const quizzesCol = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+        const quizData = { title: quizTitle, questions, updatedAt: Date.now() };
+
+        try {
+            if (editingQuizId) {
+                const quizDoc = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', editingQuizId);
+                await updateDoc(quizDoc, quizData);
+            } else {
+                quizData.createdAt = Date.now();
+                await addDoc(quizzesCol, quizData);
+            }
+            setView('dashboard');
+        } catch (e) { console.error("Save error", e); }
+    };
+
+    const startHosting = async (q) => {
+        if (!auth.currentUser) {
+            await signInAnonymously(auth);
+        }
+        const newPin = Math.floor(100000 + Math.random() * 899999).toString();
+        try {
+            const gameDoc = doc(db, 'artifacts', appId, 'public', 'data', 'games', newPin);
+            await setDoc(gameDoc, { 
+                status: 'lobby', 
+                quiz: q,
+                hostId: auth.currentUser?.uid || 'temp-host',
+                createdAt: Date.now()
+            });
+            setPin(newPin);
+            setView('host_lobby');
+        } catch (e) {
+            console.error("Hosting error", e);
+            alert("שגיאה בהפעלת המשחק");
+        }
+    };
+
+    const handleDeleteQuiz = async (id) => {
+        if (confirm("בטוח שרוצה למחוק?")) {
+            const quizDoc = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id);
+            await deleteDoc(quizDoc);
+            setView('dashboard'); // Trigger re-fetch
+        }
+    };
+
+    if (view === 'home') return (
+        <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white text-center p-4 dir-rtl">
+            <h1 className="text-7xl md:text-9xl font-black mb-12 drop-shadow-2xl animate-bounce">Quizmo!</h1>
+            <div className="flex flex-col gap-5 w-full max-w-xs">
+                <button onClick={() => setView('join')} className="bg-white text-black py-4 rounded-xl text-2xl font-black shadow-[0_6px_0_#ccc] hover:translate-y-1 transition-all">הצטרפות</button>
+                <button onClick={() => setView('login')} className="bg-[#1368ce] text-white py-4 rounded-xl text-2xl font-black shadow-[0_6px_0_#0c4891] hover:translate-y-1 transition-all">ניהול דביר</button>
+            </div>
+        </div>
+    );
+
+    if (view === 'login') return (
+        <div className="h-screen bg-[#46178f] flex items-center justify-center p-4 dir-rtl text-right">
+            <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 shadow-2xl">
+                <h2 className="text-3xl font-black text-gray-800 text-center">שלום דביר</h2>
+                <input className="p-4 bg-gray-100 border-2 rounded-xl font-bold text-center" placeholder="שם משתמש" value={loginName} onChange={e => setLoginName(e.target.value)} />
+                <input type="password" className="p-4 bg-gray-100 border-2 rounded-xl font-bold text-center" placeholder="סיסמה" value={loginPass} onChange={e => setLoginPass(e.target.value)} />
+                <button onClick={handleLogin} className="bg-[#46178f] text-white py-4 rounded-xl text-xl font-bold hover:bg-purple-800 transition">כניסה</button>
+                <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
+            </div>
+        </div>
+    );
+
+    if (view === 'dashboard') return (
+        <div className="min-h-screen p-6 max-w-5xl mx-auto dir-rtl text-right">
+            <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-2xl shadow-sm">
+                <h2 className="text-3xl md:text-4xl font-black text-[#46178f]">החידונים שלי</h2>
+                <div className="flex gap-3">
+                    <button onClick={() => {setEditingQuizId(null); setQuizTitle(''); setQuestions([{ id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }]); setView('create');}} className="bg-[#26890c] text-white px-4 md:px-8 py-3 rounded-xl font-black text-lg md:text-xl shadow-[0_4px_0_#195c08]">חדש +</button>
+                    <button onClick={() => setView('home')} className="bg-gray-200 text-gray-700 px-4 md:px-6 py-3 rounded-xl font-black">יציאה</button>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 gap-6">
+                {savedQuizzes.map(q => (
+                    <div key={q.id} className="bg-white p-6 rounded-3xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4 border-r-8 border-purple-500">
+                        <div className="flex flex-col flex-1 w-full md:w-auto">
+                            <span className="font-black text-2xl text-gray-800">{q.title}</span>
+                            <span className="text-sm text-gray-400 font-bold">{q.questions?.length || 0} שאלות</span>
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto justify-end">
+                            <button onClick={() => {setEditingQuizId(q.id); setQuizTitle(q.title); setQuestions(q.questions); setView('create');}} className="bg-amber-500 text-white p-3 rounded-lg font-bold shadow-[0_4px_0_#b48608]"><LucideEdit3 size={20}/></button>
+                            <button onClick={() => handleDeleteQuiz(q.id)} className="bg-red-500 text-white p-3 rounded-lg font-bold shadow-[0_4px_0_#b91c1c]"><LucideTrash2 size={20}/></button>
+                            <button onClick={() => startHosting(q)} className="bg-[#1368ce] text-white px-6 py-2 rounded-lg font-black text-lg shadow-[0_4px_0_#0c4891] flex items-center gap-2"><LucidePlay size={20}/> הפעל עכשיו</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    if (view === 'create') return (
+        <div className="min-h-screen bg-[#f2f2f2] pb-20 dir-rtl text-right">
+            <div className="bg-white p-4 shadow-md sticky top-0 z-20 flex justify-between items-center px-4 md:px-10">
+                <input className="text-2xl md:text-3xl font-black text-[#46178f] outline-none w-1/2 bg-transparent" placeholder="שם החידון..." value={quizTitle} onChange={e => setQuizTitle(e.target.value)} />
+                <div className="flex gap-2 md:gap-4">
+                    <button onClick={() => setView('dashboard')} className="text-gray-500 font-bold px-2">ביטול</button>
+                    <button onClick={handleSaveQuiz} className="bg-[#26890c] text-white px-6 md:px-10 py-3 rounded-xl font-black shadow-[0_4px_0_#195c08]">שמור</button>
+                </div>
+            </div>
+            <div className="max-w-4xl mx-auto mt-10 px-4">
+                {questions.map((q, qIndex) => (
+                    <div key={qIndex} className="bg-white p-6 md:p-8 rounded-3xl shadow-xl mb-10 overflow-hidden relative">
+                        <div className="absolute top-0 right-0 left-0 h-2 bg-[#46178f]"></div>
+                        <div className="flex justify-between items-start mb-6">
+                            <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold text-sm">שאלה {qIndex + 1}</span>
+                            {questions.length > 1 && (
+                                <button onClick={() => {const n = [...questions]; n.splice(qIndex,1); setQuestions(n);}} className="text-red-400 hover:text-red-600"><LucideTrash2 size={20}/></button>
+                            )}
+                        </div>
+                        <textarea className="w-full p-4 md:p-6 text-xl md:text-2xl font-bold border-2 border-gray-100 rounded-2xl mb-8 text-center bg-gray-50 outline-none focus:border-purple-300" placeholder="הקלד את השאלה כאן..." value={q.text} onChange={e => { const n = [...questions]; n[qIndex].text = e.target.value; setQuestions(n); }} />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {q.opts.map((opt, optIndex) => (
+                                <div key={optIndex} className={`flex items-center p-3 rounded-2xl border-4 transition-all ${q.correct === optIndex ? COLOR_THEMES[optIndex].border + ' ' + COLOR_THEMES[optIndex].light : 'border-gray-100 bg-white'}`}>
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white text-xl shadow-md ${COLOR_THEMES[optIndex].bg}`}>
+                                        {COLOR_THEMES[optIndex].icon}
+                                    </div>
+                                    <input className="flex-1 p-2 font-bold bg-transparent outline-none text-lg mr-2" placeholder={`תשובה ${optIndex + 1}`} value={opt} onChange={e => { const n = [...questions]; n[qIndex].opts[optIndex] = e.target.value; setQuestions(n); }} />
+                                    <button onClick={() => { const n = [...questions]; n[qIndex].correct = optIndex; setQuestions(n); }} className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors ${q.correct === optIndex ? COLOR_THEMES[optIndex].bg + ' border-transparent text-white' : 'border-gray-200 text-transparent'}`}>
+                                        <LucideCheck size={20}/>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+                <button onClick={() => setQuestions([...questions, { id: Date.now(), text: '', opts: ['', '', '', ''], correct: 0 }])} className="w-full py-8 border-4 border-dashed border-gray-300 rounded-3xl text-gray-400 text-2xl font-black hover:bg-white hover:text-purple-400 transition-all">+ הוסף שאלה חדשה</button>
+            </div>
+        </div>
+    );
+
+    if (view === 'host_lobby') return (
+        <div className="h-screen bg-[#46178f] flex flex-col items-center justify-center text-white p-4 dir-rtl">
+            <div className="bg-white text-black p-6 md:p-10 rounded-3xl shadow-2xl text-center mb-10 border-b-8 border-gray-200 w-full max-w-lg">
+                <p className="text-xl md:text-2xl font-bold text-gray-400 mb-2">קוד הצטרפות:</p>
+                <h1 className="text-7xl md:text-[120px] leading-none font-black tracking-tighter">{pin}</h1>
+            </div>
+            <div className="text-2xl md:text-3xl font-bold mb-8 bg-black/20 px-6 py-2 rounded-full">{players.length} שחקנים מחוברים</div>
+            <div className="flex flex-wrap gap-4 justify-center max-w-4xl px-4 mb-10 overflow-y-auto max-h-40">
+                {players.map(p => <div key={p.id} className="bg-white text-[#46178f] px-6 py-3 rounded-xl text-xl md:text-2xl font-black shadow-lg">{p.name}</div>)}
+            </div>
+            <div className="flex gap-4">
+                <button onClick={() => setView('dashboard')} className="bg-red-500 px-8 py-4 rounded-xl font-bold shadow-[0_4px_0_#b91c1c]">סגור</button>
+                <button className="bg-[#26890c] px-10 md:px-16 py-4 rounded-xl text-2xl md:text-3xl font-black shadow-[0_6px_0_#195c08] hover:scale-105 transition-transform">התחל!</button>
+            </div>
+        </div>
+    );
+
+    if (view === 'join') return (
+        <div className="h-screen bg-[#46178f] flex items-center justify-center p-4 dir-rtl">
+            <div className="bg-white p-8 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center shadow-2xl">
+                <h2 className="text-2xl font-black">הצטרפות</h2>
+                <input className="p-4 border-4 border-gray-100 rounded-xl text-center text-3xl font-black focus:border-blue-400 outline-none" placeholder="קוד PIN" value={pin} onChange={e => setPin(e.target.value)} />
+                <input className="p-4 border-2 border-gray-100 rounded-xl text-center text-xl font-bold focus:border-blue-400 outline-none" placeholder="שם שיופיע" value={nickname} onChange={e => setNickname(e.target.value)} />
+                <button onClick={() => alert("המשחק יתחיל בקרוב!")} className="bg-black text-white py-4 rounded-xl text-2xl font-black">כניסה</button>
+                <button onClick={() => setView('home')} className="text-gray-400 font-bold">ביטול</button>
+            </div>
+        </div>
+    );
+
+    return null;
+}
