@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quizmo Ultimate</title>
+    <title>Quizmo Ultimate - Dvir Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Firebase SDKs -->
@@ -16,7 +16,6 @@
         .animate-bounce-short { animation: bounce 1s infinite; }
         @keyframes bounce { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(0); } }
         
-        /* Loading Screen Styles */
         #loading-screen {
             position: fixed;
             inset: 0;
@@ -40,182 +39,236 @@
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
         .fade-out { opacity: 0; visibility: hidden; }
+        
+        .card-shadow { shadow-[0_8px_0_#ccc] }
+        .btn-active:active { transform: translateY(4px); box-shadow: none; }
     </style>
 </head>
 <body class="bg-[#f2f2f2] text-gray-900 overflow-x-hidden">
 
     <div id="app">
-        <!-- Loading Screen (The effect you liked) -->
+        <!-- Loading Screen -->
         <div id="loading-screen">
             <div class="loader-ring mb-6"></div>
             <h1 class="text-3xl font-black italic animate-pulse">Quizmo</h1>
-            <p class="mt-4 text-white/70 font-bold" id="loading-status">מתחבר לשרתים...</p>
+            <p class="mt-4 text-white/70 font-bold" id="loading-status">טוען נתונים...</p>
         </div>
-
-        <!-- Mute Toggle -->
-        <button onclick="toggleMute()" class="fixed top-4 left-4 z-50 p-3 bg-white rounded-full shadow-lg hover:bg-gray-100 transition">
-            <i id="mute-icon" data-lucide="volume-2"></i>
-        </button>
 
         <!-- Main Content Area -->
         <div id="main-content" class="opacity-0 transition-opacity duration-1000">
-            <!-- Content injected here -->
+            <!-- Dynamic Content -->
         </div>
     </div>
 
     <script>
-        // --- Configuration & Globals ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v2-stable';
-        let isMuted = false;
-        let user = null;
+        // --- Configuration ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v2-dvir';
         let db = null;
+        let quizzes = [];
+        let currentEditingQuiz = null;
 
-        // --- Audio Engine ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playTone(freq, type, duration, vol=0.1) {
-            if (isMuted) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-        }
+        const COLOR_THEMES = [
+            { bg: 'bg-[#e21b3c]', border: 'border-[#e21b3c]', icon: 'triangle' },
+            { bg: 'bg-[#1368ce]', border: 'border-[#1368ce]', icon: 'diamond' },
+            { bg: 'bg-[#d89e00]', border: 'border-[#d89e00]', icon: 'circle' },
+            { bg: 'bg-[#26890c]', border: 'border-[#26890c]', icon: 'square' }
+        ];
 
-        // --- Firebase Initialization ---
+        // --- Init ---
         async function initApp() {
-            const statusText = document.getElementById('loading-status');
-            
             try {
-                // Check if config exists, if not, wait 2 seconds and show local mode
                 if (typeof __firebase_config !== 'undefined') {
-                    const firebaseConfig = JSON.parse(__firebase_config);
-                    firebase.initializeApp(firebaseConfig);
+                    const config = JSON.parse(__firebase_config);
+                    firebase.initializeApp(config);
                     db = firebase.firestore();
-                    
-                    statusText.innerText = "מאמת משתמש...";
-                    const u = await firebase.auth().signInAnonymously();
-                    user = u.user;
-                } else {
-                    statusText.innerText = "מצב מקומי (ללא שרת)";
-                    await new Promise(r => setTimeout(r, 1500));
+                    await firebase.auth().signInAnonymously();
                 }
-            } catch (err) {
-                console.error("Firebase Error:", err);
-                statusText.innerText = "שגיאת חיבור, טוען במצב לא מקוון";
+                // Simulate loading for the effect
                 await new Promise(r => setTimeout(r, 1500));
+                hideLoading();
+            } catch (err) {
+                console.error(err);
+                hideLoading();
             }
-
-            hideLoading();
         }
 
         function hideLoading() {
-            const loader = document.getElementById('loading-screen');
-            const main = document.getElementById('main-content');
-            
-            loader.classList.add('fade-out');
-            main.classList.remove('opacity-0');
-            
-            setTimeout(() => {
-                renderView('home');
-            }, 500);
+            document.getElementById('loading-screen').classList.add('fade-out');
+            document.getElementById('main-content').classList.remove('opacity-0');
+            renderView('home');
         }
 
-        function toggleMute() {
-            isMuted = !isMuted;
-            document.getElementById('mute-icon').setAttribute('data-lucide', isMuted ? 'volume-x' : 'volume-2');
-            lucide.createIcons();
-        }
-
-        // --- Views ---
+        // --- Router/Renderer ---
         function renderView(view) {
             const container = document.getElementById('main-content');
-            
+            document.body.className = "bg-[#f2f2f2] text-gray-900";
+
             if (view === 'home') {
-                document.body.style.backgroundColor = "#46178f";
+                document.body.classList.add('bg-[#46178f]');
                 container.innerHTML = `
-                    <div class="min-h-screen flex flex-col items-center justify-center text-white px-4">
-                        <div class="text-center mb-12">
-                            <h1 class="text-7xl md:text-9xl font-black mb-4 drop-shadow-2xl animate-bounce-short italic">Quizmo!</h1>
-                            <p class="text-xl font-bold opacity-80">החידון שכולם אוהבים</p>
-                        </div>
-                        
+                    <div class="min-h-screen flex flex-col items-center justify-center text-white p-4">
+                        <h1 class="text-8xl font-black mb-12 animate-bounce-short italic drop-shadow-2xl">Quizmo!</h1>
                         <div class="flex flex-col gap-5 w-full max-w-xs">
-                            <button onclick="renderView('join')" class="group relative bg-white text-black py-5 rounded-xl font-black text-2xl shadow-[0_8px_0_#ccc] active:shadow-none active:translate-y-2 transition-all">
-                                הצטרף למשחק
+                            <button onclick="renderView('join')" class="bg-white text-black py-5 rounded-2xl text-2xl font-black shadow-[0_6px_0_#ccc] btn-active transition-all">הצטרפות</button>
+                            <button onclick="renderView('login')" class="bg-[#1368ce] text-white py-5 rounded-2xl text-2xl font-black shadow-[0_6px_0_#0c4891] btn-active flex items-center justify-center gap-2">
+                                <i data-lucide="settings"></i> ניהול דביר
                             </button>
-                            <button onclick="renderView('create')" class="bg-[#1368ce] text-white py-5 rounded-xl font-black text-2xl shadow-[0_8px_0_#0c4891] active:shadow-none active:translate-y-2 transition-all">
-                                צור חידון חדש
-                            </button>
-                        </div>
-                        
-                        <div class="mt-12 text-sm opacity-50 font-bold">Version 2.0 • Realtime Engine</div>
-                    </div>
-                `;
-            } else if (view === 'join') {
-                container.innerHTML = `
-                    <div class="min-h-screen flex flex-col items-center justify-center p-4">
-                        <div class="bg-white p-8 rounded-2xl w-full max-w-sm flex flex-col gap-6 shadow-2xl scale-in">
-                            <h2 class="text-3xl font-black text-center text-[#46178f]">הזן קוד PIN</h2>
-                            <input id="pin-input" type="number" class="p-4 border-4 border-gray-100 rounded-xl text-center text-4xl font-black tracking-widest focus:border-[#46178f] outline-none transition" placeholder="000000">
-                            <input id="nick-input" type="text" class="p-4 border-4 border-gray-100 rounded-xl text-center text-xl font-bold focus:border-[#46178f] outline-none transition" placeholder="איך קוראים לך?">
-                            <button onclick="handleJoin()" class="bg-[#26890c] text-white py-4 rounded-xl font-black text-2xl shadow-[0_6px_0_#195c08] active:translate-y-1 active:shadow-none transition-all">
-                                יאללה נכנסתי!
-                            </button>
-                            <button onclick="renderView('home')" class="text-gray-400 font-bold hover:text-gray-600 transition">חזרה</button>
                         </div>
                     </div>
                 `;
-            } else if (view === 'create') {
-                // Simplified creation for this demo
+            } 
+            else if (view === 'login') {
                 container.innerHTML = `
-                    <div class="min-h-screen bg-white p-6 max-w-2xl mx-auto">
-                        <div class="flex items-center justify-between mb-8">
-                            <button onclick="renderView('home')" class="p-2 hover:bg-gray-100 rounded-full"><i data-lucide="arrow-right"></i></button>
-                            <h2 class="text-2xl font-black">יצירת חידון</h2>
-                            <div class="w-10"></div>
-                        </div>
-                        
-                        <div class="space-y-6">
-                            <div>
-                                <label class="block font-black mb-2">כותרת החידון</label>
-                                <input id="q-title" class="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-purple-500 rounded-xl outline-none font-bold text-xl" placeholder="למשל: ידע כללי">
-                            </div>
-                            <div class="p-6 border-2 border-dashed border-gray-200 rounded-2xl text-center">
-                                <p class="text-gray-500 font-bold">כאן תוסיף שאלות בהמשך...</p>
-                            </div>
-                            <button onclick="alert('פונקציונליות בבנייה')" class="w-full bg-[#46178f] text-white py-4 rounded-xl font-black text-xl shadow-lg">צור ושחק</button>
+                    <div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="bg-white p-10 rounded-3xl w-full max-w-sm flex flex-col gap-5 shadow-2xl">
+                            <h2 class="text-3xl font-black text-center text-[#46178f]">שלום דביר</h2>
+                            <input id="admin-user" class="p-4 bg-gray-100 rounded-xl font-bold text-center outline-none border-2 border-transparent focus:border-purple-500" placeholder="שם משתמש">
+                            <input id="admin-pass" type="password" class="p-4 bg-gray-100 rounded-xl font-bold text-center outline-none border-2 border-transparent focus:border-purple-500" placeholder="סיסמה">
+                            <button onclick="handleLogin()" class="bg-[#46178f] text-white py-4 rounded-xl font-black text-xl shadow-lg btn-active">כניסה</button>
+                            <button onclick="renderView('home')" class="text-gray-400 font-bold">ביטול</button>
                         </div>
                     </div>
                 `;
             }
-            
+            else if (view === 'dashboard') {
+                container.innerHTML = `
+                    <div class="min-h-screen p-6 max-w-4xl mx-auto">
+                        <div class="flex justify-between items-center mb-10 bg-white p-6 rounded-2xl shadow-sm">
+                            <h2 class="text-3xl font-black text-[#46178f]">החידונים שלי</h2>
+                            <div class="flex gap-3">
+                                <button onclick="createNewQuiz()" class="bg-[#26890c] text-white px-6 py-2 rounded-xl font-bold shadow-[0_4px_0_#195c08] btn-active">חדש +</button>
+                                <button onclick="renderView('home')" class="bg-gray-200 px-4 py-2 rounded-xl font-bold">יציאה</button>
+                            </div>
+                        </div>
+                        <div id="quizzes-list" class="space-y-4">
+                            <!-- Quizzes go here -->
+                            <div class="text-center py-10 text-gray-400 font-bold">אין חידונים עדיין.</div>
+                        </div>
+                    </div>
+                `;
+                renderQuizzesList();
+            }
+            else if (view === 'editor') {
+                container.innerHTML = `
+                    <div class="min-h-screen pb-20">
+                        <div class="bg-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center px-6">
+                            <input id="quiz-title-input" class="text-2xl font-black text-[#46178f] outline-none" placeholder="שם החידון..." value="${currentEditingQuiz.title}">
+                            <div class="flex gap-3">
+                                <button onclick="renderView('dashboard')" class="font-bold text-gray-400">ביטול</button>
+                                <button onclick="saveQuiz()" class="bg-[#26890c] text-white px-8 py-2 rounded-xl font-black shadow-[0_4px_0_#195c08] btn-active">שמור</button>
+                            </div>
+                        </div>
+                        <div id="questions-container" class="max-w-3xl mx-auto mt-10 px-4 space-y-10"></div>
+                        <div class="max-w-3xl mx-auto px-4 mt-10">
+                            <button onclick="addQuestion()" class="w-full py-8 border-4 border-dashed border-gray-300 rounded-3xl text-gray-400 text-2xl font-black hover:bg-white hover:text-purple-500 transition-all">+ הוסף שאלה</button>
+                        </div>
+                    </div>
+                `;
+                renderQuestions();
+            }
+
             lucide.createIcons();
         }
 
-        async function handleJoin() {
-            const pin = document.getElementById('pin-input').value;
-            const nick = document.getElementById('nick-input').value;
-            
-            if (!pin || !nick) return;
-            
-            playTone(440, 'sine', 0.2);
-            // Here you'd add the Firebase join logic
-            alert(`היי ${nick}! מנסה להתחבר לחדר ${pin}...`);
+        // --- Logic Functions ---
+        function handleLogin() {
+            const user = document.getElementById('admin-user').value;
+            const pass = document.getElementById('admin-pass').value;
+            if (user === 'דביר' && pass === '2160') {
+                renderView('dashboard');
+            } else {
+                alert("פרטים שגויים, דביר!");
+            }
         }
 
-        // --- Entry Point ---
-        window.onload = () => {
-            initApp();
-            lucide.createIcons();
-        };
+        function createNewQuiz() {
+            currentEditingQuiz = {
+                id: Date.now(),
+                title: '',
+                questions: [{ text: '', opts: ['', '', '', ''], correct: 0 }]
+            };
+            renderView('editor');
+        }
 
+        function addQuestion() {
+            currentEditingQuiz.questions.push({ text: '', opts: ['', '', '', ''], correct: 0 });
+            renderQuestions();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = currentEditingQuiz.questions.map((q, i) => `
+                <div class="bg-white p-8 rounded-[30px] shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 left-0 h-2 bg-[#46178f]"></div>
+                    <div class="flex justify-between mb-6">
+                        <span class="font-black text-purple-700 bg-purple-50 px-4 py-1 rounded-full">שאלה ${i+1}</span>
+                        <button onclick="removeQuestion(${i})" class="text-red-300 hover:text-red-500"><i data-lucide="trash-2"></i></button>
+                    </div>
+                    <textarea onchange="updateQText(${i}, this.value)" class="w-full p-4 text-xl font-bold bg-gray-50 border-2 border-transparent focus:border-purple-200 rounded-2xl outline-none text-center mb-6" placeholder="הקלד שאלה...">${q.text}</textarea>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${q.opts.map((opt, oi) => `
+                            <div class="flex items-center p-3 border-2 ${q.correct === oi ? 'border-green-500 bg-green-50' : 'border-gray-100'} rounded-xl cursor-pointer" onclick="setCorrect(${i}, ${oi})">
+                                <div class="w-10 h-10 ${COLOR_THEMES[oi].bg} rounded-lg flex items-center justify-center text-white mr-3">
+                                    <i data-lucide="${COLOR_THEMES[oi].icon}" class="w-5 h-5"></i>
+                                </div>
+                                <input onchange="updateOpt(${i}, ${oi}, this.value)" class="flex-1 bg-transparent font-bold outline-none mr-2" placeholder="תשובה..." value="${opt}" onclick="event.stopPropagation()">
+                                <div class="w-6 h-6 rounded-full border-2 ${q.correct === oi ? 'bg-green-500 border-transparent' : 'border-gray-200'}"></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function updateQText(i, val) { currentEditingQuiz.questions[i].text = val; }
+        function updateOpt(qi, oi, val) { currentEditingQuiz.questions[qi].opts[oi] = val; }
+        function setCorrect(qi, oi) { currentEditingQuiz.questions[qi].correct = oi; renderQuestions(); }
+        function removeQuestion(i) { currentEditingQuiz.questions.splice(i, 1); renderQuestions(); }
+
+        async function saveQuiz() {
+            const title = document.getElementById('quiz-title-input').value;
+            if (!title) return alert("תן שם לחידון!");
+            currentEditingQuiz.title = title;
+            
+            // Local save for now, could be Firestore
+            const idx = quizzes.findIndex(q => q.id === currentEditingQuiz.id);
+            if(idx > -1) quizzes[idx] = currentEditingQuiz;
+            else quizzes.push(currentEditingQuiz);
+            
+            renderView('dashboard');
+        }
+
+        function renderQuizzesList() {
+            const list = document.getElementById('quizzes-list');
+            if (quizzes.length === 0) return;
+            list.innerHTML = quizzes.map(q => `
+                <div class="bg-white p-6 rounded-2xl shadow flex justify-between items-center border-r-8 border-purple-600">
+                    <div>
+                        <h3 class="text-2xl font-black">${q.title}</h3>
+                        <p class="text-gray-400 font-bold">${q.questions.length} שאלות</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editQuiz(${q.id})" class="p-3 bg-amber-100 text-amber-600 rounded-xl"><i data-lucide="edit-3"></i></button>
+                        <button onclick="startHosting(${q.id})" class="bg-[#1368ce] text-white px-6 py-2 rounded-xl font-black btn-active">הפעל</button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function editQuiz(id) {
+            currentEditingQuiz = JSON.parse(JSON.stringify(quizzes.find(q => q.id === id)));
+            renderView('editor');
+        }
+
+        function startHosting(id) {
+            const pin = Math.floor(100000 + Math.random() * 899999);
+            alert("המשחק התחיל! קוד PIN: " + pin);
+        }
+
+        window.onload = initApp;
     </script>
 </body>
 </html>
