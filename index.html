@@ -3,58 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quizmo Ultimate - GitHub Version</title>
+    <title>Quizmo Ultimate - Stable Version</title>
     
-    <!-- Scripts -->
+    <!-- UI Frameworks -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs - Standard Version for Compatibility -->
+    <!-- Firebase SDKs (Compatibility Mode) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
-        body { font-family: 'Heebo', sans-serif; background-color: #f2f2f2; margin: 0; overflow: hidden; }
-        
+        body { font-family: 'Heebo', sans-serif; background-color: #f2f2f2; margin: 0; overflow-x: hidden; }
         .kahoot-purple { background-color: #46178f; }
         .kahoot-red { background-color: #e21b3c; }
         .kahoot-blue { background-color: #1368ce; }
         .kahoot-green { background-color: #26890c; }
         .kahoot-yellow { background-color: #d89e00; }
-        
         .btn-shadow { box-shadow: 0 6px 0 rgba(0,0,0,0.2); transition: all 0.1s; }
         .btn-shadow:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
-        
-        .shape-icon { font-size: 2.5rem; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); }
-        
-        @keyframes slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .animate-slide-up { animation: slide-up 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
     <div id="app">
-        <!-- Loading Screen -->
-        <div class="h-screen kahoot-purple flex items-center justify-center text-white">
-            <div class="text-4xl font-black animate-pulse italic">Quizmo טוען...</div>
+        <!-- Initial Loading State -->
+        <div class="h-screen kahoot-purple flex flex-col items-center justify-center text-white">
+            <div class="text-4xl font-black animate-pulse italic mb-4">Quizmo</div>
+            <div class="text-sm opacity-50">מתחבר לשרת...</div>
         </div>
     </div>
 
     <script>
-        // --- Firebase Init ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "",
-            authDomain: "quizmo-app.firebaseapp.com",
-            projectId: "quizmo-app",
+        // --- Configuration & Initialization ---
+        const config = {
+            firebase: typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                apiKey: "",
+                authDomain: "quizmo-app.firebaseapp.com",
+                projectId: "quizmo-app",
+            },
+            appId: typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v2-default'
         };
 
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v2-prod';
-
-        // --- State ---
         let state = {
             view: 'home',
             user: null,
@@ -70,53 +63,74 @@
             editingQuiz: null
         };
 
-        // --- Audio System ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playTone(freq, type, duration, vol = 0.1) {
-            if (state.isMuted) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-        }
+        let db, auth;
 
-        function playTick() { playTone(800 + (20 - state.timeLeft) * 50, 'sine', 0.1, 0.05); }
+        // --- Core Logic ---
+        async function initApp() {
+            try {
+                // Initialize Firebase
+                firebase.initializeApp(config.firebase);
+                auth = firebase.auth();
+                db = firebase.firestore();
 
-        // --- Core Functions ---
-        async function startApp() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await auth.signInWithCustomToken(__initial_auth_token);
-            } else {
-                await auth.signInAnonymously();
+                // Authentication
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await auth.signInWithCustomToken(__initial_auth_token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+
+                // Listen for Auth changes
+                auth.onAuthStateChanged(user => {
+                    state.user = user;
+                    if (user) loadQuizzes();
+                    render();
+                });
+
+            } catch (error) {
+                console.error("Initialization error:", error);
+                document.getElementById('app').innerHTML = `
+                    <div class="h-screen flex items-center justify-center bg-red-600 text-white p-6 text-center">
+                        <div>
+                            <h1 class="text-2xl font-bold mb-2">שגיאת חיבור</h1>
+                            <p>${error.message}</p>
+                            <button onclick="location.reload()" class="mt-4 bg-white text-red-600 px-4 py-2 rounded">נסה שוב</button>
+                        </div>
+                    </div>
+                `;
             }
         }
 
-        auth.onAuthStateChanged(u => {
-            state.user = u;
-            if (u) loadQuizzes();
-            render();
-        });
-
         function loadQuizzes() {
-            db.collection('artifacts').doc(appId).collection('users').doc(auth.currentUser.uid).collection('quizzes')
+            if (!state.user) return;
+            db.collection('artifacts').doc(config.appId)
+                .collection('users').doc(state.user.uid)
+                .collection('quizzes')
                 .onSnapshot(snap => {
                     state.quizzes = [];
-                    snap.forEach(d => state.quizzes.push({ id: d.id, ...d.data() }));
+                    snap.forEach(doc => state.quizzes.push({ id: doc.id, ...doc.data() }));
                     render();
-                });
+                }, err => console.error("Quiz load error:", err));
         }
 
-        window.setView = (v) => { 
-            state.view = v; 
-            if (v === 'home') { state.pin = ''; state.currentGame = null; }
-            render(); 
-        };
+        // --- Audio Context for Effects ---
+        let audioCtx;
+        function playTick() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440 + (20 - state.timeLeft) * 20, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // --- Actions ---
+        window.setView = (v) => { state.view = v; render(); };
 
         window.handleAdminLogin = () => {
             const pass = document.getElementById('adminPass').value;
@@ -125,30 +139,30 @@
         };
 
         window.createQuiz = () => {
-            state.editingQuiz = { title: 'חידון חדש', questions: [] };
+            state.editingQuiz = { title: 'חידון ללא שם', questions: [] };
             setView('editor');
         };
 
         window.addQuestion = (type) => {
-            const q = {
+            state.editingQuiz.questions.push({
                 type,
                 text: '',
                 image: '',
                 time: 20,
-                double: false,
                 correct: 0,
                 opts: type === 'tf' ? ['אמת', 'שקר'] : ['', '', '', '']
-            };
-            state.editingQuiz.questions.push(q);
+            });
             render();
         };
 
         window.saveQuiz = async () => {
-            state.editingQuiz.title = document.getElementById('quizTitle').value;
+            const titleInput = document.getElementById('quizTitle');
+            if (titleInput) state.editingQuiz.title = titleInput.value;
+            
             const id = state.editingQuiz.id || Math.random().toString(36).substr(2, 9);
-            await db.collection('artifacts').doc(appId).collection('users').doc(auth.currentUser.uid).collection('quizzes').doc(id).set({
-                ...state.editingQuiz, id
-            });
+            await db.collection('artifacts').doc(config.appId)
+                .collection('users').doc(state.user.uid)
+                .collection('quizzes').doc(id).set({ ...state.editingQuiz, id });
             setView('dashboard');
         };
 
@@ -156,18 +170,18 @@
             const quiz = state.quizzes.find(q => q.id === quizId);
             const pin = Math.floor(100000 + Math.random() * 900000).toString();
             state.pin = pin;
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(pin).set({
-                pin, quiz, status: 'lobby', hostId: auth.currentUser.uid, currentQ: 0
+            await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('games').doc(pin).set({
+                pin, quiz, status: 'lobby', hostId: state.user.uid, currentQ: 0
             });
-            listenToGame(pin);
+            setupGameListeners(pin);
             setView('host_lobby');
         };
 
         window.joinGame = async () => {
-            const pinInput = document.getElementById('joinPin').value;
-            const snap = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(pinInput).get();
-            if (!snap.exists()) return alert("PIN שגוי");
-            state.pin = pinInput;
+            const pin = document.getElementById('joinPin').value;
+            const snap = await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('games').doc(pin).get();
+            if (!snap.exists()) return alert("משחק לא נמצא");
+            state.pin = pin;
             setView('join_nick');
         };
 
@@ -175,139 +189,144 @@
             const nick = document.getElementById('joinNick').value;
             if (!nick) return;
             state.nickname = nick;
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').doc(auth.currentUser.uid).set({
-                pin: state.pin, name: nick, score: 0, hasAnswered: false, id: auth.currentUser.uid
+            await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('players').doc(state.user.uid).set({
+                pin: state.pin, name: nick, score: 0, hasAnswered: false, id: state.user.uid
             });
-            listenToGame(state.pin);
+            setupGameListeners(state.pin);
             setView('player_lobby');
         };
 
-        function listenToGame(pin) {
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(pin).onSnapshot(snap => {
-                if (snap.exists()) {
-                    state.currentGame = snap.data();
-                    if (state.currentGame.hostId === auth.currentUser.uid) handleTimer();
-                    render();
-                } else if (state.nickname) {
-                    alert("הוצאת מהמשחק על ידי המנהל");
-                    location.reload();
+        function setupGameListeners(pin) {
+            db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('games').doc(pin).onSnapshot(snap => {
+                if (!snap.exists()) {
+                    if (state.nickname) { alert("המשחק נסגר"); location.reload(); }
+                    return;
                 }
+                state.currentGame = snap.data();
+                if (state.currentGame.hostId === state.user.uid) manageTimer();
+                render();
             });
 
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').onSnapshot(snap => {
+            db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('players').onSnapshot(snap => {
                 state.players = [];
                 snap.forEach(d => { if (d.data().pin === pin) state.players.push(d.data()); });
                 state.players.sort((a,b) => b.score - a.score);
-                state.myPlayerData = state.players.find(p => p.id === auth.currentUser.uid);
+                state.myPlayerData = state.players.find(p => p.id === state.user.uid);
                 render();
             });
         }
 
-        function handleTimer() {
+        function manageTimer() {
             if (state.currentGame.status === 'question' && !state.timerId) {
                 const q = state.currentGame.quiz.questions[state.currentGame.currentQ];
                 state.timeLeft = q.time;
                 state.timerId = setInterval(async () => {
                     state.timeLeft--;
                     playTick();
-                    const allDone = state.players.every(p => p.hasAnswered);
-                    if (state.timeLeft <= 0 || allDone) {
+                    const allAnswered = state.players.length > 0 && state.players.every(p => p.hasAnswered);
+                    if (state.timeLeft <= 0 || allAnswered) {
                         clearInterval(state.timerId);
                         state.timerId = null;
-                        await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(state.pin).update({ status: 'reveal' });
+                        await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('games').doc(state.pin).update({ status: 'reveal' });
                     }
                     render();
                 }, 1000);
             }
         }
 
-        window.kickPlayer = async (pid) => {
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').doc(pid).delete();
-        };
-
         window.submitAnswer = async (idx) => {
             if (state.myPlayerData.hasAnswered || state.currentGame.status !== 'question') return;
             const q = state.currentGame.quiz.questions[state.currentGame.currentQ];
             const correct = idx === q.correct;
-            const points = correct ? (q.double ? 2000 : 1000) : 0;
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').doc(auth.currentUser.uid).update({
+            const points = correct ? 1000 : 0;
+            await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('players').doc(state.user.uid).update({
                 hasAnswered: true, lastCorrect: correct, score: state.myPlayerData.score + points, lastPoints: points
             });
         };
 
+        window.kickPlayer = async (id) => {
+            await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('players').doc(id).delete();
+        };
+
+        window.startGame = async () => {
+            await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('games').doc(state.pin).update({ status: 'question', currentQ: 0 });
+        };
+
         window.nextStep = async () => {
             const g = state.currentGame;
-            const ref = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(state.pin);
+            const ref = db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('games').doc(state.pin);
             if (g.status === 'reveal') await ref.update({ status: 'scoreboard' });
             else if (g.status === 'scoreboard') {
                 if (g.currentQ + 1 >= g.quiz.questions.length) await ref.update({ status: 'podium' });
                 else {
                     for(let p of state.players) {
-                        await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').doc(p.id).update({ hasAnswered: false });
+                        await db.collection('artifacts').doc(config.appId).collection('public').doc('data').collection('players').doc(p.id).update({ hasAnswered: false });
                     }
                     await ref.update({ status: 'question', currentQ: g.currentQ + 1 });
                 }
             }
         };
 
-        // --- UI ---
+        // --- Rendering ---
         function render() {
             const root = document.getElementById('app');
-            let html = ``;
-
             if (state.view === 'home') {
-                html = `
-                <div class="h-screen kahoot-purple flex flex-col items-center justify-center text-white text-center">
-                    <h1 class="text-8xl font-black italic mb-20 drop-shadow-2xl">Quizmo!</h1>
-                    <div class="flex flex-col gap-4 w-64">
-                        <button onclick="setView('join')" class="bg-white text-black py-4 rounded-xl text-3xl font-black btn-shadow">הצטרף</button>
-                        <button onclick="setView('login')" class="text-white/40 font-bold hover:text-white mt-10">ניהול דביר (2160)</button>
+                root.innerHTML = `
+                <div class="h-screen kahoot-purple flex flex-col items-center justify-center text-white p-6">
+                    <h1 class="text-7xl font-black italic mb-16 drop-shadow-xl">Quizmo!</h1>
+                    <div class="w-full max-w-xs space-y-4">
+                        <button onclick="setView('join')" class="w-full bg-white text-black py-4 rounded-xl text-2xl font-black btn-shadow">הצטרף למשחק</button>
+                        <button onclick="setView('login')" class="w-full text-white/40 font-bold py-4">ניהול (2160)</button>
                     </div>
                 </div>`;
             } else if (state.view === 'login') {
-                html = `
+                root.innerHTML = `
                 <div class="h-screen kahoot-purple flex items-center justify-center p-6">
-                    <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-sm text-center">
-                        <h2 class="text-2xl font-black mb-6">קוד סודי</h2>
-                        <input type="password" id="adminPass" class="w-full p-4 bg-gray-100 rounded-xl text-center text-2xl mb-6 outline-none border-2 focus:border-purple-500" placeholder="****">
+                    <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center">
+                        <h2 class="text-2xl font-bold mb-6">קוד כניסה</h2>
+                        <input type="password" id="adminPass" class="w-full p-4 bg-gray-100 rounded-xl text-center text-2xl mb-6 outline-none border-2 focus:border-purple-600" placeholder="****">
                         <button onclick="handleAdminLogin()" class="w-full kahoot-purple text-white py-4 rounded-xl font-black">כניסה</button>
                     </div>
                 </div>`;
             } else if (state.view === 'dashboard') {
-                html = `
-                <div class="p-8 max-w-4xl mx-auto">
-                    <div class="flex justify-between items-center mb-10">
-                        <h1 class="text-4xl font-black">החידונים שלי</h1>
-                        <button onclick="createQuiz()" class="kahoot-green text-white px-6 py-2 rounded-lg font-bold">צור חדש +</button>
+                root.innerHTML = `
+                <div class="p-6 max-w-4xl mx-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <h1 class="text-3xl font-black">החידונים שלי</h1>
+                        <button onclick="createQuiz()" class="kahoot-green text-white px-6 py-2 rounded-lg font-bold">חדש +</button>
                     </div>
-                    <div class="space-y-4">
+                    <div class="grid gap-4">
+                        ${state.quizzes.length === 0 ? '<p class="text-center opacity-50 py-10">אין חידונים עדיין</p>' : ''}
                         ${state.quizzes.map(q => `
-                            <div class="bg-white p-6 rounded-2xl shadow flex justify-between items-center">
+                            <div class="bg-white p-6 rounded-2xl shadow-sm flex justify-between items-center">
                                 <div><h3 class="text-xl font-bold">${q.title}</h3><p class="text-gray-400">${q.questions.length} שאלות</p></div>
                                 <div class="flex gap-2">
                                     <button onclick="hostGame('${q.id}')" class="kahoot-blue text-white px-6 py-2 rounded-lg font-bold">הפעל</button>
-                                    <button onclick="state.editingQuiz = state.quizzes.find(x=>x.id==='${q.id}'); setView('editor');" class="bg-gray-100 p-2 px-4 rounded-lg"><i class="fas fa-edit"></i></button>
+                                    <button onclick="state.editingQuiz = state.quizzes.find(x=>x.id==='${q.id}'); setView('editor');" class="bg-gray-100 p-2 rounded-lg"><i class="fas fa-edit"></i></button>
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    <button onclick="setView('home')" class="mt-10 text-gray-400">חזור</button>
+                    <button onclick="setView('home')" class="mt-8 text-gray-400">חזור לדף הבית</button>
                 </div>`;
             } else if (state.view === 'editor') {
                 const qz = state.editingQuiz;
-                html = `
-                <div class="p-6 max-w-3xl mx-auto pb-40">
-                    <input id="quizTitle" value="${qz.title}" class="w-full text-4xl font-black mb-10 bg-transparent border-b-4 border-purple-900 outline-none p-2">
-                    <div class="space-y-8">
+                root.innerHTML = `
+                <div class="p-6 max-w-3xl mx-auto pb-32">
+                    <input id="quizTitle" value="${qz.title}" class="w-full text-3xl font-black mb-8 border-b-2 border-purple-900 outline-none p-2 bg-transparent">
+                    <div class="space-y-6">
                         ${qz.questions.map((q, i) => `
-                            <div class="bg-white p-6 rounded-2xl shadow-lg border-r-8 border-purple-600">
-                                <input onchange="state.editingQuiz.questions[${i}].text = this.value" value="${q.text}" class="w-full text-xl font-bold p-3 bg-gray-50 rounded-lg mb-4" placeholder="שאלה...">
-                                <input onchange="state.editingQuiz.questions[${i}].image = this.value" value="${q.image}" class="w-full text-sm p-2 bg-gray-50 rounded-lg mb-4" placeholder="קישור לתמונה (אופציונלי)">
-                                <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-white p-6 rounded-2xl shadow-md border-r-4 border-purple-600">
+                                <div class="flex justify-between mb-4">
+                                    <span class="font-bold text-purple-900">שאלה ${i+1} (${q.type === 'tf' ? 'אמת/שקר' : 'אמריקאית'})</span>
+                                    <button onclick="state.editingQuiz.questions.splice(${i},1); render()" class="text-red-500"><i class="fas fa-trash"></i></button>
+                                </div>
+                                <input onchange="state.editingQuiz.questions[${i}].text = this.value" value="${q.text}" class="w-full p-3 bg-gray-50 rounded-lg mb-4 font-bold" placeholder="כתוב את השאלה כאן...">
+                                <div class="grid grid-cols-2 gap-3">
                                     ${q.opts.map((opt, oi) => `
-                                        <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
-                                            <input type="radio" name="q${i}" onchange="state.editingQuiz.questions[${i}].correct = ${oi}" ${q.correct === oi ? 'checked' : ''}>
-                                            <input onchange="state.editingQuiz.questions[${i}].opts[${oi}] = this.value" value="${opt}" class="bg-transparent w-full text-sm" placeholder="תשובה ${oi+1}">
+                                        <div class="flex items-center gap-2 bg-gray-50 p-3 rounded-lg">
+                                            <input type="radio" name="correct_${i}" onchange="state.editingQuiz.questions[${i}].correct = ${oi}" ${q.correct === oi ? 'checked' : ''}>
+                                            <input onchange="state.editingQuiz.questions[${i}].opts[${oi}] = this.value" value="${opt}" class="bg-transparent w-full" placeholder="תשובה ${oi+1}">
                                         </div>
                                     `).join('')}
                                 </div>
@@ -315,165 +334,152 @@
                         `).join('')}
                     </div>
                     <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-2xl flex gap-2">
-                        <button onclick="addQuestion('multi')" class="flex-1 bg-gray-100 py-3 rounded-lg font-bold">שאלה +</button>
-                        <button onclick="addQuestion('tf')" class="flex-1 bg-gray-100 py-3 rounded-lg font-bold">אמת/שקר +</button>
-                        <button onclick="saveQuiz()" class="flex-1 kahoot-green text-white py-3 rounded-lg font-bold">שמור</button>
+                        <button onclick="addQuestion('multi')" class="flex-1 bg-gray-100 py-4 rounded-xl font-bold">שאלה +</button>
+                        <button onclick="addQuestion('tf')" class="flex-1 bg-gray-100 py-4 rounded-xl font-bold">אמת/שקר +</button>
+                        <button onclick="saveQuiz()" class="flex-1 kahoot-green text-white py-4 rounded-xl font-bold">שמור חידון</button>
                     </div>
                 </div>`;
             } else if (state.view === 'join') {
-                html = `
+                root.innerHTML = `
                 <div class="h-screen kahoot-purple flex items-center justify-center p-6">
-                    <div class="bg-white p-8 rounded-3xl w-full max-w-xs text-center">
-                        <h2 class="text-4xl font-black italic mb-6">Quizmo!</h2>
-                        <input id="joinPin" class="w-full p-4 bg-gray-100 rounded-xl text-center text-2xl font-black mb-4 outline-none" placeholder="PIN">
+                    <div class="bg-white p-8 rounded-3xl w-full max-w-xs text-center shadow-2xl">
+                        <h2 class="text-3xl font-black italic mb-6">Quizmo!</h2>
+                        <input id="joinPin" class="w-full p-4 bg-gray-100 rounded-xl text-center text-2xl font-black mb-4 outline-none border-2 focus:border-purple-600" placeholder="PIN">
                         <button onclick="joinGame()" class="w-full bg-black text-white py-4 rounded-xl font-black">קדימה</button>
-                        <button onclick="setView('home')" class="mt-4 text-gray-400 block w-full">חזור</button>
+                        <button onclick="setView('home')" class="mt-4 text-gray-400 block w-full text-sm">ביטול</button>
                     </div>
                 </div>`;
             } else if (state.view === 'join_nick') {
-                html = `
-                <div class="h-screen kahoot-purple flex items-center justify-center p-6 text-center">
-                    <div class="bg-white p-8 rounded-3xl w-full max-w-xs">
-                        <h2 class="text-xl font-bold mb-4">איך קוראים לך?</h2>
-                        <input id="joinNick" class="w-full p-4 bg-gray-100 rounded-xl text-center text-xl mb-4 outline-none" placeholder="כינוי">
+                root.innerHTML = `
+                <div class="h-screen kahoot-purple flex items-center justify-center p-6">
+                    <div class="bg-white p-8 rounded-3xl w-full max-w-xs text-center">
+                        <h2 class="text-xl font-bold mb-4">איך יקראו לך?</h2>
+                        <input id="joinNick" class="w-full p-4 bg-gray-100 rounded-xl text-center text-xl mb-4 outline-none font-bold" placeholder="כינוי">
                         <button onclick="enterLobby()" class="w-full bg-black text-white py-4 rounded-xl font-black">אני מוכן!</button>
                     </div>
                 </div>`;
             } else if (state.view === 'host_lobby') {
-                html = `
+                root.innerHTML = `
                 <div class="h-screen kahoot-purple text-white flex flex-col">
-                    <div class="bg-white text-black p-10 text-center shadow-xl">
-                        <p class="font-bold opacity-40">PIN משחק:</p>
-                        <h1 class="text-8xl font-black">${state.pin}</h1>
+                    <div class="bg-white text-black p-8 text-center shadow-xl">
+                        <p class="font-bold text-gray-400 mb-1">PIN משחק:</p>
+                        <h1 class="text-7xl font-black">${state.pin}</h1>
                     </div>
-                    <div class="flex-1 p-10">
-                        <div class="flex justify-between mb-10">
-                            <span class="text-3xl font-bold"><i class="fas fa-user mr-2"></i> ${state.players.length}</span>
-                            <button onclick="startGame()" class="bg-white text-black px-10 py-3 rounded-xl font-black text-2xl">התחל</button>
+                    <div class="flex-1 p-8">
+                        <div class="flex justify-between items-center mb-10">
+                            <span class="text-2xl font-bold"><i class="fas fa-users mr-2"></i> ${state.players.length} שחקנים</span>
+                            <button onclick="startGame()" class="bg-white text-black px-10 py-3 rounded-xl font-black text-xl hover:scale-105 transition">התחל משחק</button>
                         </div>
-                        <div class="flex flex-wrap gap-4">
-                            ${state.players.map(p => `<div onclick="kickPlayer('${p.id}')" class="bg-white/20 px-6 py-2 rounded-lg text-2xl font-bold cursor-pointer hover:bg-red-500 transition">${p.name}</div>`).join('')}
+                        <div class="flex flex-wrap gap-3">
+                            ${state.players.map(p => `<div onclick="kickPlayer('${p.id}')" class="bg-white/20 px-6 py-2 rounded-lg text-xl font-bold cursor-pointer hover:bg-red-500 animate-pop">${p.name}</div>`).join('')}
                         </div>
                     </div>
                 </div>`;
             } else if (state.view === 'player_lobby') {
-                html = `
-                <div class="h-screen kahoot-green text-white flex flex-col items-center justify-center text-center p-6">
-                    <h2 class="text-5xl font-black italic mb-4">אתה בפנים!</h2>
-                    <p class="text-xl mb-10 opacity-70">חכה שהמנהל יתחיל...</p>
-                    <div class="bg-black/20 px-10 py-4 rounded-2xl text-3xl font-black">${state.nickname}</div>
-                    ${state.currentGame?.status === 'question' ? setView('player_game') : ''}
+                root.innerHTML = `
+                <div class="h-screen kahoot-green text-white flex flex-col items-center justify-center p-6 text-center">
+                    <h2 class="text-5xl font-black italic mb-4 animate-bounce">אתה בפנים!</h2>
+                    <p class="text-xl mb-12 opacity-80">חכה שהמנהל יתחיל...</p>
+                    <div class="bg-black/20 px-12 py-4 rounded-2xl text-2xl font-black">${state.nickname}</div>
                 </div>`;
             } else if (state.currentGame) {
-                html = renderGameView();
+                root.innerHTML = renderGame();
             }
-
-            root.innerHTML = html;
         }
 
-        window.startGame = async () => {
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(state.pin).update({ status: 'question', currentQ: 0 });
-        };
-
-        function renderGameView() {
+        function renderGame() {
             const g = state.currentGame;
             const q = g.quiz.questions[g.currentQ];
-            const isHost = g.hostId === auth.currentUser.uid;
+            const isHost = g.hostId === state.user.uid;
 
             if (isHost) {
                 if (g.status === 'question') {
                     return `
                     <div class="h-screen flex flex-col bg-white">
-                        <div class="p-6 text-center shadow-md"><h1 class="text-4xl font-black">${q.text}</h1></div>
+                        <div class="p-8 text-center shadow-md"><h1 class="text-4xl font-black">${q.text}</h1></div>
                         <div class="flex-1 flex flex-col items-center justify-center relative p-10">
                             <div class="absolute right-10 top-1/2 -translate-y-1/2 text-5xl font-black w-24 h-24 rounded-full border-8 border-purple-900 flex items-center justify-center">${state.timeLeft}</div>
-                            ${q.image ? `<img src="${q.image}" class="max-h-[40vh] rounded-2xl shadow-xl">` : ''}
+                            ${q.image ? `<img src="${q.image}" class="max-h-[40vh] rounded-2xl shadow-xl">` : '<div class="w-64 h-64 bg-gray-100 rounded-2xl flex items-center justify-center text-6xl text-gray-300 italic font-black">Quizmo</div>'}
                             <div class="absolute left-10 top-1/2 -translate-y-1/2 text-center">
                                 <div class="text-6xl font-black text-purple-900">${state.players.filter(p=>p.hasAnswered).length}</div>
                                 <div class="font-bold">תשובות</div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 p-2 h-[30vh]">
-                            ${q.opts.map((o, i) => `<div class="kahoot-${['red','blue','yellow','green'][i]} text-white flex items-center px-10 rounded-xl text-2xl font-bold">${o}</div>`).join('')}
+                        <div class="grid grid-cols-2 gap-2 p-2 h-[25vh]">
+                            ${[0,1,2,3].filter(i => q.type==='multi' || i < 2).map(i => `<div class="kahoot-${['red','blue','yellow','green'][i]} text-white flex items-center px-10 rounded-lg text-xl font-bold">${q.opts[i]}</div>`).join('')}
                         </div>
                     </div>`;
                 }
-                if (g.status === 'reveal') {
+                if (g.status === 'reveal' || g.status === 'scoreboard') {
                     return `
-                    <div class="h-screen flex flex-col p-10 bg-gray-50">
-                        <div class="flex justify-between items-center mb-10">
-                            <h2 class="text-3xl font-black">${q.text}</h2>
-                            <button onclick="nextStep()" class="kahoot-blue text-white px-10 py-3 rounded-xl font-bold text-xl">הבא</button>
-                        </div>
-                        <div class="flex-1 flex items-end justify-center gap-4">
-                            ${[0,1,2,3].filter(i => q.type==='multi' || i < 2).map(i => `
-                                <div class="flex-1 ${q.correct === i ? 'kahoot-'+['red','blue','yellow','green'][i] : 'bg-gray-200'} rounded-t-xl" style="height: ${Math.random()*80 + 10}%"></div>
-                            `).join('')}
-                        </div>
-                    </div>`;
-                }
-                if (g.status === 'scoreboard') {
-                    return `
-                    <div class="h-screen kahoot-purple text-white p-10 flex flex-col items-center">
-                        <div class="w-full max-w-2xl flex justify-between items-center mb-10">
+                    <div class="h-screen kahoot-purple text-white p-10 flex flex-col">
+                        <div class="flex justify-between items-center mb-8">
                             <h1 class="text-4xl font-black italic">לוח תוצאות</h1>
-                            <button onclick="nextStep()" class="bg-white text-black px-8 py-2 rounded-lg font-bold">המשך</button>
+                            <button onclick="nextStep()" class="bg-white text-black px-10 py-3 rounded-xl font-bold">המשך</button>
                         </div>
-                        <div class="w-full max-w-xl space-y-3">
+                        <div class="flex-1 max-w-2xl w-full mx-auto space-y-3 overflow-y-auto">
                             ${state.players.slice(0,5).map((p, i) => `
-                                <div class="bg-white text-black p-4 rounded-xl flex justify-between animate-slide-up" style="animation-delay:${i*100}ms">
-                                    <span class="font-bold">${p.name}</span>
-                                    <span class="font-black">${p.score}</span>
+                                <div class="bg-white text-black p-5 rounded-xl flex justify-between items-center animate-pop" style="animation-delay:${i*100}ms">
+                                    <div class="flex items-center gap-4">
+                                        <span class="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full font-bold text-sm">${i+1}</span>
+                                        <span class="text-xl font-bold">${p.name}</span>
+                                    </div>
+                                    <span class="text-2xl font-black">${p.score}</span>
                                 </div>
                             `).join('')}
                         </div>
                     </div>`;
                 }
                 if (g.status === 'podium') {
-                    return `<div class="h-screen kahoot-purple text-white flex flex-col items-center justify-center">
-                        <h1 class="text-6xl font-black mb-10 text-yellow-400">המנצח: ${state.players[0]?.name}</h1>
-                        <button onclick="location.reload()" class="bg-white text-black px-10 py-4 rounded-xl font-black">סיום משחק</button>
+                    return `
+                    <div class="h-screen kahoot-purple flex flex-col items-center justify-center text-white p-6">
+                        <i class="fas fa-trophy text-9xl text-yellow-400 mb-8 animate-bounce"></i>
+                        <h1 class="text-5xl font-black mb-2">${state.players[0]?.name || 'אין מנצח'}</h1>
+                        <p class="text-2xl opacity-60 mb-12">${state.players[0]?.score || 0} נקודות</p>
+                        <button onclick="location.reload()" class="bg-white text-black px-12 py-4 rounded-2xl font-black text-xl btn-shadow">סיים משחק</button>
                     </div>`;
                 }
             } else {
-                // Player
+                // Player Logic
                 if (g.status === 'question') {
-                    if (state.myPlayerData?.hasAnswered) return `<div class="h-screen kahoot-purple flex items-center justify-center text-white text-3xl font-black italic p-10 text-center animate-pulse">ממתין לאחרים...</div>`;
-                    
+                    if (state.myPlayerData?.hasAnswered) {
+                        return `<div class="h-screen kahoot-purple flex items-center justify-center text-white text-3xl font-black italic p-10 text-center animate-pulse">ממתין לאחרים...</div>`;
+                    }
                     if (q.type === 'tf') {
                         return `
                         <div class="h-screen flex flex-col gap-2 p-2 bg-gray-200">
-                            <button onclick="submitAnswer(0)" class="flex-1 kahoot-red rounded-2xl flex items-center justify-center active:scale-95">
-                                <i class="fas fa-caret-up text-[100px] text-white"></i>
+                            <button onclick="submitAnswer(0)" class="flex-1 kahoot-red rounded-2xl flex items-center justify-center active:scale-95 transition shadow-lg">
+                                <i class="fas fa-caret-up text-[120px] text-white"></i>
                             </button>
-                            <button onclick="submitAnswer(1)" class="flex-1 kahoot-blue rounded-2xl flex items-center justify-center active:scale-95">
-                                <i class="fas fa-square text-[80px] text-white" style="transform:rotate(45deg)"></i>
+                            <button onclick="submitAnswer(1)" class="flex-1 kahoot-blue rounded-2xl flex items-center justify-center active:scale-95 transition shadow-lg">
+                                <i class="fas fa-square text-[90px] text-white" style="transform:rotate(45deg)"></i>
                             </button>
                         </div>`;
                     }
                     return `
                     <div class="h-screen grid grid-cols-2 grid-rows-2 gap-2 p-2 bg-gray-200">
                         ${[0,1,2,3].map(i => `
-                            <button onclick="submitAnswer(${i})" class="kahoot-${['red','blue','yellow','green'][i]} rounded-2xl flex items-center justify-center active:scale-95">
-                                <i class="fas ${['fa-caret-up','fa-square','fa-circle','fa-square'][i]} text-[80px] text-white" ${i===1?'style="transform:rotate(45deg)"':''}></i>
+                            <button onclick="submitAnswer(${i})" class="kahoot-${['red','blue','yellow','green'][i]} rounded-2xl flex items-center justify-center active:scale-95 transition shadow-lg">
+                                <i class="fas ${['fa-caret-up','fa-square','fa-circle','fa-square'][i]} text-[90px] text-white" ${i===1?'style="transform:rotate(45deg)"':''}></i>
                             </button>
                         `).join('')}
                     </div>`;
                 }
                 if (g.status === 'reveal') {
-                    const win = state.myPlayerData.lastCorrect;
+                    const win = state.myPlayerData?.lastCorrect;
                     return `
-                    <div class="h-screen ${win ? 'kahoot-green' : 'kahoot-red'} flex flex-col items-center justify-center text-white p-10 text-center">
+                    <div class="h-screen ${win ? 'kahoot-green' : 'kahoot-red'} flex flex-col items-center justify-center text-white p-10 text-center animate-pop">
                         <i class="fas ${win ? 'fa-check-circle' : 'fa-times-circle'} text-9xl mb-6"></i>
                         <h2 class="text-5xl font-black mb-4">${win ? 'נכון!' : 'טעות!'}</h2>
-                        <div class="bg-black/20 px-10 py-4 rounded-xl text-2xl font-black">+${state.myPlayerData.lastPoints}</div>
+                        <div class="bg-black/20 px-10 py-4 rounded-xl text-2xl font-black">+${state.myPlayerData?.lastPoints || 0}</div>
                     </div>`;
                 }
-                return `<div class="h-screen kahoot-purple flex items-center justify-center text-white text-3xl font-black italic text-center p-10">הסתכל על המסך!</div>`;
+                return `<div class="h-screen kahoot-purple flex items-center justify-center text-white text-2xl font-black italic text-center p-10">הסתכל על המסך הראשי!</div>`;
             }
         }
 
-        startApp();
+        // Start App on Load
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
