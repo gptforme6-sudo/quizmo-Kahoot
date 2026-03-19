@@ -5,15 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quizmo Ultimate</title>
     
-    <!-- UI Frameworks -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs (Compatibility Mode) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
         body { font-family: 'Heebo', sans-serif; background-color: #f2f2f2; margin: 0; overflow-x: hidden; }
@@ -27,7 +21,6 @@
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
-        /* Loading Spinner */
         .spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
@@ -41,108 +34,88 @@
 </head>
 <body>
     <div id="app">
-        <!-- Initial Loading State -->
         <div class="h-screen kahoot-purple flex flex-col items-center justify-center text-white">
             <div class="text-6xl font-black animate-pulse italic mb-6">Quizmo</div>
             <div class="spinner mb-4"></div>
-            <div id="status-text" class="text-sm opacity-70">מכין את הסביבה...</div>
+            <div id="status-text" class="text-sm opacity-70">מתחבר למערכת...</div>
         </div>
     </div>
 
-    <script>
-        // --- State Management ---
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        // --- Configuration & Initialization ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v4';
+        let db, auth, user;
+
         let state = {
             view: 'home',
-            user: null,
-            pin: '',
-            nickname: '',
             quizzes: [],
             players: [],
             currentGame: null,
             myPlayerData: null,
             timeLeft: 0,
             timerId: null,
-            editingQuiz: null
+            editingQuiz: null,
+            nickname: '',
+            pin: ''
         };
 
-        let db, auth;
-
-        // --- Firebase Helper ---
-        async function getFirebaseConfig() {
-            // Try to get config from environment
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                return JSON.parse(__firebase_config);
-            }
-            // Wait a bit if not ready (sometimes injection is slow)
-            await new Promise(resolve => setTimeout(resolve, 500));
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                return JSON.parse(__firebase_config);
-            }
-            return null;
-        }
-
-        // --- Core Logic ---
-        async function initApp() {
+        async function init() {
             const statusEl = document.getElementById('status-text');
+            
             try {
-                const firebaseConfig = await getFirebaseConfig();
-                
-                if (!firebaseConfig || !firebaseConfig.apiKey) {
-                    throw new Error("Missing Firebase Credentials");
+                // Check for config
+                let config;
+                if (typeof __firebase_config !== 'undefined') {
+                    config = JSON.parse(__firebase_config);
                 }
 
-                statusEl.innerText = "מתחבר למסד הנתונים...";
-                firebase.initializeApp(firebaseConfig);
-                auth = firebase.auth();
-                db = firebase.firestore();
+                if (!config || !config.apiKey) {
+                    console.warn("No Firebase config found. App will run in Preview Mode.");
+                    render(); // Fallback to UI-only or mock data if needed
+                    return;
+                }
 
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
+                // Initialize Firebase
+                const app = initializeApp(config);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-                // Silent Authentication
+                // Auth
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await auth.signInWithCustomToken(__initial_auth_token);
+                    await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    await auth.signInAnonymously();
+                    await signInAnonymously(auth);
                 }
 
-                // Auth Listener
-                auth.onAuthStateChanged(user => {
-                    state.user = user;
+                onAuthStateChanged(auth, (u) => {
+                    user = u;
                     if (user) {
-                        loadQuizzes(appId);
+                        statusEl.innerText = "טוען נתונים...";
+                        setupSubscriptions();
                     }
                     render();
                 });
 
-            } catch (error) {
-                console.error("App Init Error:", error);
-                document.getElementById('app').innerHTML = `
-                    <div class="h-screen flex items-center justify-center bg-red-600 text-white p-6 text-center">
-                        <div class="max-w-md">
-                            <i class="fas fa-exclamation-triangle text-5xl mb-4"></i>
-                            <h1 class="text-2xl font-bold mb-2">שגיאת אתחול</h1>
-                            <p class="opacity-80 mb-6">משהו השתבש בחיבור לשרת. וודא שאתה מחובר לאינטרנט.</p>
-                            <div class="bg-black/20 p-3 rounded text-xs font-mono mb-6 text-left dir-ltr overflow-auto max-h-32">
-                                ${error.message}
-                            </div>
-                            <button onclick="location.reload()" class="bg-white text-red-600 px-8 py-3 rounded-xl font-bold btn-shadow shadow-lg">נסה שוב</button>
-                        </div>
-                    </div>
-                `;
+            } catch (err) {
+                console.error("Init error:", err);
+                render(); // Show UI anyway
             }
         }
 
-        function loadQuizzes(appId) {
-            if (!state.user) return;
-            // Rule 1 & 2: Simple query to the correct path
-            db.collection('artifacts').doc(appId)
-                .collection('users').doc(state.user.uid)
-                .collection('quizzes')
-                .onSnapshot(snap => {
-                    state.quizzes = [];
-                    snap.forEach(doc => state.quizzes.push({ id: doc.id, ...doc.data() }));
-                    render();
-                }, err => console.error("Snapshot Error:", err));
+        function setupSubscriptions() {
+            if (!user || !db) return;
+
+            // Load Quizzes (Private)
+            const quizCol = collection(db, 'artifacts', appId, 'users', user.uid, 'quizzes');
+            onSnapshot(quizCol, (snap) => {
+                state.quizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                render();
+            }, (err) => console.log("Quiz sync error", err));
         }
 
         // --- Actions ---
@@ -171,80 +144,80 @@
         };
 
         window.saveQuiz = async () => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
+            if (!db || !user) return alert("המערכת בטעינה, נסה שוב בעוד רגע");
             const titleInput = document.getElementById('quizTitle');
             if (titleInput) state.editingQuiz.title = titleInput.value;
             
             if (state.editingQuiz.questions.length === 0) return alert("יש להוסיף לפחות שאלה אחת");
 
             const id = state.editingQuiz.id || Math.random().toString(36).substr(2, 9);
-            await db.collection('artifacts').doc(appId)
-                .collection('users').doc(state.user.uid)
-                .collection('quizzes').doc(id).set({ ...state.editingQuiz, id });
+            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'quizzes', id);
             
+            await setDoc(docRef, { ...state.editingQuiz, id });
             setView('dashboard');
         };
 
         window.hostGame = async (quizId) => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
+            if (!db) return;
             const quiz = state.quizzes.find(q => q.id === quizId);
             const pin = Math.floor(100000 + Math.random() * 899999).toString();
             state.pin = pin;
             
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(pin).set({
-                pin, quiz, status: 'lobby', hostId: state.user.uid, currentQ: 0, lastUpdate: Date.now()
+            const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', pin);
+            await setDoc(gameRef, {
+                pin, quiz, status: 'lobby', hostId: user.uid, currentQ: 0, lastUpdate: Date.now()
             });
             
-            setupGameListeners(pin);
+            listenToGame(pin);
             setView('host_lobby');
         };
 
         window.joinGame = async () => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
             const pinInput = document.getElementById('joinPin').value;
-            if (!pinInput) return;
+            if (!pinInput || !db) return;
 
-            const snap = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(pinInput).get();
-            if (!snap.exists()) return alert("PIN לא תקין");
+            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', pinInput));
+            if (!snap.exists()) return alert("PIN לא נמצא");
             
             state.pin = pinInput;
             setView('join_nick');
         };
 
         window.enterLobby = async () => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
             const nick = document.getElementById('joinNick').value;
-            if (!nick) return;
+            if (!nick || !db) return;
             state.nickname = nick;
             
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').doc(state.user.uid).set({
-                pin: state.pin, name: nick, score: 0, hasAnswered: false, id: state.user.uid
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', user.uid), {
+                pin: state.pin, name: nick, score: 0, hasAnswered: false, id: user.uid
             });
             
-            setupGameListeners(state.pin);
+            listenToGame(state.pin);
             setView('player_lobby');
         };
 
-        function setupGameListeners(pin) {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
-            
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(pin).onSnapshot(snap => {
+        function listenToGame(pin) {
+            // Game State
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', pin), (snap) => {
                 if (!snap.exists()) return;
                 state.currentGame = snap.data();
-                if (state.currentGame.hostId === state.user.uid) manageHostTimer();
+                if (state.currentGame.hostId === user.uid) handleHostTimer();
                 render();
-            }, err => console.error("Game Listener Error:", err));
+            });
 
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').onSnapshot(snap => {
-                state.players = [];
-                snap.forEach(d => { if (d.data().pin === pin) state.players.push(d.data()); });
-                state.players.sort((a,b) => b.score - a.score);
-                state.myPlayerData = state.players.find(p => p.id === state.user.uid);
+            // Players
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'players'), (snap) => {
+                state.players = snap.docs
+                    .map(d => d.data())
+                    .filter(p => p.pin === pin)
+                    .sort((a,b) => b.score - a.score);
+                
+                state.myPlayerData = state.players.find(p => p.id === user.uid);
                 render();
-            }, err => console.error("Players Listener Error:", err));
+            });
         }
 
-        function manageHostTimer() {
+        function handleHostTimer() {
             if (state.currentGame.status === 'question' && !state.timerId) {
                 const q = state.currentGame.quiz.questions[state.currentGame.currentQ];
                 state.timeLeft = q.time;
@@ -254,8 +227,7 @@
                     if (state.timeLeft <= 0 || allAns) {
                         clearInterval(state.timerId);
                         state.timerId = null;
-                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
-                        await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(state.pin).update({ status: 'reveal' });
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', state.pin), { status: 'reveal' });
                     }
                     render();
                 }, 1000);
@@ -264,34 +236,31 @@
 
         window.submitAnswer = async (idx) => {
             if (!state.myPlayerData || state.myPlayerData.hasAnswered || state.currentGame.status !== 'question') return;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
             const q = state.currentGame.quiz.questions[state.currentGame.currentQ];
             const isCorrect = idx === q.correct;
             const pts = isCorrect ? Math.max(100, state.timeLeft * 50) : 0;
             
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').doc(state.user.uid).update({
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', user.uid), {
                 hasAnswered: true, lastCorrect: isCorrect, score: state.myPlayerData.score + pts, lastPoints: pts
             });
         };
 
         window.startGame = async () => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(state.pin).update({ status: 'question', currentQ: 0 });
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', state.pin), { status: 'question', currentQ: 0 });
         };
 
         window.nextStep = async () => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-v3-stable';
             const g = state.currentGame;
-            const ref = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(state.pin);
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'games', state.pin);
             
-            if (g.status === 'reveal') await ref.update({ status: 'scoreboard' });
+            if (g.status === 'reveal') await updateDoc(ref, { status: 'scoreboard' });
             else if (g.status === 'scoreboard') {
-                if (g.currentQ + 1 >= g.quiz.questions.length) await ref.update({ status: 'podium' });
+                if (g.currentQ + 1 >= g.quiz.questions.length) await updateDoc(ref, { status: 'podium' });
                 else {
                     for(let p of state.players) {
-                        await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('players').doc(p.id).update({ hasAnswered: false });
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', p.id), { hasAnswered: false });
                     }
-                    await ref.update({ status: 'question', currentQ: g.currentQ + 1 });
+                    await updateDoc(ref, { status: 'question', currentQ: g.currentQ + 1 });
                 }
             }
         };
@@ -307,10 +276,11 @@
                         <button onclick="setView('join')" class="w-full bg-white text-black py-5 rounded-2xl text-2xl font-black btn-shadow">הצטרף למשחק</button>
                         <button onclick="setView('login')" class="w-full text-white/50 font-bold py-4 hover:text-white transition">ניהול מערכת</button>
                     </div>
+                    ${!db ? '<p class="mt-8 text-xs opacity-50">מצב תצוגה מקדימה בלבד</p>' : ''}
                 </div>`;
             } else if (state.view === 'login') {
                 root.innerHTML = `
-                <div class="h-screen kahoot-purple flex items-center justify-center p-6">
+                <div class="h-screen kahoot-purple flex items-center justify-center p-6 text-right">
                     <div class="bg-white p-10 rounded-3xl w-full max-w-sm text-center shadow-2xl">
                         <h2 class="text-2xl font-bold mb-6">קוד ניהול</h2>
                         <input type="password" id="adminPass" class="w-full p-4 bg-gray-100 rounded-xl text-center text-3xl mb-6 outline-none border-2 focus:border-purple-600 font-mono" placeholder="••••">
@@ -320,15 +290,15 @@
                 </div>`;
             } else if (state.view === 'dashboard') {
                 root.innerHTML = `
-                <div class="p-6 max-w-4xl mx-auto">
-                    <div class="flex justify-between items-center mb-10">
+                <div class="p-6 max-w-4xl mx-auto text-right">
+                    <div class="flex flex-row-reverse justify-between items-center mb-10">
                         <h1 class="text-4xl font-black">החידונים שלי</h1>
                         <button onclick="createQuiz()" class="kahoot-green text-white px-8 py-3 rounded-xl font-bold btn-shadow">+ צור חדש</button>
                     </div>
                     <div class="grid gap-6">
                         ${state.quizzes.length === 0 ? '<div class="text-center py-20 bg-white rounded-3xl opacity-40 font-bold">אין לך חידונים עדיין</div>' : ''}
                         ${state.quizzes.map(q => `
-                            <div class="bg-white p-6 rounded-2xl shadow-sm flex justify-between items-center animate-pop">
+                            <div class="bg-white p-6 rounded-2xl shadow-sm flex flex-row-reverse justify-between items-center animate-pop">
                                 <div><h3 class="text-2xl font-bold">${q.title}</h3><p class="text-gray-400 font-medium">${q.questions.length} שאלות</p></div>
                                 <div class="flex gap-3">
                                     <button onclick="hostGame('${q.id}')" class="kahoot-blue text-white px-8 py-3 rounded-xl font-black btn-shadow">הפעל</button>
@@ -342,24 +312,24 @@
             } else if (state.view === 'editor') {
                 const qz = state.editingQuiz;
                 root.innerHTML = `
-                <div class="p-6 max-w-3xl mx-auto pb-40">
-                    <div class="flex items-center gap-4 mb-8">
-                        <button onclick="setView('dashboard')" class="text-2xl"><i class="fas fa-arrow-right"></i></button>
-                        <input id="quizTitle" value="${qz.title}" class="flex-1 text-3xl font-black border-b-4 border-purple-900 outline-none p-2 bg-transparent focus:border-purple-500 transition">
+                <div class="p-6 max-w-3xl mx-auto pb-40 text-right">
+                    <div class="flex flex-row-reverse items-center gap-4 mb-8">
+                        <button onclick="setView('dashboard')" class="text-2xl"><i class="fas fa-arrow-left"></i></button>
+                        <input id="quizTitle" value="${qz.title}" class="flex-1 text-3xl font-black border-b-4 border-purple-900 outline-none p-2 bg-transparent focus:border-purple-500 transition text-right">
                     </div>
                     <div class="space-y-8">
                         ${qz.questions.map((q, i) => `
-                            <div class="bg-white p-8 rounded-3xl shadow-lg border-r-8 border-purple-600 relative animate-pop">
-                                <div class="flex justify-between mb-6">
+                            <div class="bg-white p-8 rounded-3xl shadow-lg border-l-8 border-purple-600 relative animate-pop">
+                                <div class="flex flex-row-reverse justify-between mb-6">
                                     <span class="font-black text-purple-900 text-lg underline">שאלה ${i+1}</span>
                                     <button onclick="state.editingQuiz.questions.splice(${i},1); render()" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
                                 </div>
-                                <textarea onchange="state.editingQuiz.questions[${i}].text = this.value" class="w-full p-4 bg-gray-50 rounded-xl mb-6 font-bold text-lg resize-none h-24" placeholder="כתוב את השאלה כאן...">${q.text}</textarea>
+                                <textarea onchange="state.editingQuiz.questions[${i}].text = this.value" class="w-full p-4 bg-gray-50 rounded-xl mb-6 font-bold text-lg resize-none h-24 text-right" placeholder="כתוב את השאלה כאן...">${q.text}</textarea>
                                 <div class="grid grid-cols-2 gap-4">
                                     ${q.opts.map((opt, oi) => `
-                                        <div class="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border-2 ${q.correct === oi ? 'border-green-500 bg-green-50' : 'border-transparent'}">
+                                        <div class="flex flex-row-reverse items-center gap-3 bg-gray-50 p-4 rounded-2xl border-2 ${q.correct === oi ? 'border-green-500 bg-green-50' : 'border-transparent'}">
                                             <input type="radio" name="correct_${i}" onchange="state.editingQuiz.questions[${i}].correct = ${oi}" ${q.correct === oi ? 'checked' : ''} class="w-6 h-6 accent-green-600">
-                                            <input onchange="state.editingQuiz.questions[${i}].opts[${oi}] = this.value" value="${opt}" class="bg-transparent w-full font-bold" placeholder="תשובה ${oi+1}">
+                                            <input onchange="state.editingQuiz.questions[${i}].opts[${oi}] = this.value" value="${opt}" class="bg-transparent w-full font-bold text-right" placeholder="תשובה ${oi+1}">
                                         </div>
                                     `).join('')}
                                 </div>
@@ -399,8 +369,8 @@
                         <h1 class="text-8xl font-black tracking-tighter">${state.pin}</h1>
                     </div>
                     <div class="flex-1 p-10 overflow-y-auto">
-                        <div class="flex justify-between items-end mb-12">
-                            <div>
+                        <div class="flex flex-row-reverse justify-between items-end mb-12">
+                            <div class="text-right">
                                 <h2 class="text-4xl font-black mb-1">${state.currentGame?.quiz.title}</h2>
                                 <span class="text-xl opacity-70 font-bold"><i class="fas fa-user-friends mr-2"></i> ${state.players.length} שחקנים מחוברים</span>
                             </div>
@@ -428,12 +398,12 @@
         function renderGame() {
             const g = state.currentGame;
             const q = g.quiz.questions[g.currentQ];
-            const isHost = g.hostId === state.user.uid;
+            const isHost = g.hostId === user.uid;
 
             if (isHost) {
                 if (g.status === 'question') {
                     return `
-                    <div class="h-screen flex flex-col bg-white overflow-hidden">
+                    <div class="h-screen flex flex-col bg-white overflow-hidden text-right">
                         <div class="p-10 text-center shadow-md bg-white z-10"><h1 class="text-5xl font-black leading-tight">${q.text}</h1></div>
                         <div class="flex-1 flex flex-col items-center justify-center relative bg-gray-50">
                             <div class="absolute right-12 top-1/2 -translate-y-1/2 text-7xl font-black w-32 h-32 rounded-full border-8 border-purple-900 flex items-center justify-center text-purple-900 bg-white shadow-xl">${state.timeLeft}</div>
@@ -445,8 +415,8 @@
                         </div>
                         <div class="grid grid-cols-2 gap-4 p-4 h-[30vh]">
                             ${[0,1,2,3].filter(i => q.type==='multi' || i < 2).map(i => `
-                                <div class="kahoot-${['red','blue','yellow','green'][i]} text-white flex items-center px-12 rounded-2xl text-3xl font-black shadow-lg">
-                                    <i class="fas ${['fa-caret-up','fa-square','fa-circle','fa-square'][i]} mr-6 text-4xl" ${i===1?'style="transform:rotate(45deg)"':''}></i>
+                                <div class="kahoot-${['red','blue','yellow','green'][i]} text-white flex flex-row-reverse items-center px-12 rounded-2xl text-3xl font-black shadow-lg">
+                                    <i class="fas ${['fa-caret-up','fa-square','fa-circle','fa-square'][i]} ml-6 text-4xl" ${i===1?'style="transform:rotate(45deg)"':''}></i>
                                     ${q.opts[i]}
                                 </div>
                             `).join('')}
@@ -455,15 +425,15 @@
                 }
                 if (g.status === 'reveal' || g.status === 'scoreboard') {
                     return `
-                    <div class="h-screen kahoot-purple text-white p-12 flex flex-col">
-                        <div class="flex justify-between items-center mb-12">
+                    <div class="h-screen kahoot-purple text-white p-12 flex flex-col text-right">
+                        <div class="flex flex-row-reverse justify-between items-center mb-12">
                             <h1 class="text-5xl font-black italic">לוח התוצאות</h1>
                             <button onclick="nextStep()" class="bg-white text-black px-12 py-5 rounded-2xl font-black text-2xl btn-shadow">הבא</button>
                         </div>
                         <div class="flex-1 max-w-3xl w-full mx-auto space-y-4 overflow-y-auto pr-4">
                             ${state.players.slice(0,5).map((p, i) => `
-                                <div class="bg-white text-black p-6 rounded-[2rem] flex justify-between items-center animate-pop shadow-xl" style="animation-delay:${i*100}ms">
-                                    <div class="flex items-center gap-6">
+                                <div class="bg-white text-black p-6 rounded-[2rem] flex flex-row-reverse justify-between items-center animate-pop shadow-xl" style="animation-delay:${i*100}ms">
+                                    <div class="flex flex-row-reverse items-center gap-6">
                                         <span class="w-12 h-12 flex items-center justify-center bg-purple-100 text-purple-900 rounded-full font-black text-xl">${i+1}</span>
                                         <span class="text-3xl font-black">${p.name}</span>
                                     </div>
@@ -475,7 +445,7 @@
                 }
                 if (g.status === 'podium') {
                     return `
-                    <div class="h-screen kahoot-purple flex flex-col items-center justify-center text-white p-6">
+                    <div class="h-screen kahoot-purple flex flex-col items-center justify-center text-white p-6 text-center">
                         <i class="fas fa-trophy text-[12rem] text-yellow-400 mb-12 animate-bounce"></i>
                         <h1 class="text-7xl font-black mb-4 drop-shadow-lg">${state.players[0]?.name || 'סוף החידון'}</h1>
                         <p class="text-3xl opacity-70 mb-16 font-black">${state.players[0]?.score || 0} נקודות!</p>
@@ -530,10 +500,8 @@
             }
         }
 
-        // --- Bootstrap ---
-        document.addEventListener('DOMContentLoaded', () => {
-            initApp();
-        });
+        // Run
+        init();
     </script>
 </body>
 </html>
