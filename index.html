@@ -104,8 +104,19 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, query, deleteDoc, updateDoc } from "firebase/firestore";
 
-        // --- Configuration & Global State ---
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // ==========================================
+        // Firebase Configuration for GitHub Pages
+        // ==========================================
+        // התיקון לגיטהאב: כאן אתה חייב להכניס את הנתונים מה-Firebase שלך כדי שזה יעבוד!
+        const myGithubFirebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo_prod';
         
         let app, auth, db, currentUser;
@@ -128,7 +139,22 @@
         // --- Init ---
         async function initApp() {
             try {
-                app = initializeApp(firebaseConfig);
+                let configToUse;
+                
+                // התיקון שמונע את הטעינה האינסופית
+                if (typeof __firebase_config !== 'undefined') {
+                    // עובד בצורה חלקה בתוך סביבת הפיתוח שלנו פה
+                    configToUse = JSON.parse(__firebase_config);
+                } else {
+                    // כשהקוד רץ ב-GitHub Pages, הוא יקרא את ההגדרות שלך מפה
+                    configToUse = myGithubFirebaseConfig;
+                    
+                    if (configToUse.apiKey === "YOUR_API_KEY") {
+                        throw new Error("חובה להכניס פרטי Firebase (מסד נתונים) כדי שהמשחק יעבוד ב-GitHub Pages. חפש בקוד את 'myGithubFirebaseConfig' והזן את הפרטים שלך.");
+                    }
+                }
+
+                app = initializeApp(configToUse);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
@@ -151,7 +177,13 @@
                 });
             } catch (e) {
                 console.error("Init error", e);
-                document.getElementById('app').innerHTML = `<div class="p-10 text-center bg-red-500 text-white h-screen"><h1>שגיאת התחברות לשרת</h1><p>${e.message}</p></div>`;
+                // עכשיו במקום להיתקע לנצח, תוצג לך הודעה ברורה
+                document.getElementById('app').innerHTML = `
+                    <div class="p-10 text-center bg-red-600 text-white h-screen flex flex-col items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-6xl mb-4"></i>
+                        <h1 class="text-3xl font-black mb-2">שגיאת חיבור למסד הנתונים</h1>
+                        <p class="text-xl max-w-2xl">${e.message}</p>
+                    </div>`;
             }
         }
 
