@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quizmo Ultimate V6</title>
+    <title>Quizmo Kahoot</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -48,7 +48,7 @@
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
         // Global State
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-pro-v6';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-pro-v6-fixed';
         let db, auth, user;
         
         let state = {
@@ -102,7 +102,7 @@
             onSnapshot(quizCol, (snap) => {
                 state.quizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 render();
-            });
+            }, (err) => console.error("Firestore error:", err));
         }
 
         // --- Logic ---
@@ -124,8 +124,8 @@
         };
 
         window.updateField = (index, field, value) => {
+            if (!state.editingQuiz) return;
             state.editingQuiz.questions[index][field] = value;
-            // No full render to keep focus, but we do update image preview if field is 'image'
             if (field === 'image') {
                 const imgPrev = document.getElementById(`img-prev-${index}`);
                 if (imgPrev) imgPrev.src = value || 'https://via.placeholder.com/150?text=No+Image';
@@ -133,10 +133,13 @@
         };
 
         window.updateOption = (qIdx, oIdx, value) => {
+            if (!state.editingQuiz) return;
             state.editingQuiz.questions[qIdx].opts[oIdx] = value;
         };
 
         window.addQuestion = (type) => {
+            if (!state.editingQuiz) return;
+            
             // Backup current inputs
             const inputs = document.querySelectorAll('.q-text-input');
             inputs.forEach(input => {
@@ -158,6 +161,8 @@
         };
 
         window.saveQuiz = async () => {
+            if (!state.editingQuiz) return;
+            
             const titleInput = document.getElementById('quizTitle');
             if (titleInput) state.editingQuiz.title = titleInput.value;
             
@@ -175,9 +180,21 @@
                 const id = state.editingQuiz.id || Math.random().toString(36).substr(2, 9);
                 if (db && user) {
                     const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'quizzes', id);
-                    await setDoc(docRef, { ...state.editingQuiz, id, lastUpdated: Date.now() });
+                    const dataToSave = { 
+                        ...state.editingQuiz, 
+                        id, 
+                        lastUpdated: Date.now() 
+                    };
+                    await setDoc(docRef, dataToSave);
+                    
+                    // Force refresh local quizzes list to ensure visibility
+                    const index = state.quizzes.findIndex(q => q.id === id);
+                    if (index > -1) state.quizzes[index] = dataToSave;
+                    else state.quizzes.push(dataToSave);
+                    
+                    state.editingQuiz = null;
+                    state.view = 'dashboard';
                 }
-                state.view = 'dashboard';
             } catch (e) {
                 alert("שגיאה בשמירה: " + e.message);
             } finally {
@@ -360,7 +377,7 @@
                                     <div>
                                         <h3 class="text-2xl font-black text-gray-800 mb-1">${q.title}</h3>
                                         <div class="flex flex-row-reverse gap-4 text-sm text-gray-400 font-bold">
-                                            <span><i class="fas fa-list-ol ml-1"></i> ${q.questions.length} שאלות</span>
+                                            <span><i class="fas fa-list-ol ml-1"></i> ${q.questions ? q.questions.length : 0} שאלות</span>
                                         </div>
                                     </div>
                                     <div class="flex gap-3">
