@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quizmo - The Ultimate Kahoot Clone</title>
+    <title>Quizmo - Kahoot Style</title>
     
-    <!-- External Dependencies -->
+    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
@@ -35,176 +35,188 @@
         }
 
         body { 
-            font-family: 'Rubik', 'Montserrat', sans-serif; 
+            font-family: 'Rubik', sans-serif; 
             margin: 0; 
-            overflow-x: hidden; 
             background: #f2f2f2;
-            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            user-select: none;
         }
 
-        /* Kahoot Style Gradients */
-        .bg-kahoot {
+        .bg-kahoot-gradient {
             background: linear-gradient(135deg, var(--k-purple) 0%, #250a4d 100%);
             background-attachment: fixed;
         }
 
-        .k-btn {
-            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+        .kahoot-btn {
+            box-shadow: 0 4px 0 rgba(0,0,0,0.25);
             transition: all 0.1s ease;
-            position: relative;
         }
-        .k-btn:active {
+        .kahoot-btn:active {
             transform: translateY(2px);
-            box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.25);
         }
 
         /* Shape Icons */
-        .shape-square::before { content: '▲'; font-size: 1.5rem; margin-left: 8px; }
-        .shape-diamond::before { content: '◆'; font-size: 2rem; margin-left: 8px; }
-        .shape-circle::before { content: '●'; font-size: 1.5rem; margin-left: 8px; }
-        .shape-triangle::before { content: '■'; font-size: 1.5rem; margin-left: 8px; }
+        .shape { display: inline-block; width: 24px; height: 24px; margin-left: 10px; vertical-align: middle; }
+        .shape-square { background: white; clip-path: inset(0 0 0 0); } /* Replaced with square icon */
+        .shape-triangle { background: white; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+        .shape-diamond { background: white; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+        .shape-circle { background: white; border-radius: 50%; }
 
-        /* Timer Circle */
-        .timer-circle {
-            width: 80px;
-            height: 80px;
+        .timer-ring {
+            width: 100px; height: 100px;
             border-radius: 50%;
-            border: 8px solid white;
+            border: 8px solid #f2f2f2;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; font-weight: 900; color: #333;
+        }
+
+        .answer-box {
+            height: 100px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
+            padding: 0 20px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .podium-bar {
+            width: 120px;
+            transition: height 1.5s ease-out;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            color: white;
             font-weight: 900;
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: var(--k-purple); border-radius: 10px; }
-
-        .answer-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            padding: 12px;
-            height: 40vh;
+        /* Music Toggle UI */
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .podium-item {
-            transition: height 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        #loader {
+            position: fixed; inset: 0; background: var(--k-purple);
+            z-index: 9999; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; color: white;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
 
-    <div id="app" class="min-h-screen flex flex-col">
-        <!-- Loader Screen -->
-        <div id="loader" class="fixed inset-0 bg-kahoot flex flex-col items-center justify-center z-[9999]">
-            <h1 class="text-6xl font-black text-white italic mb-8 animate__animated animate__pulse animate__infinite">Quizmo</h1>
-            <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-            <p id="loader-msg" class="text-white mt-4 font-bold opacity-75 text-xl">טוען עולם של ידע...</p>
-        </div>
+    <div id="loader">
+        <h1 class="text-6xl font-black italic mb-4 animate__animated animate__pulse animate__infinite">Quizmo</h1>
+        <div class="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        <p class="mt-4 font-bold" id="loader-status">מתחבר לשרתים...</p>
+    </div>
 
-        <!-- Main Content Area -->
-        <main id="view-container" class="flex-grow"></main>
+    <div id="main-view" class="min-h-screen"></div>
+
+    <div class="music-control" onclick="toggleMusic()">
+        <i id="music-icon" class="fas fa-volume-up text-purple-800 text-xl"></i>
     </div>
 
     <!-- Audio Elements -->
     <audio id="audio-lobby" loop src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Kahoot+Lobby+Music&filename=24/244191-44390772-888e-4a6c-94c6-e666a4b3d3f1.mp3"></audio>
-    <audio id="audio-question" src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Kahoot+Question+Music&filename=24/244191-c91836f3-8f0a-4a52-9b24-345091c0e3a1.mp3"></audio>
+    <audio id="audio-question" loop src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Kahoot+Question+Music&filename=24/244191-c91836f3-8f0a-4a52-9b24-345091c0e3a1.mp3"></audio>
 
     <script type="module">
         import { initializeApp } from "firebase/app";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, query, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
 
-        // --- CONFIGURATION ---
-        // הדבק כאן את הקונפיג שלך מ-Firebase Console
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "",
-            authDomain: "",
-            projectId: "",
-            storageBucket: "",
-            messagingSenderId: "",
-            appId: ""
+        // --- FIREBASE CONFIG (YOURS) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
+            authDomain: "quizmo-kahoot.firebaseapp.com",
+            projectId: "quizmo-kahoot",
+            storageBucket: "quizmo-kahoot.firebasestorage.app",
+            messagingSenderId: "738657082184",
+            appId: "1:738657082184:web:076d9ccf27706d356bb17d"
         };
 
-        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'quizmo_v1';
-        let app, auth, db, user;
-        let currentState = { view: 'landing' };
+        const APP_ID = 'quizmo_pro_v1';
+        let db, auth, user, currentPin = null;
+        let isMuted = false;
 
-        // --- CORE APP INIT ---
+        // --- APP INIT ---
         async function init() {
             try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
+                const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
+                auth = getAuth(app);
+                
+                await signInAnonymously(auth);
                 onAuthStateChanged(auth, (u) => {
                     user = u;
-                    if (user) {
-                        document.getElementById('loader').classList.add('hidden');
-                        renderLanding();
-                    }
+                    document.getElementById('loader').style.display = 'none';
+                    renderLanding();
                 });
-            } catch (err) {
-                console.error(err);
-                document.getElementById('loader-msg').innerText = "שגיאת חיבור. וודא שהזנת Firebase Config.";
+            } catch (e) {
+                console.error(e);
+                document.getElementById('loader-status').innerText = "שגיאת חיבור. וודא ש-Firebase מוגדר כראוי.";
             }
         }
 
-        // --- UI ROUTING & RENDERING ---
+        // --- UI ROUTING ---
         function renderLanding() {
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             container.innerHTML = `
-                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6 text-center">
-                    <h1 class="text-7xl font-black text-white italic mb-12 drop-shadow-2xl animate__animated animate__backInDown">Quizmo</h1>
+                <div class="h-screen bg-kahoot-gradient flex flex-col items-center justify-center p-6 text-center">
+                    <h1 class="text-7xl font-black text-white italic mb-16 drop-shadow-2xl animate__animated animate__zoomIn">Quizmo</h1>
                     <div class="w-full max-w-sm space-y-4">
-                        <button onclick="router('player-join')" class="k-btn w-full bg-white text-gray-900 py-6 rounded-lg text-2xl font-black hover:bg-gray-100">הצטרפות למשחק</button>
-                        <button onclick="adminLogin()" class="w-full text-white/60 hover:text-white font-bold text-lg underline mt-4">ניהול דביר</button>
+                        <button onclick="viewJoin()" class="kahoot-btn w-full bg-white text-gray-900 py-6 rounded-lg text-2xl font-black hover:bg-gray-100">הצטרפות</button>
+                        <button onclick="viewAdminLogin()" class="kahoot-btn w-full bg-[#333] text-white py-6 rounded-lg text-2xl font-black hover:bg-black">ניהול</button>
                     </div>
                 </div>
             `;
         }
 
-        window.adminLogin = () => {
-            const pin = prompt("הכנס קוד גישה למנהל (2160):");
-            if (pin === '2160') renderAdminDashboard();
-            else alert("גישה נחסמה.");
+        // --- ADMIN LOGIN ---
+        window.viewAdminLogin = () => {
+            const pass = prompt("סיסמת מנהל (דביר):");
+            if (pass === '2160') renderAdminDashboard();
+            else if(pass !== null) alert("גישה נחסמה.");
         };
 
         // --- ADMIN DASHBOARD ---
         async function renderAdminDashboard() {
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             container.innerHTML = `
                 <div class="min-h-screen bg-gray-100">
-                    <nav class="bg-white shadow-md p-4 flex justify-between items-center">
-                        <h2 class="text-2xl font-black text-purple-900 italic">Quizmo Admin</h2>
+                    <header class="bg-white shadow-sm p-4 flex justify-between items-center">
+                        <h2 class="text-2xl font-black text-purple-900">Quizmo Admin</h2>
                         <button onclick="renderLanding()" class="bg-gray-200 px-4 py-2 rounded font-bold">יציאה</button>
-                    </nav>
+                    </header>
                     <div class="p-6 max-w-4xl mx-auto">
                         <div class="flex justify-between items-center mb-8">
-                            <h3 class="text-3xl font-black text-gray-800">החידונים שלי</h3>
-                            <button onclick="renderEditor()" class="bg-green-600 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 k-btn">
+                            <h3 class="text-3xl font-black">החידונים שלי</h3>
+                            <button onclick="renderEditor()" class="bg-green-600 text-white px-6 py-3 rounded-lg font-bold kahoot-btn">
                                 <i class="fas fa-plus"></i> צור חידון חדש
                             </button>
                         </div>
-                        <div id="quiz-list" class="grid gap-4">
-                            <div class="animate-pulse bg-white h-24 rounded-lg"></div>
-                        </div>
+                        <div id="quiz-list" class="grid gap-4"></div>
                     </div>
                 </div>
             `;
-            loadQuizzes();
-        }
-
-        async function loadQuizzes() {
+            
             const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes'));
             onSnapshot(q, (snapshot) => {
                 const list = document.getElementById('quiz-list');
@@ -213,142 +225,134 @@
                     const quiz = docSnap.data();
                     const id = docSnap.id;
                     list.innerHTML += `
-                        <div class="bg-white p-6 rounded-lg shadow-sm border-l-8 border-purple-600 flex justify-between items-center animate__animated animate__fadeInUp">
+                        <div class="bg-white p-6 rounded-lg shadow flex justify-between items-center animate__animated animate__fadeInUp">
                             <div>
                                 <h4 class="text-xl font-bold">${quiz.title}</h4>
                                 <p class="text-gray-500">${quiz.questions?.length || 0} שאלות</p>
                             </div>
-                            <div class="flex gap-3">
-                                <button onclick="startHost('${id}')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold k-btn">הפעל</button>
-                                <button onclick="renderEditor('${id}')" class="bg-gray-100 p-2 rounded text-gray-700 hover:bg-gray-200"><i class="fas fa-edit"></i></button>
+                            <div class="flex gap-2">
+                                <button onclick="startHost('${id}')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold kahoot-btn">הפעל</button>
+                                <button onclick="renderEditor('${id}')" class="bg-gray-100 p-2 rounded text-gray-700 hover:bg-gray-200"><i class="fas fa-pencil-alt"></i></button>
                                 <button onclick="deleteQuiz('${id}')" class="bg-red-50 text-red-600 p-2 rounded hover:bg-red-100"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     `;
                 });
-                if (snapshot.empty) list.innerHTML = `<p class="text-center text-gray-400 py-10">אין חידונים עדיין. צור את הראשון!</p>`;
             });
         }
 
-        // --- EDITOR LOGIC ---
+        // --- QUIZ EDITOR ---
         window.renderEditor = async (quizId = null) => {
             let quiz = { title: '', questions: [] };
             if (quizId) {
-                const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', quizId);
-                const res = await getDoc(docRef);
+                const res = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', quizId));
                 quiz = res.data();
             }
 
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             container.innerHTML = `
-                <div class="min-h-screen bg-gray-50 flex flex-col">
-                    <header class="bg-white p-4 border-b flex justify-between items-center sticky top-0 z-10">
-                        <input id="quiz-title" type="text" value="${quiz.title}" placeholder="שם החידון..." class="text-2xl font-black outline-none border-b-2 border-transparent focus:border-purple-600 px-2">
+                <div class="h-screen flex flex-col bg-gray-50">
+                    <header class="bg-white p-4 border-b flex justify-between items-center">
+                        <input id="edit-title" type="text" value="${quiz.title}" placeholder="שם החידון" class="text-xl font-black outline-none border-b-2 border-transparent focus:border-purple-600">
                         <div class="flex gap-4">
                             <button onclick="renderAdminDashboard()" class="text-gray-500 font-bold">ביטול</button>
-                            <button onclick="saveQuiz('${quizId}')" class="bg-green-600 text-white px-8 py-2 rounded-full font-black k-btn">שמור</button>
+                            <button onclick="saveQuiz('${quizId}')" class="bg-green-600 text-white px-8 py-2 rounded-full font-black kahoot-btn">שמור</button>
                         </div>
                     </header>
                     <div class="flex-grow flex overflow-hidden">
-                        <aside class="w-64 bg-white border-l overflow-y-auto p-4 flex flex-col gap-4" id="editor-sidebar"></aside>
-                        <main class="flex-grow p-8 overflow-y-auto" id="editor-main"></main>
+                        <aside id="q-sidebar" class="w-64 bg-white border-l p-4 overflow-y-auto"></aside>
+                        <main id="q-main" class="flex-grow p-10 overflow-y-auto bg-gray-100"></main>
                     </div>
                 </div>
             `;
-            
+
             let questions = quiz.questions || [];
             let activeIdx = 0;
 
-            const refreshEditor = () => {
-                const sidebar = document.getElementById('editor-sidebar');
+            const refresh = () => {
+                const sidebar = document.getElementById('q-sidebar');
                 sidebar.innerHTML = questions.map((q, i) => `
-                    <div onclick="selectQ(${i})" class="p-3 border-2 rounded-lg cursor-pointer ${i === activeIdx ? 'border-purple-600 bg-purple-50' : 'border-gray-200'}">
-                        <div class="text-xs text-gray-400 mb-1">שאלה ${i+1}</div>
-                        <div class="font-bold truncate">${q.text || '(ללא שאלה)'}</div>
+                    <div onclick="selectQ(${i})" class="p-4 mb-2 border-2 rounded-lg cursor-pointer ${i === activeIdx ? 'border-purple-600 bg-purple-50' : 'border-gray-200'}">
+                        <p class="text-xs text-gray-400 font-bold">שאלה ${i+1}</p>
+                        <p class="truncate font-bold">${q.text || '...'}</p>
                     </div>
-                `).join('');
-                sidebar.innerHTML += `<button onclick="addQ()" class="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 font-bold hover:bg-gray-50">+ הוסף שאלה</button>`;
+                `).join('') + `<button onclick="addQ()" class="w-full p-4 border-2 border-dashed border-gray-300 rounded text-gray-400 font-bold">+ הוסף שאלה</button>`;
 
-                const main = document.getElementById('editor-main');
-                const q = questions[activeIdx] || { text: '', type: 'multi', options: ['', '', '', ''], correct: 0, time: 20, points: 1000 };
+                const main = document.getElementById('q-main');
+                const q = questions[activeIdx] || { text: '', type: 'multi', options: ['','','',''], correct: 0, time: 20, points: 1000 };
                 
                 main.innerHTML = `
-                    <div class="max-w-2xl mx-auto space-y-6">
-                        <textarea oninput="updateQ(this, 'text')" class="w-full text-center text-3xl font-bold p-6 border-b-4 focus:border-purple-600 outline-none bg-white rounded-lg shadow-sm" placeholder="הקלד כאן את השאלה...">${q.text}</textarea>
+                    <div class="max-w-3xl mx-auto space-y-6">
+                        <textarea oninput="updateQ(this, 'text')" class="w-full text-center text-3xl font-bold p-8 border-b-4 focus:border-purple-600 outline-none rounded shadow" placeholder="הקלד כאן את השאלה">${q.text}</textarea>
                         
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white p-4 rounded-lg shadow-sm">
-                                <label class="block text-sm font-bold text-gray-500 mb-2">סוג שאלה</label>
-                                <select onchange="updateQ(this, 'type')" class="w-full p-2 bg-gray-100 rounded">
-                                    <option value="multi" ${q.type === 'multi' ? 'selected' : ''}>רב ברירה (4)</option>
-                                    <option value="boolean" ${q.type === 'boolean' ? 'selected' : ''}>אמת או שקר</option>
+                            <div class="bg-white p-4 rounded shadow">
+                                <label class="block text-xs font-bold text-gray-400 uppercase">סוג שאלה</label>
+                                <select onchange="updateQ(this, 'type')" class="w-full p-2 bg-gray-50 rounded font-bold">
+                                    <option value="multi" ${q.type === 'multi'?'selected':''}>4 תשובות</option>
+                                    <option value="boolean" ${q.type === 'boolean'?'selected':''}>אמת או שקר</option>
                                 </select>
                             </div>
-                            <div class="bg-white p-4 rounded-lg shadow-sm">
-                                <label class="block text-sm font-bold text-gray-500 mb-2">זמן (שניות)</label>
-                                <input type="number" oninput="updateQ(this, 'time')" value="${q.time}" class="w-full p-2 bg-gray-100 rounded">
+                            <div class="bg-white p-4 rounded shadow">
+                                <label class="block text-xs font-bold text-gray-400 uppercase">זמן (שניות)</label>
+                                <input type="number" oninput="updateQ(this, 'time')" value="${q.time}" class="w-full p-2 bg-gray-50 rounded font-bold">
                             </div>
-                            <div class="bg-white p-4 rounded-lg shadow-sm">
-                                <label class="block text-sm font-bold text-gray-500 mb-2">נקודות</label>
-                                <select onchange="updateQ(this, 'points')" class="w-full p-2 bg-gray-100 rounded text-yellow-600 font-bold">
-                                    <option value="1000" ${q.points == 1000 ? 'selected' : ''}>סטנדרט</option>
-                                    <option value="2000" ${q.points == 2000 ? 'selected' : ''}>🔥 דאבל פוינט</option>
+                            <div class="bg-white p-4 rounded shadow">
+                                <label class="block text-xs font-bold text-gray-400 uppercase">ניקוד</label>
+                                <select onchange="updateQ(this, 'points')" class="w-full p-2 bg-gray-50 rounded font-bold">
+                                    <option value="1000" ${q.points == 1000?'selected':''}>רגיל</option>
+                                    <option value="2000" ${q.points == 2000?'selected':''}>דאבל פוינט</option>
                                 </select>
                             </div>
-                            <div class="bg-white p-4 rounded-lg shadow-sm">
-                                <label class="block text-sm font-bold text-gray-500 mb-2">תמונה (URL)</label>
-                                <input type="text" oninput="updateQ(this, 'image')" value="${q.image || ''}" placeholder="הדבק קישור לתמונה..." class="w-full p-2 bg-gray-100 rounded">
+                            <div class="bg-white p-4 rounded shadow">
+                                <label class="block text-xs font-bold text-gray-400 uppercase">קישור לתמונה</label>
+                                <input type="text" oninput="updateQ(this, 'image')" value="${q.image || ''}" placeholder="URL של תמונה" class="w-full p-2 bg-gray-50 rounded font-bold">
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4 mt-8">
+                        <div class="grid grid-cols-2 gap-4 pt-10">
                             ${q.type === 'multi' ? 
                                 q.options.map((opt, i) => `
-                                    <div class="flex items-center gap-2 p-4 rounded-lg shadow-sm k-btn ${i==0?'bg-red-500':i==1?'bg-blue-500':i==2?'bg-yellow-500':'bg-green-500'}">
-                                        <input type="radio" name="correct" ${q.correct == i ? 'checked' : ''} onchange="updateQ(${i}, 'correct')" class="w-6 h-6 cursor-pointer">
-                                        <input type="text" oninput="updateOpt(${i}, this)" value="${opt}" placeholder="תשובה ${i+1}" class="bg-white/20 text-white placeholder-white/70 p-2 rounded w-full outline-none font-bold">
+                                    <div class="flex items-center gap-3 p-4 rounded kahoot-btn ${i==0?'bg-red-500':i==1?'bg-blue-500':i==2?'bg-yellow-500':'bg-green-500'}">
+                                        <input type="radio" name="correct" ${q.correct == i ? 'checked' : ''} onchange="updateQ(${i}, 'correct')" class="w-6 h-6">
+                                        <input type="text" oninput="updateOpt(${i}, this)" value="${opt}" placeholder="תשובה ${i+1}" class="bg-white/20 text-white placeholder-white/60 p-2 rounded w-full outline-none font-bold">
                                     </div>
-                                `).join('') 
-                                : 
+                                `).join('') :
                                 `
-                                <button onclick="updateQ(0, 'correct')" class="p-6 rounded-lg text-white font-black text-2xl ${q.correct == 0 ? 'ring-4 ring-black' : ''} bg-blue-600 k-btn">אמת</button>
-                                <button onclick="updateQ(1, 'correct')" class="p-6 rounded-lg text-white font-black text-2xl ${q.correct == 1 ? 'ring-4 ring-black' : ''} bg-red-600 k-btn">שקר</button>
+                                <button onclick="updateQ(0, 'correct')" class="p-8 rounded-lg text-white text-2xl font-black kahoot-btn ${q.correct == 0 ? 'ring-8 ring-white' : ''} bg-blue-600">אמת</button>
+                                <button onclick="updateQ(1, 'correct')" class="p-8 rounded-lg text-white text-2xl font-black kahoot-btn ${q.correct == 1 ? 'ring-8 ring-white' : ''} bg-red-600">שקר</button>
                                 `
                             }
                         </div>
-                        <button onclick="removeQ()" class="w-full text-red-500 font-bold py-4 opacity-50 hover:opacity-100 transition">מחק שאלה זו</button>
+                        <button onclick="removeQ()" class="w-full py-4 text-red-400 font-bold hover:text-red-600">מחק שאלה</button>
                     </div>
                 `;
             };
 
-            window.addQ = () => { questions.push({ text: '', type: 'multi', options: ['', '', '', ''], correct: 0, time: 20, points: 1000 }); activeIdx = questions.length - 1; refreshEditor(); };
-            window.selectQ = (i) => { activeIdx = i; refreshEditor(); };
+            window.addQ = () => { questions.push({ text: '', type: 'multi', options: ['','','',''], correct: 0, time: 20, points: 1000 }); activeIdx = questions.length - 1; refresh(); };
+            window.selectQ = (i) => { activeIdx = i; refresh(); };
             window.updateQ = (el, field) => { 
-                const val = (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') ? el.value : el;
+                const val = (typeof el === 'object') ? el.value : el;
                 questions[activeIdx][field] = val; 
-                if(field === 'type' || field === 'correct') refreshEditor();
+                if(field === 'type' || field === 'correct') refresh();
             };
             window.updateOpt = (i, el) => { questions[activeIdx].options[i] = el.value; };
-            window.removeQ = () => { if(questions.length > 1) { questions.splice(activeIdx, 1); activeIdx = 0; refreshEditor(); } };
+            window.removeQ = () => { if(questions.length > 1) { questions.splice(activeIdx, 1); activeIdx = 0; refresh(); } };
 
             window.saveQuiz = async (id) => {
-                const title = document.getElementById('quiz-title').value;
-                const data = { title, questions, updatedAt: Date.now() };
-                if (id && id !== 'null') {
-                    await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', id), data);
-                } else {
-                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes'), data);
-                }
+                const title = document.getElementById('edit-title').value || "חידון ללא שם";
+                const data = { title, questions };
+                if (id && id !== 'null') await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', id), data);
+                else await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes'), data);
                 renderAdminDashboard();
             };
 
-            if (questions.length === 0) addQ();
-            else refreshEditor();
+            if (questions.length === 0) addQ(); else refresh();
         };
 
-        // --- GAME HOST LOGIC ---
+        // --- HOST GAME LOGIC ---
         window.startHost = async (quizId) => {
-            const pin = Math.floor(100000 + Math.random() * 900000).toString();
+            const pin = Math.floor(100000 + Math.random() * 899999).toString();
             const quizSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', quizId));
             const quiz = quizSnap.data();
 
@@ -358,110 +362,128 @@
                 currentQ: -1,
                 players: {},
                 responses: {},
-                lastAction: Date.now()
+                startTime: 0
             });
 
-            document.getElementById('audio-lobby').play();
-            
-            const container = document.getElementById('view-container');
-            const renderLobby = (players) => {
-                const pList = Object.entries(players || {});
-                container.innerHTML = `
-                    <div class="h-screen bg-kahoot flex flex-col p-8 overflow-hidden">
-                        <div class="flex justify-between items-start text-white">
-                            <div class="bg-white text-black p-4 rounded-lg shadow-xl">
-                                <p class="text-sm font-bold opacity-70">הצטרפות בכתובת:</p>
-                                <p class="text-2xl font-black">Quizmo.it</p>
-                            </div>
-                            <div class="text-center bg-white/10 p-6 rounded-2xl backdrop-blur-md">
-                                <p class="text-xl font-bold uppercase tracking-widest">Game PIN:</p>
-                                <p class="text-8xl font-black">${pin}</p>
-                            </div>
-                            <button onclick="startGame('${pin}')" class="bg-black text-white px-10 py-5 rounded-lg text-3xl font-black k-btn">התחל!</button>
-                        </div>
-                        <div class="flex-grow mt-10">
-                            <div class="flex justify-between items-center text-white mb-6">
-                                <h3 class="text-4xl font-black"><i class="fas fa-users"></i> ${pList.length} שחקנים</h3>
-                            </div>
-                            <div class="flex flex-wrap gap-4 justify-center overflow-y-auto max-h-[50vh]">
-                                ${pList.map(([id, p]) => `
-                                    <div onclick="forceRename('${pin}', '${id}', '${p.name}')" class="bg-white text-purple-900 px-6 py-2 rounded shadow-lg text-2xl font-bold animate__animated animate__bounceIn">
-                                        ${p.name}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            };
+            currentPin = pin;
+            playAudio('lobby');
 
+            const container = document.getElementById('main-view');
+            
             onSnapshot(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), (snap) => {
                 const game = snap.data();
                 if (!game) return;
-                if (game.status === 'lobby') renderLobby(game.players);
-                else if (game.status === 'question') renderQuestionHost(pin, game, quiz);
-                else if (game.status === 'leaderboard') renderLeaderboardHost(pin, game, quiz);
-                else if (game.status === 'podium') renderPodiumHost(game);
+                
+                if (game.status === 'lobby') {
+                    renderLobby(pin, game.players);
+                } else if (game.status === 'question') {
+                    renderQuestionHost(pin, game, quiz);
+                } else if (game.status === 'leaderboard') {
+                    renderLeaderboardHost(pin, game, quiz);
+                } else if (game.status === 'podium') {
+                    renderPodiumHost(game);
+                }
             });
         };
 
+        function renderLobby(pin, players) {
+            const pList = Object.entries(players || {});
+            const container = document.getElementById('main-view');
+            container.innerHTML = `
+                <div class="h-screen bg-kahoot-gradient flex flex-col p-8 overflow-hidden">
+                    <div class="flex justify-between items-start text-white">
+                        <div class="bg-white text-black p-4 rounded shadow-2xl">
+                            <p class="font-bold text-sm">הצטרפות ב-</p>
+                            <p class="text-3xl font-black">Quizmo.it</p>
+                        </div>
+                        <div class="bg-white text-black p-6 rounded-xl shadow-2xl text-center">
+                            <p class="text-xl font-bold uppercase">Game PIN:</p>
+                            <p class="text-8xl font-black tracking-tighter">${pin}</p>
+                        </div>
+                        <button onclick="startGame('${pin}')" class="bg-black text-white px-12 py-6 rounded-lg text-4xl font-black kahoot-btn">התחל!</button>
+                    </div>
+                    <div class="flex-grow mt-20">
+                        <div class="flex items-center gap-4 text-white mb-10">
+                            <span class="text-4xl font-black"><i class="fas fa-users"></i> ${pList.length}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-4 justify-center">
+                            ${pList.map(([id, p]) => `
+                                <div onclick="forceRename('${pin}','${id}','${p.name}')" class="bg-white text-purple-900 px-6 py-2 rounded shadow-lg text-2xl font-bold animate__animated animate__bounceIn">
+                                    ${p.name}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         window.startGame = async (pin) => {
-            document.getElementById('audio-lobby').pause();
-            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), { status: 'question', currentQ: 0, responses: {}, startTime: Date.now() });
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), {
+                status: 'question',
+                currentQ: 0,
+                responses: {},
+                startTime: Date.now()
+            });
+            playAudio('question');
         };
 
         function renderQuestionHost(pin, game, quiz) {
             const q = quiz.questions[game.currentQ];
             const responses = Object.keys(game.responses || {}).length;
-            const totalPlayers = Object.keys(game.players || {}).length;
+            const total = Object.keys(game.players || {}).length;
 
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             container.innerHTML = `
                 <div class="h-screen flex flex-col bg-white">
-                    <div class="p-4 bg-gray-100 flex justify-between items-center">
-                        <h2 class="text-3xl font-black">${q.text}</h2>
-                        ${q.points > 1000 ? '<span class="bg-yellow-400 px-3 py-1 rounded-full font-black text-sm">🔥 DOUBLE POINTS</span>' : ''}
+                    <div class="p-6 text-center">
+                        <h2 class="text-4xl font-black">${q.text}</h2>
                     </div>
-                    <div class="flex-grow flex items-center justify-center p-8 relative">
-                        <div class="timer-circle border-purple-600 text-purple-600 absolute right-10 top-10" id="host-timer">${q.time}</div>
-                        <div class="text-left absolute left-10 top-10">
-                            <p class="text-5xl font-black text-gray-300">${responses}</p>
+                    <div class="flex-grow flex items-center justify-between px-20 relative">
+                        <div class="timer-ring border-blue-500" id="host-timer">${q.time}</div>
+                        
+                        <div class="max-w-xl">
+                            ${q.image ? `<img src="${q.image}" class="max-h-[40vh] shadow-xl rounded">` : `<div class="w-64 h-64 bg-purple-100 rounded flex items-center justify-center text-purple-200 text-6xl">?</div>`}
+                        </div>
+
+                        <div class="text-center">
+                            <p class="text-6xl font-black text-gray-200">${responses}</p>
                             <p class="font-bold text-gray-400">תשובות</p>
                         </div>
-                        ${q.image ? `<img src="${q.image}" class="max-h-[40vh] rounded-lg shadow-2xl">` : `<div class="w-64 h-64 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-300 text-8xl font-black italic">Q</div>`}
                     </div>
-                    <div class="answer-grid">
+
+                    <div class="grid grid-cols-2 gap-2 p-2 h-[35vh]">
                         ${q.type === 'multi' ? `
-                            <div class="bg-red-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-square"></span> ${q.options[0]}</div>
-                            <div class="bg-blue-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-diamond"></span> ${q.options[1]}</div>
-                            <div class="bg-yellow-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-circle"></span> ${q.options[2]}</div>
-                            <div class="bg-green-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-triangle"></span> ${q.options[3]}</div>
+                            <div class="bg-[#e21b3c] answer-box"><span class="shape shape-triangle"></span> ${q.options[0]}</div>
+                            <div class="bg-[#1368ce] answer-box"><span class="shape shape-diamond"></span> ${q.options[1]}</div>
+                            <div class="bg-[#ffa600] answer-box"><span class="shape shape-circle"></span> ${q.options[2]}</div>
+                            <div class="bg-[#26890c] answer-box"><span class="shape shape-square"></span> ${q.options[3]}</div>
                         ` : `
-                            <div class="bg-blue-600 rounded text-white p-6 text-3xl font-bold flex items-center justify-center shadow-lg col-span-1">אמת</div>
-                            <div class="bg-red-600 rounded text-white p-6 text-3xl font-bold flex items-center justify-center shadow-lg col-span-1">שקר</div>
+                            <div class="bg-[#1368ce] answer-box justify-center text-4xl">אמת</div>
+                            <div class="bg-[#e21b3c] answer-box justify-center text-4xl">שקר</div>
                         `}
                     </div>
+
                     <footer class="p-4 bg-gray-100 flex justify-between items-center">
-                        <span class="font-bold text-gray-500">PIN: ${pin}</span>
-                        <button onclick="endQuestion('${pin}')" class="bg-blue-600 text-white px-6 py-2 rounded font-bold k-btn">דלג</button>
+                        <span class="font-bold text-gray-400">PIN: ${pin}</span>
+                        <button onclick="skipQuestion('${pin}')" class="bg-white text-gray-800 px-6 py-2 rounded shadow font-black border border-gray-300">דלג</button>
                     </footer>
                 </div>
             `;
 
             let timeLeft = q.time;
-            const interval = setInterval(async () => {
+            const timer = setInterval(async () => {
                 timeLeft--;
-                const timerEl = document.getElementById('host-timer');
-                if(timerEl) timerEl.innerText = timeLeft;
-                
-                if (timeLeft <= 0 || responses >= totalPlayers) {
-                    clearInterval(interval);
-                    endQuestion(pin);
+                const el = document.getElementById('host-timer');
+                if (el) el.innerText = timeLeft;
+                if (timeLeft <= 0 || responses >= total) {
+                    clearInterval(timer);
+                    skipQuestion(pin);
                 }
             }, 1000);
         }
 
-        window.endQuestion = async (pin) => {
+        window.skipQuestion = async (pin) => {
             await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), { status: 'leaderboard' });
         };
 
@@ -469,31 +491,34 @@
             const players = Object.entries(game.players).sort((a,b) => b[1].score - a[1].score).slice(0, 5);
             const isLast = game.currentQ >= quiz.questions.length - 1;
 
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             container.innerHTML = `
-                <div class="h-screen bg-kahoot flex flex-col p-10 text-white">
-                    <h2 class="text-5xl font-black mb-10 text-center">Scoreboard</h2>
-                    <div class="max-w-2xl mx-auto w-full space-y-3">
+                <div class="h-screen bg-kahoot-gradient p-20 text-white flex flex-col">
+                    <h2 class="text-6xl font-black text-center mb-10 italic">Leaderboard</h2>
+                    <div class="max-w-2xl mx-auto w-full space-y-4">
                         ${players.map((p, i) => `
                             <div class="bg-white/10 p-4 rounded flex justify-between items-center animate__animated animate__fadeInRight" style="animation-delay: ${i*0.1}s">
-                                <span class="text-2xl font-black">${p[1].name}</span>
-                                <span class="text-2xl font-bold">${p[1].score}</span>
+                                <span class="text-3xl font-bold">${p[1].name}</span>
+                                <span class="text-3xl font-black">${p[1].score}</span>
                             </div>
                         `).join('')}
                     </div>
                     <div class="mt-auto flex justify-center">
-                        <button onclick="${isLast ? `showPodium('${pin}')` : `nextQuestion('${pin}')`}" class="bg-white text-purple-900 px-12 py-4 rounded-lg text-2xl font-black k-btn">
-                            ${isLast ? 'לפודיום!' : 'הבא'}
-                        </button>
+                        <button onclick="${isLast ? `showPodium('${pin}')` : `nextQ('${pin}')`}" class="bg-blue-500 text-white px-12 py-4 rounded-lg text-3xl font-black kahoot-btn">הבא</button>
                     </div>
                 </div>
             `;
         }
 
-        window.nextQuestion = async (pin) => {
-            const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
-            const snap = await getDoc(docRef);
-            await updateDoc(docRef, { status: 'question', currentQ: snap.data().currentQ + 1, responses: {}, startTime: Date.now() });
+        window.nextQ = async (pin) => {
+            const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin));
+            const game = snap.data();
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), {
+                status: 'question',
+                currentQ: game.currentQ + 1,
+                responses: {},
+                startTime: Date.now()
+            });
         };
 
         window.showPodium = async (pin) => {
@@ -502,207 +527,214 @@
 
         function renderPodiumHost(game) {
             const winners = Object.entries(game.players).sort((a,b) => b[1].score - a[1].score).slice(0, 3);
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             container.innerHTML = `
-                <div class="h-screen bg-kahoot flex flex-col items-center justify-end p-20 text-white overflow-hidden">
-                    <h1 class="text-6xl font-black mb-20 italic">האלופים של Quizmo!</h1>
-                    <div class="flex items-end gap-4 w-full max-w-4xl h-96">
+                <div class="h-screen bg-kahoot-gradient flex flex-col items-center justify-end pb-20 text-white">
+                    <h1 class="text-6xl font-black mb-20">Final Results</h1>
+                    <div class="flex items-end gap-2 w-full max-w-4xl h-[50vh]">
                         <!-- 2nd -->
                         <div class="flex-1 flex flex-col items-center">
-                            <span class="text-2xl font-bold mb-2">${winners[1]?.[1].name || ''}</span>
-                            <div class="bg-white/20 w-full rounded-t-lg podium-item" style="height: 60%">
-                                <div class="text-6xl font-black text-center mt-4">2</div>
+                            <p class="text-2xl font-bold mb-4">${winners[1]?.[1].name || ''}</p>
+                            <div class="bg-blue-400 w-full podium-bar rounded-t" style="height: 60%">
+                                <span class="text-6xl mb-4">2</span>
                             </div>
                         </div>
                         <!-- 1st -->
                         <div class="flex-1 flex flex-col items-center">
-                            <i class="fas fa-crown text-yellow-400 text-5xl mb-2 animate-bounce"></i>
-                            <span class="text-3xl font-black mb-2">${winners[0]?.[1].name || 'אין מנצח'}</span>
-                            <div class="bg-white/40 w-full rounded-t-lg podium-item" style="height: 90%">
-                                <div class="text-8xl font-black text-center mt-4">1</div>
+                            <i class="fas fa-crown text-yellow-400 text-5xl mb-4 animate-bounce"></i>
+                            <p class="text-3xl font-black mb-4">${winners[0]?.[1].name || '??'}</p>
+                            <div class="bg-yellow-500 w-full podium-bar rounded-t" style="height: 90%">
+                                <span class="text-8xl mb-4">1</span>
                             </div>
                         </div>
                         <!-- 3rd -->
                         <div class="flex-1 flex flex-col items-center">
-                            <span class="text-2xl font-bold mb-2">${winners[2]?.[1].name || ''}</span>
-                            <div class="bg-white/10 w-full rounded-t-lg podium-item" style="height: 40%">
-                                <div class="text-4xl font-black text-center mt-4">3</div>
+                            <p class="text-2xl font-bold mb-4">${winners[2]?.[1].name || ''}</p>
+                            <div class="bg-red-400 w-full podium-bar rounded-t" style="height: 40%">
+                                <span class="text-4xl mb-4">3</span>
                             </div>
                         </div>
                     </div>
-                    <button onclick="location.reload()" class="mt-20 bg-white text-black px-10 py-3 rounded-full font-bold">סגור משחק</button>
+                    <button onclick="location.reload()" class="mt-10 bg-white text-black px-10 py-3 rounded-full font-bold">סיום</button>
                 </div>
             `;
         }
 
-        // --- PLAYER LOGIC ---
-        window.router = (v) => {
-            if (v === 'player-join') renderPlayerJoin();
-        };
-
-        function renderPlayerJoin() {
-            const container = document.getElementById('view-container');
+        // --- PLAYER VIEW ---
+        window.viewJoin = () => {
+            const container = document.getElementById('main-view');
             container.innerHTML = `
-                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6">
-                    <h1 class="text-5xl font-black text-white italic mb-10">Quizmo</h1>
-                    <div class="bg-white p-4 rounded-lg shadow-2xl w-full max-w-xs space-y-3">
-                        <input id="join-pin" type="tel" placeholder="Game PIN" class="w-full p-4 border-2 border-gray-200 rounded text-center text-xl font-bold outline-none focus:border-purple-600">
-                        <button onclick="validatePIN()" class="k-btn w-full bg-gray-800 text-white py-4 rounded font-black text-xl">Enter</button>
+                <div class="h-screen bg-kahoot-gradient flex flex-col items-center justify-center p-6">
+                    <h1 class="text-6xl font-black text-white italic mb-10 animate__animated animate__fadeInDown">Quizmo</h1>
+                    <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-xs space-y-3">
+                        <input id="p-pin" type="tel" placeholder="Game PIN" class="w-full p-4 border-2 border-gray-200 rounded text-center text-xl font-bold outline-none focus:border-purple-600">
+                        <button onclick="joinPIN()" class="kahoot-btn w-full bg-[#333] text-white py-4 rounded font-black text-xl">Enter</button>
                     </div>
                 </div>
             `;
-        }
+        };
 
-        window.validatePIN = async () => {
-            const pin = document.getElementById('join-pin').value;
-            const gameRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
-            const snap = await getDoc(gameRef);
-            
+        window.joinPIN = async () => {
+            const pin = document.getElementById('p-pin').value;
+            const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin));
             if (snap.exists() && snap.data().status === 'lobby') {
-                renderPlayerNickname(pin);
+                renderNickname(pin);
             } else {
-                alert("קוד משחק לא תקין או שהמשחק כבר התחיל.");
+                alert("קוד שגוי או שהמשחק לא פעיל כרגע.");
             }
         };
 
-        function renderPlayerNickname(pin) {
-            const container = document.getElementById('view-container');
+        function renderNickname(pin) {
+            const container = document.getElementById('main-view');
             container.innerHTML = `
-                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6">
-                    <h1 class="text-5xl font-black text-white italic mb-10">Quizmo</h1>
-                    <div class="bg-white p-4 rounded-lg shadow-2xl w-full max-w-xs space-y-3">
-                        <input id="join-nick" type="text" placeholder="כינוי" class="w-full p-4 border-2 border-gray-200 rounded text-center text-xl font-bold outline-none focus:border-purple-600">
-                        <button onclick="joinGame('${pin}')" class="k-btn w-full bg-green-600 text-white py-4 rounded font-black text-xl">OK, go!</button>
+                <div class="h-screen bg-kahoot-gradient flex flex-col items-center justify-center p-6">
+                    <h1 class="text-5xl font-black text-white italic mb-10">Nickname!</h1>
+                    <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-xs space-y-3">
+                        <input id="p-nick" type="text" placeholder="הכנס כינוי" class="w-full p-4 border-2 border-gray-200 rounded text-center text-xl font-bold outline-none focus:border-purple-600">
+                        <button onclick="submitNick('${pin}')" class="kahoot-btn w-full bg-green-600 text-white py-4 rounded font-black text-xl">OK, go!</button>
                     </div>
                 </div>
             `;
         }
 
-        window.joinGame = async (pin) => {
-            const name = document.getElementById('join-nick').value;
+        window.submitNick = async (pin) => {
+            const name = document.getElementById('p-nick').value;
             if(!name) return;
-            
-            const gameRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
-            await updateDoc(gameRef, { [`players.${user.uid}`]: { name, score: 0, streak: 0 } });
+            const ref = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
+            await updateDoc(ref, { [`players.${user.uid}`]: { name, score: 0, mustRename: false } });
             
             renderPlayerWaiting(pin, name);
         };
 
         function renderPlayerWaiting(pin, name) {
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             container.innerHTML = `
-                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6 text-white text-center">
-                    <div class="mb-10 animate-pulse"><i class="fas fa-spinner fa-4x fa-spin"></i></div>
-                    <h2 class="text-3xl font-black mb-2">נכנסת למשחק!</h2>
-                    <p class="text-xl opacity-80">אתה רואה את הכינוי שלך על המסך?</p>
-                    <div class="mt-10 bg-black/20 p-4 rounded-full px-10 font-black text-2xl">${name}</div>
+                <div class="h-screen bg-kahoot-gradient flex flex-col items-center justify-center p-6 text-white text-center">
+                    <h2 class="text-3xl font-black mb-4 animate__animated animate__pulse animate__infinite">You're in!</h2>
+                    <p class="text-xl opacity-80">Check your name on screen:</p>
+                    <div class="mt-10 bg-black/20 p-6 rounded-full font-black text-3xl shadow-inner">${name}</div>
                 </div>
             `;
 
-            onSnapshot(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), async (snap) => {
+            onSnapshot(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), (snap) => {
                 const game = snap.data();
                 if(!game) return;
-
-                // בדיקה אם המנהל חייב אותנו לשנות שם
+                
                 if (game.players[user.uid]?.mustRename) {
-                    renderPlayerNickname(pin);
-                    return;
-                }
-
-                if (game.status === 'question') {
-                    renderPlayerQuestion(pin, game);
+                    renderNickname(pin);
+                } else if (game.status === 'question') {
+                    renderPlayerButtons(pin, game);
                 } else if (game.status === 'leaderboard' || game.status === 'podium') {
-                    renderPlayerFeedback(pin, game);
+                    renderPlayerFeedback(game);
                 }
             });
         }
 
-        function renderPlayerQuestion(pin, game) {
-            const q = game.quizId; // We would ideally fetch the quiz data here too
-            // For efficiency, we assume the host shows the question and options
-            const container = document.getElementById('view-container');
-            
-            // Check if already answered
+        function renderPlayerButtons(pin, game) {
+            const container = document.getElementById('main-view');
             if (game.responses?.[user.uid]) {
-                container.innerHTML = `<div class="h-screen bg-kahoot flex items-center justify-center text-white text-4xl font-black text-center p-10">תשובה נקלטה!<br>נחכה לאחרים...</div>`;
+                container.innerHTML = `<div class="h-screen bg-kahoot-gradient flex items-center justify-center text-white text-4xl font-black">תשובה נשלחה!<br>נחכה לאחרים...</div>`;
                 return;
             }
 
             container.innerHTML = `
-                <div class="h-screen bg-gray-100 grid grid-cols-2 gap-2 p-2">
-                    <button onclick="submitAnswer('${pin}', 0)" class="bg-red-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-square"></button>
-                    <button onclick="submitAnswer('${pin}', 1)" class="bg-blue-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-diamond"></button>
-                    <button onclick="submitAnswer('${pin}', 2)" class="bg-yellow-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-circle"></button>
-                    <button onclick="submitAnswer('${pin}', 3)" class="bg-green-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-triangle"></button>
+                <div class="h-screen grid grid-cols-2 gap-2 p-2 bg-gray-200">
+                    <button onclick="pAnswer('${pin}', 0)" class="bg-[#e21b3c] flex items-center justify-center text-white text-6xl kahoot-btn"><span class="shape shape-triangle scale-150"></span></button>
+                    <button onclick="pAnswer('${pin}', 1)" class="bg-[#1368ce] flex items-center justify-center text-white text-6xl kahoot-btn"><span class="shape shape-diamond scale-150"></span></button>
+                    <button onclick="pAnswer('${pin}', 2)" class="bg-[#ffa600] flex items-center justify-center text-white text-6xl kahoot-btn"><span class="shape shape-circle scale-150"></span></button>
+                    <button onclick="pAnswer('${pin}', 3)" class="bg-[#26890c] flex items-center justify-center text-white text-6xl kahoot-btn"><span class="shape shape-square scale-150"></span></button>
                 </div>
             `;
         }
 
-        window.submitAnswer = async (pin, ansIdx) => {
-            const gameRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
-            const snap = await getDoc(gameRef);
+        window.pAnswer = async (pin, idx) => {
+            const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin));
             const game = snap.data();
             const quizSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', game.quizId));
             const quiz = quizSnap.data();
             const q = quiz.questions[game.currentQ];
 
             const responseTime = Date.now() - game.startTime;
-            const isCorrect = q.correct == ansIdx;
-            
-            let pointsWon = 0;
+            const isCorrect = q.correct == idx;
+            let points = 0;
             if (isCorrect) {
-                const timeFactor = Math.max(0, 1 - (responseTime / (q.time * 1000)));
-                pointsWon = Math.round(q.points * timeFactor);
+                const ratio = Math.max(0, 1 - (responseTime / (q.time * 1000)));
+                points = Math.round(q.points * ratio);
             }
 
-            const newScore = (game.players[user.uid].score || 0) + pointsWon;
-
-            await updateDoc(gameRef, { 
-                [`responses.${user.uid}`]: { ansIdx, pointsWon, isCorrect },
-                [`players.${user.uid}.score`]: newScore
+            const currentScore = game.players[user.uid].score || 0;
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), {
+                [`responses.${user.uid}`]: { isCorrect, points },
+                [`players.${user.uid}.score`]: currentScore + points
             });
         };
 
-        function renderPlayerFeedback(pin, game) {
+        function renderPlayerFeedback(game) {
             const res = game.responses?.[user.uid];
-            const container = document.getElementById('view-container');
+            const container = document.getElementById('main-view');
             
             if(!res) {
-                container.innerHTML = `<div class="h-screen bg-gray-500 flex items-center justify-center text-white text-4xl font-black">לא ענית בזמן...</div>`;
+                container.innerHTML = `<div class="h-screen bg-gray-500 flex items-center justify-center text-white text-4xl font-black text-center p-10">נגמר הזמן!<br>לא ענית...</div>`;
                 return;
             }
 
             container.innerHTML = `
-                <div class="h-screen ${res.isCorrect ? 'bg-green-600' : 'bg-red-600'} flex flex-col items-center justify-center p-10 text-white text-center">
-                    <i class="fas ${res.isCorrect ? 'fa-check-circle' : 'fa-times-circle'} text-9xl mb-10"></i>
-                    <h2 class="text-5xl font-black mb-4">${res.isCorrect ? 'נכון מאוד!' : 'אופס, טעות...'}</h2>
-                    <p class="text-2xl font-bold">+ ${res.pointsWon} נקודות</p>
-                    <div class="mt-10 bg-black/20 p-4 rounded-lg">
-                        <p class="text-sm uppercase opacity-70">סך הכל נקודות</p>
+                <div class="h-screen ${res.isCorrect ? 'bg-green-600' : 'bg-red-600'} flex flex-col items-center justify-center text-white p-10 text-center animate__animated animate__fadeIn">
+                    <i class="fas ${res.isCorrect ? 'fa-check' : 'fa-times'} text-9xl mb-10"></i>
+                    <h2 class="text-5xl font-black mb-4">${res.isCorrect ? 'נכון!' : 'טעות...'}</h2>
+                    <p class="text-2xl">+ ${res.points} נקודות</p>
+                    <div class="mt-10 bg-black/10 p-4 rounded-lg w-full">
+                        <p class="text-sm font-bold uppercase opacity-60">ציון נוכחי</p>
                         <p class="text-4xl font-black">${game.players[user.uid].score}</p>
                     </div>
                 </div>
             `;
         }
 
-        window.forceRename = async (pin, pId, currentName) => {
-            if(confirm(`לחייב את ${currentName} לשנות שם?`)) {
+        // --- HELPERS ---
+        window.forceRename = async (pin, pId, current) => {
+            if(confirm(`לחייב את ${current} לשנות שם?`)) {
                 await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), {
                     [`players.${pId}.mustRename`]: true,
-                    [`players.${pId}.name`]: "Rename Me..."
+                    [`players.${pId}.name`]: "Rename required..."
                 });
             }
         };
 
         window.deleteQuiz = async (id) => {
-            if(confirm("בטוח שברצונך למחוק חידון זה?")) {
-                await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', id));
+            if(confirm("למחוק את החידון?")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', id));
+        };
+
+        function playAudio(type) {
+            document.getElementById('audio-lobby').pause();
+            document.getElementById('audio-question').pause();
+            if(!isMuted) {
+                const a = document.getElementById(`audio-${type}`);
+                if(a) a.play().catch(e => console.log("Audio play blocked"));
+            }
+        }
+
+        window.toggleMusic = () => {
+            isMuted = !isMuted;
+            const icon = document.getElementById('music-icon');
+            icon.className = isMuted ? 'fas fa-volume-mute text-red-500 text-xl' : 'fas fa-volume-up text-purple-800 text-xl';
+            if(isMuted) {
+                document.getElementById('audio-lobby').pause();
+                document.getElementById('audio-question').pause();
+            } else {
+                // Determine which music to resume
+                const pin = currentPin;
+                if(pin) {
+                    getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin)).then(s => {
+                        const g = s.data();
+                        if(g.status === 'lobby') playAudio('lobby');
+                        else if(g.status === 'question') playAudio('question');
+                    });
+                }
             }
         };
 
-        // --- START ---
         init();
-
     </script>
 </body>
 </html>
