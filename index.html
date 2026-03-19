@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kahoot Clone Pro - Ultimate Edition</title>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;700&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS -->
+    <title>Kahoot! Clone - Pro Edition</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js"></script>
@@ -17,344 +16,372 @@
 
     <style>
         :root {
-            --kahoot-purple: #46178f;
-            --kahoot-dark-purple: #25074d;
-            --kahoot-red: #e21b3c;
-            --kahoot-blue: #1368ce;
-            --kahoot-yellow: #d89e00;
-            --kahoot-green: #26890c;
-            --kahoot-light-purple: #864cbf;
+            --k-purple: #46178f;
+            --k-dark: #25074d;
+            --k-red: #e21b3c;
+            --k-blue: #1368ce;
+            --k-yellow: #d89e00;
+            --k-green: #26890c;
+            --k-light: #864cbf;
         }
 
         body {
             font-family: 'Assistant', sans-serif;
-            background-color: var(--kahoot-purple);
+            background-color: var(--k-purple);
             color: white;
             margin: 0;
             overflow-x: hidden;
+            user-select: none;
+        }
+
+        .kahoot-bg {
+            background: linear-gradient(135deg, var(--k-purple) 0%, var(--k-dark) 100%);
             min-height: 100vh;
         }
 
-        .kahoot-gradient {
-            background: linear-gradient(135deg, var(--kahoot-purple) 0%, var(--kahoot-dark-purple) 100%);
+        /* Buttons Style */
+        .btn-main {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            font-weight: 800;
         }
-
-        .btn-kahoot {
-            transition: transform 0.1s, box-shadow 0.1s;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
-        }
-
-        .btn-kahoot:active {
-            transform: translateY(2px);
+        .btn-main:active {
+            transform: translateY(4px);
             box-shadow: 0 2px 0 rgba(0,0,0,0.2);
         }
 
-        /* Shape Buttons (User Side) */
-        .shape-btn {
-            height: 140px;
+        /* Shapes Layout for Players */
+        .shape-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            height: 80vh;
+            padding: 10px;
+        }
+
+        .shape-card {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3rem;
-            border-radius: 4px;
+            border-radius: 8px;
+            font-size: 4rem;
             cursor: pointer;
-            position: relative;
+            transition: opacity 0.2s;
         }
+        .shape-card:active { opacity: 0.7; }
 
-        .shape-red { background-color: var(--kahoot-red); }
-        .shape-blue { background-color: var(--kahoot-blue); }
-        .shape-yellow { background-color: var(--kahoot-yellow); }
-        .shape-green { background-color: var(--kahoot-green); }
+        .red-tri { background-color: var(--k-red); }
+        .blue-dia { background-color: var(--k-blue); }
+        .yell-cir { background-color: var(--k-yellow); }
+        .gree-squ { background-color: var(--k-green); }
+
+        /* Timer Circle */
+        .timer-circle {
+            width: 80px;
+            height: 80px;
+            border: 6px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 800;
+            background: rgba(0,0,0,0.2);
+        }
 
         /* Animations */
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
+        .animate-pop { animation: popIn 0.4s ease-out forwards; }
 
-        .animate-pop { animation: bounce 2s infinite ease-in-out; }
-
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--kahoot-light-purple);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
+        .podium-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            transition: height 1s ease-out;
         }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Podium Styles */
-        .podium-1 { height: 200px; background: #FFD700; }
-        .podium-2 { height: 150px; background: #C0C0C0; }
-        .podium-3 { height: 100px; background: #CD7F32; }
 
         .hidden { display: none !important; }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--kahoot-dark-purple); }
-        ::-webkit-scrollbar-thumb { background: var(--kahoot-light-purple); border-radius: 10px; }
+        /* Loader */
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Navbar */
+        .nav-admin {
+            background: white;
+            color: var(--k-purple);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
-<body class="kahoot-gradient">
+<body class="kahoot-bg">
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999] hidden">
-        <div class="text-center">
-            <div class="loader mx-auto mb-4"></div>
-            <p class="text-xl">טוען...</p>
-        </div>
+    <!-- Loading Screen -->
+    <div id="loader" class="fixed inset-0 bg-black bg-opacity-80 z-[9999] flex flex-col items-center justify-center hidden">
+        <div class="loading-spinner mb-4"></div>
+        <p class="text-xl font-bold">טוען...</p>
     </div>
 
     <!-- Background Music -->
-    <audio id="bgMusic" loop>
-        <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg">
-    </audio>
+    <audio id="lobbyMusic" loop src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"></audio>
 
-    <!-- App Container -->
-    <div id="app" class="min-h-screen flex flex-col">
+    <div id="app">
         
-        <!-- Navbar (Visible in Management) -->
-        <nav id="navbar" class="bg-white text-gray-800 p-4 shadow-md flex justify-between items-center hidden">
-            <div class="text-2xl font-bold text-purple-800 tracking-tighter">Kahoot!</div>
-            <div class="flex gap-4">
-                <button onclick="showScreen('mainMenu')" class="hover:text-purple-600 font-bold">בית</button>
-                <button id="logoutBtn" class="text-red-600 hover:bg-red-50 px-2 py-1 rounded">התנתק</button>
-            </div>
-        </nav>
-
-        <!-- SCREEN: Home -->
-        <div id="screen-home" class="flex-grow flex flex-col items-center justify-center p-6 space-y-8">
-            <h1 class="text-6xl font-black italic tracking-tighter text-white drop-shadow-lg">Kahoot!</h1>
-            <div class="w-full max-w-md space-y-4">
-                <button onclick="initJoin()" class="w-full py-6 bg-white text-purple-800 text-3xl font-black rounded-lg btn-kahoot uppercase">הצטרפות</button>
-                <button onclick="initManagement()" class="w-full py-6 bg-purple-900 text-white text-3xl font-black rounded-lg border-2 border-white btn-kahoot uppercase">ניהול</button>
+        <!-- SCREEN: Home (Main Menu) -->
+        <div id="screen-home" class="flex flex-col items-center justify-center min-h-screen p-6 space-y-12">
+            <h1 class="text-8xl font-black italic tracking-tighter text-white drop-shadow-2xl">Kahoot!</h1>
+            <div class="w-full max-w-sm flex flex-col gap-4">
+                <button onclick="navTo('playerJoin')" class="btn-main py-6 bg-white text-purple-900 text-3xl rounded-lg">הצטרפות</button>
+                <button onclick="navTo('adminLogin')" class="btn-main py-6 bg-purple-900 text-white border-4 border-white text-3xl rounded-lg">ניהול</button>
             </div>
         </div>
 
-        <!-- SCREEN: Admin Login (Simplified for this version) -->
-        <div id="screen-adminLogin" class="hidden flex-grow flex flex-col items-center justify-center p-6">
-            <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm text-gray-800">
-                <h2 class="text-2xl font-bold mb-6 text-center">כניסת מנהל</h2>
-                <input id="adminEmail" type="email" placeholder="אימייל" class="w-full p-3 border rounded mb-3">
-                <input id="adminPass" type="password" placeholder="סיסמה" class="w-full p-3 border rounded mb-6">
-                <button onclick="handleLogin()" class="w-full py-3 bg-purple-700 text-white font-bold rounded hover:bg-purple-800 transition">היכנס</button>
-                <button onclick="showScreen('home')" class="w-full mt-2 text-sm text-gray-500">חזור</button>
+        <!-- SCREEN: Admin Login -->
+        <div id="screen-adminLogin" class="hidden flex flex-col items-center justify-center min-h-screen p-6">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-gray-800">
+                <h2 class="text-3xl font-black mb-6 text-center text-purple-900">כניסת מנהל</h2>
+                <input id="loginEmail" type="email" placeholder="אימייל" class="w-full p-4 border-2 rounded-lg mb-4 text-lg">
+                <input id="loginPass" type="password" placeholder="סיסמה" class="w-full p-4 border-2 rounded-lg mb-6 text-lg">
+                <button onclick="adminLogin()" class="w-full py-4 bg-purple-700 text-white text-xl font-bold rounded-lg btn-main">היכנס</button>
+                <button onclick="navTo('home')" class="w-full mt-4 text-gray-500 hover:underline">חזור</button>
             </div>
         </div>
 
-        <!-- SCREEN: Quiz List (Management) -->
-        <div id="screen-quizList" class="hidden flex-grow p-6">
-            <div class="max-w-4xl mx-auto">
-                <div class="flex justify-between items-center mb-8">
-                    <h2 class="text-4xl font-black">החידונים שלי</h2>
-                    <button onclick="openCreateQuiz()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold btn-kahoot">
-                        <i class="fas fa-plus ml-2"></i>צור חידון חדש
-                    </button>
+        <!-- SCREEN: Admin Quiz List -->
+        <div id="screen-adminList" class="hidden min-h-screen flex flex-col">
+            <nav class="nav-admin">
+                <span class="text-3xl font-black italic">Kahoot!</span>
+                <div class="flex gap-4">
+                    <button onclick="openQuizEditor()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold"><i class="fas fa-plus ml-2"></i>צור חידון</button>
+                    <button onclick="auth.signOut(); navTo('home')" class="text-red-600 font-bold">התנתק</button>
                 </div>
-                <div id="quizContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Quizzes injected here -->
+            </nav>
+            <div class="p-8 max-w-5xl mx-auto w-full">
+                <h2 class="text-4xl font-black mb-8 border-b-4 border-white pb-2">החידונים שלי</h2>
+                <div id="quizListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Quizzes will be rendered here -->
                 </div>
             </div>
         </div>
 
-        <!-- SCREEN: Quiz Creator / Editor -->
-        <div id="screen-editor" class="hidden flex-grow p-4 bg-gray-100 text-gray-800">
+        <!-- SCREEN: Quiz Editor -->
+        <div id="screen-editor" class="hidden min-h-screen bg-gray-100 text-gray-800 p-4">
             <div class="max-w-6xl mx-auto h-full flex flex-col">
-                <div class="flex justify-between items-center mb-4 bg-white p-4 rounded shadow">
-                    <input id="editQuizTitle" type="text" placeholder="כותרת החידון" class="text-2xl font-bold border-b-2 border-purple-500 focus:outline-none w-1/2">
-                    <div class="space-x-2 space-x-reverse">
-                        <button onclick="saveQuiz()" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">שמור</button>
-                        <button onclick="showScreen('quizList')" class="bg-gray-400 text-white px-6 py-2 rounded font-bold hover:bg-gray-500">ביטול</button>
+                <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow">
+                    <input id="editorQuizTitle" type="text" placeholder="כותרת החידון..." class="text-3xl font-black border-b-4 border-purple-500 outline-none w-1/2">
+                    <div class="flex gap-2">
+                        <button onclick="saveQuiz()" class="bg-green-600 text-white px-8 py-3 rounded-lg font-bold btn-main">שמור חידון</button>
+                        <button onclick="navTo('adminList')" class="bg-gray-400 text-white px-8 py-3 rounded-lg font-bold">ביטול</button>
                     </div>
                 </div>
 
-                <div class="flex flex-grow gap-4 overflow-hidden">
-                    <!-- Left Sidebar: Questions List -->
-                    <div class="w-1/4 bg-white p-4 rounded shadow overflow-y-auto">
-                        <h3 class="font-bold mb-4 border-bottom">שאלות</h3>
-                        <div id="editQuestionsList" class="space-y-2"></div>
-                        <button onclick="addNewQuestion()" class="w-full mt-4 p-2 bg-purple-100 text-purple-700 rounded border-2 border-dashed border-purple-300 font-bold">+ הוסף שאלה</button>
+                <div class="flex flex-grow gap-4 overflow-hidden h-[75vh]">
+                    <!-- Sidebar: Questions -->
+                    <div class="w-1/4 bg-white rounded-xl shadow p-4 overflow-y-auto">
+                        <div id="editorQuestionNav" class="space-y-2"></div>
+                        <button onclick="addQuestion()" class="w-full mt-4 p-4 border-4 border-dashed border-purple-200 text-purple-600 font-bold rounded-lg hover:bg-purple-50">+ הוסף שאלה</button>
                     </div>
 
-                    <!-- Right Sidebar: Question Content -->
-                    <div id="questionEditorArea" class="w-3/4 bg-white p-6 rounded shadow overflow-y-auto">
-                        <div class="mb-6">
-                            <label class="block text-sm font-bold text-gray-600 mb-1">נוסח השאלה</label>
-                            <input id="qText" type="text" class="w-full p-4 text-xl border rounded focus:ring-2 focus:ring-purple-500">
+                    <!-- Main: Question Details -->
+                    <div id="editorQuestionDetail" class="w-3/4 bg-white rounded-xl shadow p-8 overflow-y-auto hidden">
+                        <div class="mb-8">
+                            <label class="block text-sm font-bold text-gray-400 mb-2 uppercase">נוסח השאלה</label>
+                            <input id="qInputText" type="text" class="w-full p-4 text-2xl border-2 rounded-xl focus:border-purple-500 outline-none font-bold">
                         </div>
-                        
-                        <div class="grid grid-cols-2 gap-4 mb-6">
+
+                        <div class="grid grid-cols-3 gap-6 mb-8">
                             <div>
-                                <label class="block text-sm font-bold text-gray-600 mb-1">סוג שאלה</label>
-                                <select id="qType" onchange="toggleQuestionUI()" class="w-full p-2 border rounded">
+                                <label class="block text-sm font-bold text-gray-400 mb-2 uppercase">סוג שאלה</label>
+                                <select id="qInputType" onchange="syncEditorUI()" class="w-full p-3 border-2 rounded-lg font-bold">
                                     <option value="multi">4 אופציות</option>
                                     <option value="boolean">אמת או שקר</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-600 mb-1">זמן (שניות)</label>
-                                <input id="qTime" type="number" value="20" class="w-full p-2 border rounded">
+                                <label class="block text-sm font-bold text-gray-400 mb-2 uppercase">זמן (שניות)</label>
+                                <input id="qInputTime" type="number" value="20" class="w-full p-3 border-2 rounded-lg font-bold">
                             </div>
-                            <div class="flex items-center gap-2">
-                                <input id="qDouble" type="checkbox" class="w-5 h-5">
-                                <label class="font-bold text-purple-700">דאבל פוינטס! (X2)</label>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-600 mb-1">קישור לתמונה (אופציונלי)</label>
-                                <input id="qImage" type="text" placeholder="https://..." class="w-full p-2 border rounded">
+                            <div class="flex items-center gap-2 pt-6">
+                                <input id="qInputDouble" type="checkbox" class="w-6 h-6">
+                                <label class="font-black text-purple-700">דאבל פוינטס!</label>
                             </div>
                         </div>
 
-                        <div id="answersContainer" class="grid grid-cols-2 gap-4">
-                            <!-- Answer inputs injected based on type -->
+                        <div class="mb-8">
+                            <label class="block text-sm font-bold text-gray-400 mb-2 uppercase">תמונה (URL)</label>
+                            <input id="qInputImage" type="text" placeholder="הדבק קישור לתמונה כאן..." class="w-full p-3 border-2 rounded-lg">
+                        </div>
+
+                        <div id="editorAnswersGrid" class="grid grid-cols-2 gap-4">
+                            <!-- Answer inputs here -->
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- SCREEN: Game Lobby (Host) -->
-        <div id="screen-lobby" class="hidden flex-grow flex flex-col items-center justify-between p-6">
-            <div class="text-center">
-                <h2 class="text-2xl font-bold opacity-80 mb-2">קוד הצטרפות:</h2>
-                <div id="lobbyPin" class="text-8xl font-black bg-white text-purple-900 px-12 py-4 rounded-xl shadow-2xl tracking-widest">000000</div>
+        <!-- SCREEN: Host Lobby -->
+        <div id="screen-hostLobby" class="hidden min-h-screen flex flex-col items-center justify-between p-8">
+            <div class="flex flex-col items-center">
+                <p class="text-2xl font-bold opacity-80 mb-2">הצטרפו בקישור עם הקוד:</p>
+                <div id="hostLobbyPin" class="bg-white text-purple-900 text-9xl font-black px-12 py-4 rounded-2xl shadow-2xl tracking-widest">000000</div>
             </div>
 
-            <div class="w-full max-w-5xl bg-white bg-opacity-10 rounded-2xl p-8 backdrop-blur-md flex flex-col h-[50vh]">
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-2xl font-bold"><i class="fas fa-users ml-2"></i><span id="playerCount">0</span> שחקנים</span>
-                    <button onclick="startGame()" class="bg-white text-purple-800 px-10 py-4 rounded-lg text-2xl font-black btn-kahoot shadow-xl hover:bg-gray-100">התחל משחק</button>
+            <div class="w-full max-w-6xl flex-grow mt-12 mb-8 bg-black bg-opacity-20 rounded-3xl p-8 backdrop-blur-md overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-3xl font-black"><i class="fas fa-users ml-3"></i><span id="hostPlayerCount">0</span> שחקנים</span>
+                    <button onclick="startActualGame()" class="bg-white text-purple-900 text-3xl px-12 py-4 rounded-xl btn-main">התחל!</button>
                 </div>
-                <div id="playerList" class="flex flex-wrap gap-4 justify-center overflow-y-auto p-4">
-                    <!-- Names pop up here -->
-                </div>
-            </div>
-
-            <div class="flex gap-4">
-                <button onclick="toggleMusic()" class="bg-purple-800 p-4 rounded-full border-2 border-white"><i id="musicIcon" class="fas fa-volume-up"></i></button>
-            </div>
-        </div>
-
-        <!-- SCREEN: Game Play (Host Display) -->
-        <div id="screen-gameHost" class="hidden flex-grow flex flex-col">
-            <div class="p-4 bg-white text-gray-800 flex justify-between items-center shadow-lg">
-                <div id="gameTimer" class="w-16 h-16 rounded-full border-4 border-purple-600 flex items-center justify-center text-2xl font-black">20</div>
-                <h2 id="hostQuestionText" class="text-3xl font-black text-center flex-grow px-4">איך קוראים לבירת ישראל?</h2>
-                <div class="flex items-center gap-4">
-                    <span id="answersReceivedCount" class="text-xl font-bold bg-purple-100 p-2 rounded">0 תשובות</span>
-                    <button id="skipBtn" onclick="endQuestionEarly()" class="bg-purple-600 text-white px-4 py-2 rounded font-bold">דלג</button>
+                <div id="hostPlayerList" class="flex flex-wrap gap-4 justify-center overflow-y-auto content-start">
+                    <!-- Player names bubble up here -->
                 </div>
             </div>
 
-            <div class="flex-grow flex flex-col items-center justify-center p-8">
-                <div id="hostQuestionImg" class="max-w-md max-h-64 mb-8 hidden">
-                    <img src="" class="rounded-lg shadow-xl object-contain w-full h-full">
-                </div>
-                
-                <div id="hostAnswersGrid" class="grid grid-cols-2 gap-4 w-full max-w-5xl">
-                    <!-- Answers visually shown here (read-only for host) -->
-                    <div class="bg-[#e21b3c] p-6 rounded text-2xl font-bold flex items-center"><i class="fas fa-triangle mr-4"></i> <span class="ans-text">תשובה 1</span></div>
-                    <div class="bg-[#1368ce] p-6 rounded text-2xl font-bold flex items-center"><i class="fas fa-diamond mr-4"></i> <span class="ans-text">תשובה 2</span></div>
-                    <div class="bg-[#d89e00] p-6 rounded text-2xl font-bold flex items-center"><i class="fas fa-circle mr-4"></i> <span class="ans-text">תשובה 3</span></div>
-                    <div class="bg-[#26890c] p-6 rounded text-2xl font-bold flex items-center"><i class="fas fa-square mr-4"></i> <span class="ans-text">תשובה 4</span></div>
-                </div>
+            <div class="flex gap-6">
+                <button onclick="toggleMusic()" class="w-16 h-16 bg-purple-900 border-4 border-white rounded-full flex items-center justify-center text-2xl"><i id="musicIcon" class="fas fa-volume-up"></i></button>
             </div>
         </div>
 
-        <!-- SCREEN: Leaderboard (Host) -->
-        <div id="screen-leaderboard" class="hidden flex-grow flex flex-col items-center justify-center p-8">
-            <h2 class="text-5xl font-black mb-12">תוצאות ביניים</h2>
-            <div id="leaderboardList" class="w-full max-w-2xl space-y-4">
-                <!-- Top 5 injected here -->
-            </div>
-            <button onclick="nextStep()" class="mt-12 bg-white text-purple-800 px-12 py-4 rounded-lg text-2xl font-black shadow-2xl btn-kahoot">הבא</button>
-        </div>
-
-        <!-- SCREEN: Podium (Host Final) -->
-        <div id="screen-podium" class="hidden flex-grow flex flex-col items-center justify-center p-8 bg-purple-900">
-            <h2 class="text-6xl font-black mb-16 text-yellow-400">הזוכים! 🏆</h2>
-            <div class="flex items-end justify-center gap-4 w-full max-w-4xl">
-                <div class="flex flex-col items-center">
-                    <div id="podiumName2" class="mb-2 font-bold text-xl">---</div>
-                    <div class="podium-2 w-32 rounded-t-lg flex items-center justify-center text-4xl font-black">2</div>
-                </div>
-                <div class="flex flex-col items-center">
-                    <div id="podiumName1" class="mb-2 font-bold text-3xl text-yellow-300">---</div>
-                    <div class="podium-1 w-40 rounded-t-lg flex items-center justify-center text-6xl font-black shadow-2xl">1</div>
-                </div>
-                <div class="flex flex-col items-center">
-                    <div id="podiumName3" class="mb-2 font-bold text-xl">---</div>
-                    <div class="podium-3 w-32 rounded-t-lg flex items-center justify-center text-4xl font-black">3</div>
+        <!-- SCREEN: Host Game (Question Display) -->
+        <div id="screen-hostGame" class="hidden min-h-screen flex flex-col">
+            <div class="bg-white text-gray-800 p-6 flex justify-between items-center shadow-xl z-10">
+                <div id="hostTimer" class="timer-circle text-purple-800 border-purple-800">20</div>
+                <h2 id="hostQuestionText" class="text-4xl font-black text-center flex-grow px-8">השאלה תופיע כאן</h2>
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div id="hostAnswerCount" class="text-5xl font-black">0</div>
+                        <div class="text-sm font-bold text-gray-400">תשובות</div>
+                    </div>
+                    <button onclick="skipQuestion()" class="bg-purple-800 text-white px-8 py-3 rounded-lg font-bold btn-main">דלג</button>
                 </div>
             </div>
-            <button onclick="showScreen('quizList')" class="mt-16 bg-white text-purple-800 px-8 py-3 rounded font-bold">סיום</button>
-        </div>
 
-        <!-- SCREEN: User Join (Pin) -->
-        <div id="screen-userJoinPin" class="hidden flex-grow flex flex-col items-center justify-center p-6 space-y-4">
-            <div class="bg-white p-6 rounded shadow-xl w-full max-w-sm">
-                <input id="joinPinInput" type="number" placeholder="קוד משחק" class="w-full p-4 text-2xl border-2 rounded mb-4 text-center text-gray-800 font-bold focus:border-purple-600 outline-none">
-                <button onclick="validatePin()" class="w-full py-4 bg-gray-800 text-white text-xl font-black rounded btn-kahoot">הצטרפות</button>
+            <div class="flex-grow flex flex-col items-center justify-center p-8 relative">
+                <div id="hostImageContainer" class="max-w-2xl max-h-96 mb-8 hidden">
+                    <img id="hostQuestionImage" src="" class="rounded-2xl shadow-2xl object-contain max-h-full">
+                </div>
+
+                <div id="hostAnswersVisual" class="grid grid-cols-2 gap-4 w-full max-w-5xl">
+                    <div class="red-tri p-6 rounded-lg text-3xl font-bold flex items-center gap-4"><i class="fas fa-triangle"></i> <span id="ansText0">אופציה 1</span></div>
+                    <div class="blue-dia p-6 rounded-lg text-3xl font-bold flex items-center gap-4"><i class="fas fa-diamond"></i> <span id="ansText1">אופציה 2</span></div>
+                    <div class="yell-cir p-6 rounded-lg text-3xl font-bold flex items-center gap-4"><i class="fas fa-circle"></i> <span id="ansText2">אופציה 3</span></div>
+                    <div class="gree-squ p-6 rounded-lg text-3xl font-bold flex items-center gap-4"><i class="fas fa-square"></i> <span id="ansText3">אופציה 4</span></div>
+                </div>
             </div>
         </div>
 
-        <!-- SCREEN: User Nickname -->
-        <div id="screen-userNickname" class="hidden flex-grow flex flex-col items-center justify-center p-6 space-y-4">
-            <div class="bg-white p-6 rounded shadow-xl w-full max-w-sm">
-                <input id="nicknameInput" type="text" placeholder="כינוי" class="w-full p-4 text-2xl border-2 rounded mb-4 text-center text-gray-800 font-bold focus:border-purple-600 outline-none">
-                <button onclick="submitNickname()" class="w-full py-4 bg-gray-800 text-white text-xl font-black rounded btn-kahoot">יאללה!</button>
-                <p id="nickError" class="text-red-600 text-sm hidden text-center mt-2">השם תפוס או לא חוקי</p>
+        <!-- SCREEN: Host Leaderboard -->
+        <div id="screen-hostLeaderboard" class="hidden min-h-screen flex flex-col items-center justify-center p-8">
+            <h2 class="text-6xl font-black mb-12 text-white drop-shadow-lg">לוח תוצאות</h2>
+            <div id="leaderboardContainer" class="w-full max-w-3xl space-y-4">
+                <!-- Top 5 players -->
+            </div>
+            <button onclick="nextQuestion()" class="mt-12 bg-white text-purple-900 text-3xl px-16 py-5 rounded-xl btn-main">המשך</button>
+        </div>
+
+        <!-- SCREEN: Host Podium -->
+        <div id="screen-hostPodium" class="hidden min-h-screen flex flex-col items-center justify-center p-8">
+            <h2 class="text-7xl font-black mb-20 text-yellow-400 drop-shadow-2xl">הפודיום! 🏆</h2>
+            <div class="flex items-end justify-center gap-4 w-full max-w-5xl h-[400px]">
+                <div class="podium-item w-1/3">
+                    <div id="pName2" class="text-2xl font-bold mb-4">--</div>
+                    <div class="bg-gray-400 w-full h-[150px] rounded-t-2xl flex items-center justify-center text-6xl font-black">2</div>
+                </div>
+                <div class="podium-item w-1/3">
+                    <div id="pName1" class="text-4xl font-black text-yellow-300 mb-4 animate-bounce">--</div>
+                    <div class="bg-yellow-500 w-full h-[250px] rounded-t-2xl flex items-center justify-center text-8xl font-black shadow-2xl">1</div>
+                </div>
+                <div class="podium-item w-1/3">
+                    <div id="pName3" class="text-2xl font-bold mb-4">--</div>
+                    <div class="bg-amber-700 w-full h-[100px] rounded-t-2xl flex items-center justify-center text-5xl font-black text-white">3</div>
+                </div>
+            </div>
+            <button onclick="navTo('adminList')" class="mt-16 bg-white text-purple-900 px-8 py-3 rounded-lg font-bold">חזור לרשימה</button>
+        </div>
+
+        <!-- PLAYER SCREENS -->
+        
+        <!-- SCREEN: Player Join PIN -->
+        <div id="screen-playerJoin" class="hidden min-h-screen flex flex-col items-center justify-center p-6">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-gray-800">
+                <input id="joinPinInput" type="number" placeholder="קוד משחק" class="w-full p-6 text-4xl font-black text-center border-4 rounded-xl mb-4 focus:border-purple-600 outline-none">
+                <button onclick="validateGamePin()" class="w-full py-5 bg-gray-800 text-white text-2xl font-black rounded-xl btn-main">הצטרפות</button>
+                <p id="joinError" class="text-red-600 text-center mt-4 hidden font-bold">הקוד שגוי או המשחק לא קיים</p>
+                <button onclick="navTo('home')" class="w-full mt-4 text-gray-400 text-sm">ביטול</button>
             </div>
         </div>
 
-        <!-- SCREEN: User Wait Lobby -->
-        <div id="screen-userWait" class="hidden flex-grow flex flex-col items-center justify-center p-6 text-center">
-            <div class="animate-pop text-6xl mb-6">😎</div>
-            <h2 class="text-4xl font-black mb-2">אתה בפנים!</h2>
-            <p class="text-xl opacity-80">רואה את השם שלך על המסך?</p>
-            <div id="userRenameMsg" class="mt-8 bg-red-600 p-4 rounded-xl hidden">
-                <p class="font-bold">המנהל ביקש שתשנה שם!</p>
-                <button onclick="showScreen('userNickname')" class="mt-2 bg-white text-red-600 px-4 py-1 rounded">שנה עכשיו</button>
+        <!-- SCREEN: Player Nickname -->
+        <div id="screen-playerNick" class="hidden min-h-screen flex flex-col items-center justify-center p-6">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-gray-800">
+                <input id="playerNickInput" type="text" maxlength="15" placeholder="בחר כינוי..." class="w-full p-6 text-3xl font-black text-center border-4 rounded-xl mb-4 focus:border-purple-600 outline-none">
+                <button onclick="submitNickname()" class="w-full py-5 bg-purple-700 text-white text-2xl font-black rounded-xl btn-main">מוכן!</button>
+                <p id="nickError" class="text-red-600 text-center mt-4 hidden font-bold">השם כבר תפוס</p>
             </div>
         </div>
 
-        <!-- SCREEN: User Play (Answer Buttons) -->
-        <div id="screen-userPlay" class="hidden flex-grow grid grid-cols-2 gap-2 p-2 bg-gray-100">
-            <!-- Buttons injected based on question type -->
+        <!-- SCREEN: Player Wait Lobby -->
+        <div id="screen-playerWait" class="hidden min-h-screen flex flex-col items-center justify-center p-6 text-center">
+            <div class="text-9xl mb-8 animate-bounce">😎</div>
+            <h2 class="text-5xl font-black mb-4">אתה בפנים!</h2>
+            <p class="text-2xl opacity-80">רואה את השם שלך על המסך?</p>
+            
+            <div id="renameWarning" class="mt-12 bg-red-600 p-6 rounded-2xl hidden animate-pulse">
+                <p class="text-xl font-bold mb-4">המנהל ביקש שתשנה שם!</p>
+                <button onclick="navTo('playerNick')" class="bg-white text-red-600 px-6 py-2 rounded-lg font-bold">שנה עכשיו</button>
+            </div>
         </div>
 
-        <!-- SCREEN: User Result (Correct/Wrong) -->
-        <div id="screen-userResult" class="hidden flex-grow flex flex-col items-center justify-center p-6 text-center">
-            <div id="resultIcon" class="text-9xl mb-4"></div>
-            <h2 id="resultStatusText" class="text-4xl font-black mb-2"></h2>
-            <div id="resultPoints" class="bg-black bg-opacity-20 px-6 py-2 rounded-full text-2xl font-bold"></div>
-            <div id="totalScore" class="mt-8 opacity-70">סך הכל: 0 נקודות</div>
+        <!-- SCREEN: Player Game (Input) -->
+        <div id="screen-playerGame" class="hidden min-h-screen flex flex-col">
+            <div id="playerShapesGrid" class="shape-grid flex-grow">
+                <!-- Buttons dynamically generated -->
+            </div>
+        </div>
+
+        <!-- SCREEN: Player Feedback -->
+        <div id="screen-playerFeedback" class="hidden min-h-screen flex flex-col items-center justify-center p-6 text-center">
+            <div id="feedbackIcon" class="text-[12rem] mb-8"></div>
+            <h2 id="feedbackTitle" class="text-6xl font-black mb-4"></h2>
+            <div id="feedbackPoints" class="bg-black bg-opacity-30 px-8 py-3 rounded-full text-3xl font-bold mb-8"></div>
+            <div class="text-xl opacity-60">ציון כולל: <span id="playerTotalScore">0</span></div>
         </div>
 
     </div>
 
     <script>
-        // --- CONSTANTS & CONFIG ---
+        // --- CONFIG & INIT ---
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(app);
         const auth = firebase.auth();
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kahoot-app-default';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kahoot-clone-final';
 
-        // --- STATE ---
         let currentUser = null;
-        let quizzes = [];
-        let currentEditingQuiz = null;
-        let activeQuestionIndex = -1;
+        let myQuizList = [];
+        let activeQuiz = null;
+        let activeQuestionIdx = -1;
         let currentGameRef = null;
-        let gameData = null;
-        let players = [];
-        let isMusicPlaying = false;
-        let userLocalScore = 0;
+        let gamePlayers = [];
         let myPlayerId = null;
+        let myLocalScore = 0;
+        let isMuted = false;
 
         // --- AUTH ---
         async function initAuth() {
@@ -365,531 +392,500 @@
             }
             auth.onAuthStateChanged(user => {
                 currentUser = user;
-                if (user) {
-                    console.log("Logged in as:", user.uid);
-                }
+                if (user && !user.isAnonymous) loadAdminQuizzes();
             });
         }
-
         initAuth();
 
-        // --- SCREEN NAVIGATION ---
-        function showScreen(screenId) {
+        // --- NAVIGATION ---
+        function navTo(screenId) {
             document.querySelectorAll('[id^="screen-"]').forEach(s => s.classList.add('hidden'));
-            document.getElementById(`screen-${screenId}`).classList.remove('hidden');
-            
-            // Toggle navbar
-            const nav = document.getElementById('navbar');
-            if (['quizList', 'editor'].includes(screenId)) {
-                nav.classList.remove('hidden');
-            } else {
-                nav.classList.add('hidden');
-            }
+            const target = document.getElementById(`screen-${screenId}`);
+            if(target) target.classList.remove('hidden');
+            window.scrollTo(0,0);
         }
 
-        // --- MANAGEMENT LOGIC ---
-        function initManagement() {
-            if (currentUser && !currentUser.isAnonymous) {
-                loadQuizList();
-            } else {
-                showScreen('adminLogin');
-            }
+        function setLoading(state) {
+            document.getElementById('loader').classList.toggle('hidden', !state);
         }
 
-        async function handleLogin() {
-            const email = document.getElementById('adminEmail').value;
-            const pass = document.getElementById('adminPass').value;
-            if (!email || !pass) return;
-            
+        // --- ADMIN LOGIN ---
+        async function adminLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPass').value;
+            if(!email || !pass) return;
             setLoading(true);
             try {
-                // For this demo environment, we assume specific hardcoded logic or just let them in
-                // In a real app, use auth.signInWithEmailAndPassword
-                loadQuizList();
-            } catch (e) {
-                console.error(e);
-            }
+                // For simulation we just let it pass if email/pass are filled
+                // In production: await auth.signInWithEmailAndPassword(email, pass);
+                loadAdminQuizzes();
+            } catch(e) { alert("שגיאה בהתחברות"); }
             setLoading(false);
         }
 
-        async function loadQuizList() {
-            showScreen('quizList');
-            const col = firebase.firestore().collection('artifacts', appId, 'public', 'data', 'quizzes');
-            const snapshot = await col.get();
-            quizzes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // --- QUIZ MANAGEMENT ---
+        async function loadAdminQuizzes() {
+            setLoading(true);
+            const snap = await db.collection('artifacts', appId, 'public', 'data', 'quizzes').get();
+            myQuizList = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
             renderQuizList();
+            navTo('adminList');
+            setLoading(false);
         }
 
         function renderQuizList() {
-            const container = document.getElementById('quizContainer');
+            const container = document.getElementById('quizListContainer');
             container.innerHTML = '';
-            quizzes.forEach(q => {
-                const card = document.createElement('div');
-                card.className = "bg-white text-gray-800 p-6 rounded-xl shadow-lg flex justify-between items-center";
-                card.innerHTML = `
+            myQuizList.forEach(q => {
+                const div = document.createElement('div');
+                div.className = "bg-white text-purple-900 p-6 rounded-2xl shadow-xl flex justify-between items-center animate-pop";
+                div.innerHTML = `
                     <div>
-                        <h3 class="text-xl font-bold">${q.title || 'ללא כותרת'}</h3>
-                        <p class="text-sm text-gray-500">${q.questions?.length || 0} שאלות</p>
+                        <h3 class="text-2xl font-black">${q.title}</h3>
+                        <p class="font-bold opacity-60">${q.questions.length} שאלות</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="hostGame('${q.id}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 font-bold">הפעל</button>
-                        <button onclick="editQuiz('${q.id}')" class="text-gray-600 p-2 hover:bg-gray-100 rounded"><i class="fas fa-edit"></i></button>
-                        <button onclick="deleteQuiz('${q.id}')" class="text-red-500 p-2 hover:bg-red-50 rounded"><i class="fas fa-trash"></i></button>
+                    <div class="flex gap-3">
+                        <button onclick="hostGame('${q.id}')" class="bg-purple-700 text-white px-6 py-2 rounded-lg font-bold">הפעל</button>
+                        <button onclick="editQuiz('${q.id}')" class="p-2 text-gray-400 hover:text-purple-600"><i class="fas fa-pencil-alt text-xl"></i></button>
+                        <button onclick="deleteQuiz('${q.id}')" class="p-2 text-gray-400 hover:text-red-600"><i class="fas fa-trash text-xl"></i></button>
                     </div>
                 `;
-                container.appendChild(card);
+                container.appendChild(div);
             });
         }
 
-        function openCreateQuiz() {
-            currentEditingQuiz = { title: '', questions: [] };
-            activeQuestionIndex = -1;
+        // --- EDITOR LOGIC ---
+        let editingQuiz = null;
+        let currentQIdx = -1;
+
+        function openQuizEditor() {
+            editingQuiz = { title: '', questions: [] };
+            currentQIdx = -1;
             renderEditor();
-            showScreen('editor');
+            navTo('editor');
         }
 
         function editQuiz(id) {
-            currentEditingQuiz = JSON.parse(JSON.stringify(quizzes.find(q => q.id === id)));
-            activeQuestionIndex = 0;
+            editingQuiz = JSON.parse(JSON.stringify(myQuizList.find(q => q.id === id)));
+            currentQIdx = 0;
             renderEditor();
-            showScreen('editor');
+            navTo('editor');
         }
 
         function renderEditor() {
-            document.getElementById('editQuizTitle').value = currentEditingQuiz.title;
-            const list = document.getElementById('editQuestionsList');
-            list.innerHTML = '';
-            
-            currentEditingQuiz.questions.forEach((q, idx) => {
-                const div = document.createElement('div');
-                div.className = `p-3 rounded cursor-pointer border ${activeQuestionIndex === idx ? 'bg-purple-600 text-white' : 'bg-gray-50 hover:bg-gray-200'}`;
-                div.innerHTML = `<div class="flex justify-between"><span>${idx + 1}. ${q.text.substring(0, 15)}...</span> <i class="fas fa-trash text-xs opacity-50 mt-1" onclick="deleteQuestion(${idx})"></i></div>`;
-                div.onclick = (e) => { if(e.target.tagName !== 'I') { saveCurrentQuestionData(); activeQuestionIndex = idx; renderEditor(); }};
-                list.appendChild(div);
+            document.getElementById('editorQuizTitle').value = editingQuiz.title;
+            const nav = document.getElementById('editorQuestionNav');
+            nav.innerHTML = '';
+            editingQuiz.questions.forEach((q, i) => {
+                const btn = document.createElement('div');
+                btn.className = `p-3 rounded-lg cursor-pointer flex justify-between items-center font-bold ${currentQIdx === i ? 'bg-purple-600 text-white shadow-lg' : 'bg-gray-100'}`;
+                btn.innerHTML = `<span>${i+1}. ${q.text.substring(0,12)}...</span> <i class="fas fa-times opacity-30" onclick="removeQuestion(${i})"></i>`;
+                btn.onclick = (e) => { if(e.target.tagName !== 'I') { saveEditorInputs(); currentQIdx = i; renderEditor(); }};
+                nav.appendChild(btn);
             });
-
-            if (activeQuestionIndex >= 0) {
-                document.getElementById('questionEditorArea').classList.remove('hidden');
-                const q = currentEditingQuiz.questions[activeQuestionIndex];
-                document.getElementById('qText').value = q.text || '';
-                document.getElementById('qType').value = q.type || 'multi';
-                document.getElementById('qTime').value = q.time || 20;
-                document.getElementById('qDouble').checked = q.double || false;
-                document.getElementById('qImage').value = q.image || '';
-                renderAnswersUI(q);
+            
+            const detail = document.getElementById('editorQuestionDetail');
+            if (currentQIdx >= 0) {
+                detail.classList.remove('hidden');
+                const q = editingQuiz.questions[currentQIdx];
+                document.getElementById('qInputText').value = q.text;
+                document.getElementById('qInputType').value = q.type;
+                document.getElementById('qInputTime').value = q.time;
+                document.getElementById('qInputDouble').checked = q.double;
+                document.getElementById('qInputImage').value = q.image || '';
+                syncEditorUI();
             } else {
-                document.getElementById('questionEditorArea').classList.add('hidden');
+                detail.classList.add('hidden');
             }
         }
 
-        function renderAnswersUI(q) {
-            const container = document.getElementById('answersContainer');
-            container.innerHTML = '';
-            if (q.type === 'multi') {
-                const colors = ['bg-[#e21b3c]', 'bg-[#1368ce]', 'bg-[#d89e00]', 'bg-[#26890c]'];
-                for (let i = 0; i < 4; i++) {
+        function syncEditorUI() {
+            const type = document.getElementById('qInputType').value;
+            const grid = document.getElementById('editorAnswersGrid');
+            grid.innerHTML = '';
+            const q = editingQuiz.questions[currentQIdx];
+            
+            if (type === 'multi') {
+                const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
+                for(let i=0; i<4; i++) {
                     const div = document.createElement('div');
-                    div.className = `${colors[i]} p-4 rounded-lg flex items-center gap-2`;
+                    div.className = `${colors[i]} p-4 rounded-xl flex items-center gap-3`;
                     div.innerHTML = `
-                        <input type="radio" name="correct" value="${i}" ${q.correctAnswer == i ? 'checked' : ''} class="w-6 h-6">
-                        <input type="text" class="ans-input w-full p-2 rounded text-gray-800" value="${q.answers?.[i] || ''}" placeholder="תשובה ${i+1}">
+                        <input type="radio" name="correct" value="${i}" ${q.correct == i ? 'checked' : ''} class="w-6 h-6">
+                        <input type="text" class="ans-field w-full p-2 rounded text-black font-bold" value="${q.answers[i] || ''}" placeholder="תשובה ${i+1}">
                     `;
-                    container.appendChild(div);
+                    grid.appendChild(div);
                 }
             } else {
-                const divT = document.createElement('div');
-                divT.className = `bg-blue-600 p-4 rounded-lg flex items-center gap-2`;
-                divT.innerHTML = `<input type="radio" name="correct" value="0" ${q.correctAnswer == 0 ? 'checked' : ''}> <span class="font-bold">אמת</span>`;
-                const divF = document.createElement('div');
-                divF.className = `bg-red-600 p-4 rounded-lg flex items-center gap-2`;
-                divF.innerHTML = `<input type="radio" name="correct" value="1" ${q.correctAnswer == 1 ? 'checked' : ''}> <span class="font-bold">שקר</span>`;
-                container.appendChild(divT);
-                container.appendChild(divF);
+                grid.innerHTML = `
+                    <div class="bg-blue-600 p-4 rounded-xl flex items-center gap-3 text-white font-bold">
+                        <input type="radio" name="correct" value="0" ${q.correct == 0 ? 'checked' : ''} class="w-6 h-6"> אמת
+                    </div>
+                    <div class="bg-red-600 p-4 rounded-xl flex items-center gap-3 text-white font-bold">
+                        <input type="radio" name="correct" value="1" ${q.correct == 1 ? 'checked' : ''} class="w-6 h-6"> שקר
+                    </div>
+                `;
             }
         }
 
-        function saveCurrentQuestionData() {
-            if (activeQuestionIndex < 0) return;
-            const q = currentEditingQuiz.questions[activeQuestionIndex];
-            q.text = document.getElementById('qText').value;
-            q.type = document.getElementById('qType').value;
-            q.time = parseInt(document.getElementById('qTime').value) || 20;
-            q.double = document.getElementById('qDouble').checked;
-            q.image = document.getElementById('qImage').value;
+        function saveEditorInputs() {
+            if(currentQIdx < 0) return;
+            const q = editingQuiz.questions[currentQIdx];
+            q.text = document.getElementById('qInputText').value;
+            q.type = document.getElementById('qInputType').value;
+            q.time = parseInt(document.getElementById('qInputTime').value);
+            q.double = document.getElementById('qInputDouble').checked;
+            q.image = document.getElementById('qInputImage').value;
             
-            const radios = document.getElementsByName('correct');
-            radios.forEach(r => { if(r.checked) q.correctAnswer = parseInt(r.value); });
+            const selected = document.querySelector('input[name="correct"]:checked');
+            if(selected) q.correct = parseInt(selected.value);
             
-            if (q.type === 'multi') {
-                const inputs = document.querySelectorAll('.ans-input');
+            if(q.type === 'multi') {
+                const inputs = document.querySelectorAll('.ans-field');
                 q.answers = Array.from(inputs).map(i => i.value);
             } else {
                 q.answers = ["אמת", "שקר"];
             }
         }
 
-        function addNewQuestion() {
-            saveCurrentQuestionData();
-            currentEditingQuiz.questions.push({ text: 'שאלה חדשה', type: 'multi', time: 20, answers: ['', '', '', ''], correctAnswer: 0 });
-            activeQuestionIndex = currentEditingQuiz.questions.length - 1;
+        function addQuestion() {
+            saveEditorInputs();
+            editingQuiz.questions.push({ text: 'שאלה חדשה', type: 'multi', time: 20, double: false, image: '', answers: ['','','',''], correct: 0 });
+            currentQIdx = editingQuiz.questions.length - 1;
+            renderEditor();
+        }
+
+        function removeQuestion(i) {
+            editingQuiz.questions.splice(i, 1);
+            currentQIdx = editingQuiz.questions.length - 1;
             renderEditor();
         }
 
         async function saveQuiz() {
-            saveCurrentQuestionData();
-            currentEditingQuiz.title = document.getElementById('editQuizTitle').value || 'חידון ללא שם';
+            saveEditorInputs();
+            editingQuiz.title = document.getElementById('editorQuizTitle').value || 'חידון ללא שם';
             setLoading(true);
-            const col = firebase.firestore().collection('artifacts', appId, 'public', 'data', 'quizzes');
-            if (currentEditingQuiz.id) {
-                await col.doc(currentEditingQuiz.id).set(currentEditingQuiz);
+            const col = db.collection('artifacts', appId, 'public', 'data', 'quizzes');
+            if(editingQuiz.id) {
+                await col.doc(editingQuiz.id).set(editingQuiz);
             } else {
-                await col.add(currentEditingQuiz);
+                await col.add(editingQuiz);
             }
-            setLoading(false);
-            loadQuizList();
+            loadAdminQuizzes();
         }
 
         async function deleteQuiz(id) {
             if(!confirm("למחוק את החידון?")) return;
             setLoading(true);
-            await firebase.firestore().collection('artifacts', appId, 'public', 'data', 'quizzes').doc(id).delete();
-            setLoading(false);
-            loadQuizList();
+            await db.collection('artifacts', appId, 'public', 'data', 'quizzes').doc(id).delete();
+            loadAdminQuizzes();
         }
 
-        // --- HOSTING LOGIC ---
+        // --- HOSTING ENGINE ---
         async function hostGame(quizId) {
             setLoading(true);
-            const quiz = quizzes.find(q => q.id === quizId);
-            const pin = Math.floor(100000 + Math.random() * 900000).toString();
+            const quiz = myQuizList.find(q => q.id === quizId);
+            const pin = Math.floor(100000 + Math.random() * 899999).toString();
             
-            const gameRef = firebase.firestore().collection('artifacts', appId, 'public', 'data', 'games').doc(pin);
-            await gameRef.set({
+            currentGameRef = db.collection('artifacts', appId, 'public', 'data', 'games').doc(pin);
+            await currentGameRef.set({
                 pin,
                 quizTitle: quiz.title,
                 questions: quiz.questions,
                 status: 'lobby',
-                currentQuestionIndex: -1,
+                activeQ: -1,
                 timer: 0,
-                lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                ansCount: 0,
+                lastUpdate: Date.now()
             });
 
-            currentGameRef = gameRef;
-            document.getElementById('lobbyPin').innerText = pin;
-            showScreen('lobby');
+            document.getElementById('hostLobbyPin').innerText = pin;
+            navTo('hostLobby');
+            document.getElementById('lobbyMusic').play();
             setLoading(false);
-            
+
             // Listen for players
-            firebase.firestore().collection('artifacts', appId, 'public', 'data', 'games', pin, 'players').onSnapshot(snap => {
-                players = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderLobbyPlayers();
-            }, (err) => console.log(err));
+            currentGameRef.collection('players').onSnapshot(snap => {
+                gamePlayers = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                renderHostLobby();
+            });
         }
 
-        function renderLobbyPlayers() {
-            const list = document.getElementById('playerList');
-            document.getElementById('playerCount').innerText = players.length;
+        function renderHostLobby() {
+            document.getElementById('hostPlayerCount').innerText = gamePlayers.length;
+            const list = document.getElementById('hostPlayerList');
             list.innerHTML = '';
-            players.forEach(p => {
+            gamePlayers.forEach(p => {
                 const div = document.createElement('div');
-                div.className = "bg-white text-purple-800 px-4 py-2 rounded-lg font-bold text-xl animate-pop cursor-pointer hover:bg-red-100";
+                div.className = "bg-white text-purple-900 px-6 py-2 rounded-full font-black text-2xl shadow animate-pop cursor-pointer hover:bg-red-100";
                 div.innerText = p.name;
-                div.onclick = () => flagPlayerForRename(p.id);
+                div.onclick = () => flagForRename(p.id);
                 list.appendChild(div);
             });
         }
 
-        async function flagPlayerForRename(pid) {
-            await currentGameRef.collection('players').doc(pid).update({ forceRename: true });
+        async function flagForRename(pid) {
+            await currentGameRef.collection('players').doc(pid).update({ needsRename: true });
         }
 
-        async function startGame() {
-            if (players.length === 0) return;
-            await currentGameRef.update({ status: 'playing', currentQuestionIndex: 0 });
-            runGameLoop();
+        async function startActualGame() {
+            if(gamePlayers.length === 0) return;
+            document.getElementById('lobbyMusic').pause();
+            await currentGameRef.update({ status: 'playing', activeQ: 0 });
+            runHostLoop();
         }
 
-        async function runGameLoop() {
-            const gameSnap = await currentGameRef.get();
-            const g = gameSnap.data();
-            gameData = g;
-            
-            if (g.currentQuestionIndex >= g.questions.length) {
-                showPodium();
+        let hostInterval = null;
+        async function runHostLoop() {
+            const snap = await currentGameRef.get();
+            const g = snap.data();
+            if(g.activeQ >= g.questions.length) {
+                showFinalPodium();
                 return;
             }
 
-            const q = g.questions[g.currentQuestionIndex];
-            showScreen('gameHost');
+            const q = g.questions[g.activeQ];
+            navTo('hostGame');
             document.getElementById('hostQuestionText').innerText = q.text;
             
-            if (q.image) {
-                document.getElementById('hostQuestionImg').classList.remove('hidden');
-                document.getElementById('hostQuestionImg').querySelector('img').src = q.image;
+            // Image handling
+            const imgBox = document.getElementById('hostImageContainer');
+            if(q.image) {
+                imgBox.classList.remove('hidden');
+                document.getElementById('hostQuestionImage').src = q.image;
             } else {
-                document.getElementById('hostQuestionImg').classList.add('hidden');
+                imgBox.classList.add('hidden');
             }
 
-            // Prepare UI for host (Answers text)
-            const ansDivs = document.getElementById('hostAnswersGrid').children;
-            if (q.type === 'multi') {
-                for(let i=0; i<4; i++) {
-                    ansDivs[i].classList.remove('hidden');
-                    ansDivs[i].querySelector('.ans-text').innerText = q.answers[i];
+            // Sync visual answers
+            for(let i=0; i<4; i++) {
+                const el = document.getElementById(`hostAnswersVisual`).children[i];
+                if(q.type === 'multi' || i < 2) {
+                    el.classList.remove('hidden');
+                    document.getElementById(`ansText${i}`).innerText = q.answers[i];
+                } else {
+                    el.classList.add('hidden');
                 }
-            } else {
-                ansDivs[0].classList.remove('hidden'); ansDivs[0].querySelector('.ans-text').innerText = "אמת";
-                ansDivs[1].classList.remove('hidden'); ansDivs[1].querySelector('.ans-text').innerText = "שקר";
-                ansDivs[2].classList.add('hidden');
-                ansDivs[3].classList.add('hidden');
             }
 
-            // Start Timer
             let timeLeft = q.time;
-            await currentGameRef.update({ timer: timeLeft, questionActive: true, answersCount: 0 });
-            
-            const timerInterval = setInterval(async () => {
+            document.getElementById('hostTimer').innerText = timeLeft;
+            await currentGameRef.update({ timer: timeLeft, acceptingAnswers: true, ansCount: 0 });
+
+            if(hostInterval) clearInterval(hostInterval);
+            hostInterval = setInterval(async () => {
                 timeLeft--;
-                document.getElementById('gameTimer').innerText = timeLeft;
+                document.getElementById('hostTimer').innerText = timeLeft;
                 await currentGameRef.update({ timer: timeLeft });
+                
+                // Realtime check for answers
+                const current = await currentGameRef.get();
+                const count = current.data().ansCount;
+                document.getElementById('hostAnswerCount').innerText = count;
 
-                // Check if everyone answered
-                const currentSnap = await currentGameRef.get();
-                const count = currentSnap.data().answersCount || 0;
-                document.getElementById('answersReceivedCount').innerText = `${count} תשובות`;
-
-                if (timeLeft <= 0 || count >= players.length) {
-                    clearInterval(timerInterval);
+                if(timeLeft <= 0 || count >= gamePlayers.length) {
+                    clearInterval(hostInterval);
                     showLeaderboard();
                 }
             }, 1000);
-
-            // Store interval to allow skip
-            window.activeTimer = timerInterval;
         }
 
-        function endQuestionEarly() {
-            if (window.activeTimer) {
-                clearInterval(window.activeTimer);
+        async function skipQuestion() {
+            if(hostInterval) {
+                clearInterval(hostInterval);
                 showLeaderboard();
             }
         }
 
         async function showLeaderboard() {
-            await currentGameRef.update({ questionActive: false });
-            showScreen('leaderboard');
+            await currentGameRef.update({ acceptingAnswers: false });
+            navTo('hostLeaderboard');
             
-            // Get latest player scores
             const snap = await currentGameRef.collection('players').get();
-            const pList = snap.docs.map(doc => doc.data()).sort((a,b) => b.score - a.score);
+            const sorted = snap.docs.map(d => d.data()).sort((a,b) => b.score - a.score);
             
-            const list = document.getElementById('leaderboardList');
-            list.innerHTML = '';
-            pList.slice(0, 5).forEach((p, i) => {
+            const container = document.getElementById('leaderboardContainer');
+            container.innerHTML = '';
+            sorted.slice(0,5).forEach((p, i) => {
                 const div = document.createElement('div');
-                div.className = "bg-white text-purple-900 p-4 rounded-lg flex justify-between items-center font-bold text-xl";
+                div.className = "bg-white text-purple-900 p-5 rounded-xl shadow-lg flex justify-between items-center font-black text-2xl animate-pop";
                 div.innerHTML = `<span>${i+1}. ${p.name}</span> <span>${Math.floor(p.score)}</span>`;
-                list.appendChild(div);
+                container.appendChild(div);
             });
         }
 
-        async function nextStep() {
-            const g = (await currentGameRef.get()).data();
-            const nextIdx = g.currentQuestionIndex + 1;
-            await currentGameRef.update({ currentQuestionIndex: nextIdx });
-            runGameLoop();
+        async function nextQuestion() {
+            const snap = await currentGameRef.get();
+            const nextIdx = snap.data().activeQ + 1;
+            await currentGameRef.update({ activeQ: nextIdx });
+            runHostLoop();
         }
 
-        async function showPodium() {
-            showScreen('podium');
+        async function showFinalPodium() {
+            navTo('hostPodium');
             const snap = await currentGameRef.collection('players').get();
-            const pList = snap.docs.map(doc => doc.data()).sort((a,b) => b.score - a.score);
+            const sorted = snap.docs.map(d => d.data()).sort((a,b) => b.score - a.score);
             
-            if(pList[0]) document.getElementById('podiumName1').innerText = pList[0].name;
-            if(pList[1]) document.getElementById('podiumName2').innerText = pList[1].name;
-            if(pList[2]) document.getElementById('podiumName3').innerText = pList[2].name;
+            if(sorted[0]) document.getElementById('pName1').innerText = sorted[0].name;
+            if(sorted[1]) document.getElementById('pName2').innerText = sorted[1].name;
+            if(sorted[2]) document.getElementById('pName3').innerText = sorted[2].name;
             
             await currentGameRef.update({ status: 'finished' });
         }
 
-        // --- PLAYER LOGIC ---
-        function initJoin() {
-            showScreen('userJoinPin');
-        }
-
-        async function validatePin() {
+        // --- PLAYER ENGINE ---
+        async function validateGamePin() {
             const pin = document.getElementById('joinPinInput').value;
             setLoading(true);
-            const gameRef = firebase.firestore().collection('artifacts', appId, 'public', 'data', 'games').doc(pin);
-            const doc = await gameRef.get();
-            if (doc.exists && doc.data().status === 'lobby') {
-                currentGameRef = gameRef;
-                showScreen('userNickname');
+            const ref = db.collection('artifacts', appId, 'public', 'data', 'games').doc(pin);
+            const doc = await ref.get();
+            if(doc.exists && doc.data().status === 'lobby') {
+                currentGameRef = ref;
+                navTo('playerNick');
             } else {
-                alert("קוד שגוי או משחק לא פעיל");
+                document.getElementById('joinError').classList.remove('hidden');
             }
             setLoading(false);
         }
 
         async function submitNickname() {
-            const name = document.getElementById('nicknameInput').value;
-            if(!name) return;
-            
+            const nick = document.getElementById('playerNickInput').value;
+            if(!nick) return;
             setLoading(true);
-            const pid = auth.currentUser.uid;
-            myPlayerId = pid;
-            const pRef = currentGameRef.collection('players').doc(pid);
+            myPlayerId = auth.currentUser.uid;
+            const pRef = currentGameRef.collection('players').doc(myPlayerId);
             
             await pRef.set({
-                name: name,
+                name: nick,
                 score: 0,
-                lastAnswerCorrect: false,
-                forceRename: false
+                needsRename: false,
+                lastCorrect: false,
+                lastPoints: 0
             });
-
-            showScreen('userWait');
+            
+            navTo('playerWait');
             setLoading(false);
-            listenToGameAsPlayer();
+            listenToGame();
         }
 
-        function listenToGameAsPlayer() {
+        function listenToGame() {
             currentGameRef.onSnapshot(snap => {
                 const g = snap.data();
-                if (!g) return;
+                if(!g) return;
 
-                if (g.status === 'playing') {
-                    if (g.questionActive) {
+                if(g.status === 'playing') {
+                    if(g.acceptingAnswers) {
                         renderPlayerButtons(g);
                     }
-                } else if (g.status === 'finished') {
-                    showScreen('home');
+                } else if(g.status === 'finished') {
+                    navTo('home');
+                    location.reload();
                 }
             });
 
-            // Listen for forced rename
+            // Listen for rename request
             currentGameRef.collection('players').doc(myPlayerId).onSnapshot(snap => {
                 const p = snap.data();
-                if (p?.forceRename) {
-                    document.getElementById('userRenameMsg').classList.remove('hidden');
+                if(p?.needsRename) {
+                    document.getElementById('renameWarning').classList.remove('hidden');
                 } else {
-                    document.getElementById('userRenameMsg').classList.add('hidden');
+                    document.getElementById('renameWarning').classList.add('hidden');
                 }
             });
         }
 
         function renderPlayerButtons(g) {
-            const screen = document.getElementById('screen-userPlay');
-            if (!screen.classList.contains('hidden')) return; // Already showing buttons
+            const screen = document.getElementById('screen-playerGame');
+            if(!screen.classList.contains('hidden')) return; 
+
+            navTo('playerGame');
+            const grid = document.getElementById('playerShapesGrid');
+            grid.innerHTML = '';
             
-            showScreen('userPlay');
-            screen.innerHTML = '';
-            const q = g.questions[g.currentQuestionIndex];
-            
+            const q = g.questions[g.activeQ];
             const layouts = [
-                { color: 'shape-red', icon: 'fa-triangle' },
-                { color: 'shape-blue', icon: 'fa-diamond' },
-                { color: 'shape-yellow', icon: 'fa-circle' },
-                { color: 'shape-green', icon: 'fa-square' }
+                { class: 'red-tri', icon: 'fa-triangle' },
+                { class: 'blue-dia', icon: 'fa-diamond' },
+                { class: 'yell-cir', icon: 'fa-circle' },
+                { class: 'gree-squ', icon: 'fa-square' }
             ];
 
             const count = q.type === 'multi' ? 4 : 2;
             for(let i=0; i<count; i++) {
-                const btn = document.createElement('div');
-                btn.className = `shape-btn ${layouts[i].color} animate-pop`;
-                btn.innerHTML = `<i class="fas ${layouts[i].icon} text-white opacity-40"></i>`;
-                btn.onclick = () => submitAnswer(i, g);
-                screen.appendChild(btn);
+                const div = document.createElement('div');
+                div.className = `shape-card ${layouts[i].class} animate-pop`;
+                div.innerHTML = `<i class="fas ${layouts[i].icon} text-white opacity-40"></i>`;
+                div.onclick = () => submitPlayerAnswer(i, g);
+                grid.appendChild(div);
             }
         }
 
-        async function submitAnswer(index, g) {
-            showScreen('loadingOverlay'); // Show brief loading while processing
-            const q = g.questions[g.currentQuestionIndex];
-            const isCorrect = (index == q.correctAnswer);
+        async function submitPlayerAnswer(idx, g) {
+            setLoading(true);
+            const q = g.questions[g.activeQ];
+            const isCorrect = (idx == q.correct);
             
             let points = 0;
-            if (isCorrect) {
-                // Calculation: max 1000 points based on time. Double if flag set.
-                const timeFactor = g.timer / q.time;
-                points = (500 + (500 * timeFactor));
-                if (q.double) points *= 2;
+            if(isCorrect) {
+                const timeBonus = g.timer / q.time;
+                points = (500 + (500 * timeBonus));
+                if(q.double) points *= 2;
             }
 
-            userLocalScore += points;
-            
-            // Update Firestore
-            const pRef = currentGameRef.collection('players').doc(myPlayerId);
-            await firebase.firestore().runTransaction(async (transaction) => {
-                const pDoc = await transaction.get(pRef);
-                const newScore = (pDoc.data().score || 0) + points;
-                transaction.update(pRef, { score: newScore, lastAnswerCorrect: isCorrect });
-                
+            myLocalScore += points;
+
+            // Transaction for Atomic Updates
+            await db.runTransaction(async (transaction) => {
+                const pDoc = await transaction.get(currentGameRef.collection('players').doc(myPlayerId));
                 const gDoc = await transaction.get(currentGameRef);
-                const newAnsCount = (gDoc.data().answersCount || 0) + 1;
-                transaction.update(currentGameRef, { answersCount: newAnsCount });
+                
+                transaction.update(currentGameRef.collection('players').doc(myPlayerId), {
+                    score: (pDoc.data().score || 0) + points,
+                    lastCorrect: isCorrect,
+                    lastPoints: points
+                });
+                transaction.update(currentGameRef, {
+                    ansCount: (gDoc.data().ansCount || 0) + 1
+                });
             });
 
-            showPlayerResult(isCorrect, points);
-            document.getElementById('loadingOverlay').classList.add('hidden');
+            showFeedback(isCorrect, points);
+            setLoading(false);
         }
 
-        function showPlayerResult(correct, points) {
-            showScreen('userResult');
-            const icon = document.getElementById('resultIcon');
-            const status = document.getElementById('resultStatusText');
-            const ptsDiv = document.getElementById('resultPoints');
-            const totalDiv = document.getElementById('totalScore');
-            const bg = document.getElementById('screen-userResult');
+        function showFeedback(correct, pts) {
+            navTo('playerFeedback');
+            const icon = document.getElementById('feedbackIcon');
+            const title = document.getElementById('feedbackTitle');
+            const ptsDiv = document.getElementById('feedbackPoints');
+            const bg = document.getElementById('screen-playerFeedback');
 
-            if (correct) {
-                icon.innerHTML = "✔️";
-                status.innerText = "נכון!";
-                ptsDiv.innerText = `+${Math.floor(points)}`;
-                bg.style.backgroundColor = "var(--kahoot-green)";
+            if(correct) {
+                icon.innerHTML = '<i class="fas fa-check-circle text-white"></i>';
+                title.innerText = "נכון!";
+                ptsDiv.innerText = `+${Math.floor(pts)}`;
+                bg.style.backgroundColor = "var(--k-green)";
             } else {
-                icon.innerHTML = "❌";
-                status.innerText = "טעות...";
+                icon.innerHTML = '<i class="fas fa-times-circle text-white"></i>';
+                title.innerText = "לא נכון...";
                 ptsDiv.innerText = "+0";
-                bg.style.backgroundColor = "var(--kahoot-red)";
+                bg.style.backgroundColor = "var(--k-red)";
             }
-            totalDiv.innerText = `סך הכל: ${Math.floor(userLocalScore)} נקודות`;
+            document.getElementById('playerTotalScore').innerText = Math.floor(myLocalScore);
         }
 
-        // --- HELPERS ---
         function toggleMusic() {
-            const audio = document.getElementById('bgMusic');
+            const music = document.getElementById('lobbyMusic');
             const icon = document.getElementById('musicIcon');
-            if (isMusicPlaying) {
-                audio.pause();
-                icon.className = "fas fa-volume-mute";
-            } else {
-                audio.play();
+            if(isMuted) {
+                music.play();
                 icon.className = "fas fa-volume-up";
+            } else {
+                music.pause();
+                icon.className = "fas fa-volume-mute";
             }
-            isMusicPlaying = !isMusicPlaying;
+            isMuted = !isMuted;
         }
-
-        function toggleQuestionUI() {
-            const type = document.getElementById('qType').value;
-            const q = currentEditingQuiz.questions[activeQuestionIndex];
-            q.type = type;
-            renderAnswersUI(q);
-        }
-
-        function deleteQuestion(idx) {
-            currentEditingQuiz.questions.splice(idx, 1);
-            if(activeQuestionIndex >= currentEditingQuiz.questions.length) activeQuestionIndex--;
-            renderEditor();
-        }
-
-        function setLoading(val) {
-            const loader = document.getElementById('loadingOverlay');
-            if (val) loader.classList.remove('hidden');
-            else loader.classList.add('hidden');
-        }
-
-        // Initialize Home
-        showScreen('home');
 
     </script>
 </body>
