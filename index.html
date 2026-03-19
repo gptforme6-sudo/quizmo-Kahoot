@@ -13,9 +13,9 @@
             overflow-x: hidden;
             background-color: #f2f2f2;
         }
-        .shape-icon { font-size: 3rem; drop-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .shape-icon { font-size: 3rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
         
-        /* Kahoot Colors */
+        /* Kahoot Colors & Shadows */
         .theme-red { background-color: #e21b3c; border-color: #e21b3c; }
         .theme-red-shadow { box-shadow: 0 6px 0 #b3152f; }
         .theme-blue { background-color: #1368ce; border-color: #1368ce; }
@@ -26,7 +26,6 @@
         .theme-green-shadow { box-shadow: 0 6px 0 #195c08; }
         .theme-purple { background-color: #46178f; }
 
-        /* Animations */
         @keyframes pulse-fast {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -37,7 +36,7 @@
             from { transform: translateY(100%); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .animate-slide-up { animation: slide-up 0.8s ease-out forwards; }
+        .animate-slide-up { animation: slide-up 0.6s ease-out forwards; }
         
         @keyframes bounce-in {
             0% { transform: scale(0); }
@@ -65,7 +64,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query } from "firebase/firestore";
 
-        // --- Firebase Configuration ---
+        // --- Firebase Setup ---
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "",
             authDomain: "quizmo-kahoot.firebaseapp.com",
@@ -78,9 +77,9 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-dvir-html-pro';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-html-final';
 
-        // --- Global State ---
+        // --- State ---
         window.state = {
             user: null,
             view: 'home',
@@ -92,8 +91,8 @@
             gameState: null,
             myPlayerState: null,
             editingQuiz: null,
-            timerInterval: null,
-            timeLeft: 0
+            timeLeft: 0,
+            timerInterval: null
         };
 
         const THEMES = [
@@ -103,15 +102,15 @@
             { id: 'green', bg: 'theme-green', shadow: 'theme-green-shadow', icon: '<i class="fas fa-square shape-icon"></i>' }
         ];
 
-        // --- Audio Engine ---
-        const playNote = (freq, type, duration, volume = 0.1) => {
+        // --- Audio ---
+        const playTone = (freq, type, duration, vol = 0.1) => {
             if (window.state.isMuted) return;
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -119,302 +118,160 @@
             osc.stop(audioCtx.currentTime + duration);
         };
 
-        window.toggleMute = () => {
-            window.state.isMuted = !window.state.isMuted;
-            render();
-        };
-
-        const playSound = (type) => {
+        const playSound = (s) => {
             if(window.state.isMuted) return;
-            switch(type) {
-                case 'join': playNote(440, 'sine', 0.1); setTimeout(() => playNote(660, 'sine', 0.2), 100); break;
-                case 'start': playNote(440, 'square', 0.2); setTimeout(() => playNote(880, 'square', 0.4), 200); break;
-                case 'tick': playNote(880, 'sine', 0.05, 0.05); break;
-                case 'correct': playNote(523.25, 'triangle', 0.1); setTimeout(() => playNote(659.25, 'triangle', 0.1), 100); setTimeout(() => playTone(783.99, 'triangle', 0.3), 200); break;
-                case 'wrong': playNote(300, 'sawtooth', 0.3); setTimeout(() => playNote(250, 'sawtooth', 0.4), 250); break;
-            }
+            if(s === 'join') { playTone(440, 'sine', 0.2); setTimeout(() => playTone(660, 'sine', 0.3), 100); }
+            if(s === 'tick') playTone(880, 'sine', 0.05, 0.03);
+            if(s === 'correct') { playTone(523, 'triangle', 0.15); setTimeout(() => playTone(783, 'triangle', 0.4), 150); }
+            if(s === 'wrong') { playTone(220, 'sawtooth', 0.5); }
         };
 
-        // --- Listeners & Init ---
-        const initAuth = async () => {
+        window.toggleMute = () => { window.state.isMuted = !window.state.isMuted; render(); };
+
+        // --- Firebase Init ---
+        const init = async () => {
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 await signInWithCustomToken(auth, __initial_auth_token);
             } else {
                 await signInAnonymously(auth);
             }
         };
-        
-        onAuthStateChanged(auth, (user) => {
-            window.state.user = user;
-            if(user) {
-                setupAdminListeners();
-                if(window.state.pin) setupGameListeners(window.state.pin);
+
+        onAuthStateChanged(auth, (u) => {
+            window.state.user = u;
+            if(u) {
+                fetchQuizzes();
             }
             render();
         });
 
-        initAuth();
+        init();
 
-        let unsubQuizzes = null;
-        let unsubGame = null;
-        let unsubPlayers = null;
-
-        function setupAdminListeners() {
-            if (unsubQuizzes) unsubQuizzes();
-            const q = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
-            unsubQuizzes = onSnapshot(q, (s) => {
+        function fetchQuizzes() {
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'quizzes'));
+            onSnapshot(q, (s) => {
                 const list = [];
                 s.forEach(d => list.push({ id: d.id, ...d.data() }));
                 window.state.quizzes = list;
-                if(window.state.view === 'dashboard') render();
-            });
-        }
-
-        function setupGameListeners(pin) {
-            if (unsubGame) unsubGame();
-            if (unsubPlayers) unsubPlayers();
-
-            const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', pin);
-            unsubGame = onSnapshot(gameRef, (s) => {
-                if (s.exists()) {
-                    window.state.gameState = s.data();
-                    handleGameLogic();
-                    render();
-                }
-            });
-
-            const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-            unsubPlayers = onSnapshot(playersCol, (s) => {
-                const list = [];
-                s.forEach(d => {
-                    if (d.data().pin === pin) list.push({ id: d.id, ...d.data() });
-                });
-                list.sort((a, b) => (b.score || 0) - (a.score || 0));
-                window.state.players = list;
-                
-                const me = list.find(p => p.id === window.state.user.uid);
-                if (me) window.state.myPlayerState = me;
-                
-                handleGameLogic();
                 render();
             });
         }
 
-        function handleGameLogic() {
-            const { gameState, players, user } = window.state;
-            if (!gameState || !user) return;
+        function listenGame(pin) {
+            const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', pin);
+            onSnapshot(gameRef, (s) => {
+                if(s.exists()) {
+                    window.state.gameState = s.data();
+                    handleGameTimer();
+                    render();
+                }
+            });
 
-            // Host timer logic
-            if (gameState.hostId === user.uid && gameState.status === 'question') {
-                const q = gameState.quiz.questions[gameState.currentQuestionIndex];
-                const answeredCount = players.filter(p => p.hasAnswered).length;
-                
-                // Start or update timer
-                if (!window.state.timerInterval) {
+            const pCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
+            onSnapshot(pCol, (s) => {
+                const list = [];
+                s.forEach(d => { if(d.data().pin === pin) list.push({id: d.id, ...d.data()}); });
+                list.sort((a,b) => (b.score || 0) - (a.score || 0));
+                window.state.players = list;
+                const me = list.find(p => p.id === window.state.user.uid);
+                if(me) window.state.myPlayerState = me;
+                render();
+            });
+        }
+
+        function handleGameTimer() {
+            const { gameState, user } = window.state;
+            if(gameState?.status === 'question' && gameState.hostId === user.uid) {
+                if(!window.state.timerInterval) {
                     window.state.timerInterval = setInterval(() => {
-                        if (window.state.gameState?.status !== 'question') {
-                            clearInterval(window.state.timerInterval);
-                            window.state.timerInterval = null;
-                            return;
-                        }
-                        const timeTaken = Math.floor((Date.now() - window.state.gameState.questionStartTime) / 1000);
-                        let diff = Math.max(0, q.time - timeTaken);
+                        const now = Date.now();
+                        const q = gameState.quiz.questions[gameState.currentQuestionIndex];
+                        const diff = Math.max(0, q.time - Math.floor((now - gameState.questionStartTime)/1000));
                         window.state.timeLeft = diff;
                         
-                        if (diff > 0 && diff <= 5) playSound('tick');
-                        
-                        // Auto skip if time is up OR everyone answered
-                        const currentAnswered = window.state.players.filter(p => p.hasAnswered).length;
-                        if (diff === 0 || (currentAnswered > 0 && currentAnswered === window.state.players.length)) {
+                        const answered = window.state.players.filter(p => p.hasAnswered).length;
+                        if(diff === 0 || (answered > 0 && answered === window.state.players.length)) {
                             clearInterval(window.state.timerInterval);
                             window.state.timerInterval = null;
                             window.nextStep();
                         } else {
-                            render(); // update timer UI
+                            if(diff <= 5 && diff > 0) playSound('tick');
+                            render();
                         }
                     }, 1000);
                 }
             }
         }
 
-        // --- Actions ---
-        window.setView = (view) => {
-            window.state.view = view;
-            render();
-        };
+        // --- Logic ---
+        window.setView = (v) => { window.state.view = v; render(); };
 
         window.handleLogin = () => {
-            const pass = document.getElementById('adminPass').value;
-            if (pass === '2160') {
-                window.setView('dashboard');
-            } else {
-                alert("גישה נדחתה: סיסמה שגויה");
-            }
+            if(document.getElementById('pass').value === '2160') window.setView('dashboard');
+            else alert("סיסמה שגויה");
         };
 
-        window.createNewQuiz = () => {
-            window.state.editingQuiz = { title: '', questions: [] };
-            window.setView('editor');
-        };
-
-        window.editQuiz = (id) => {
-            window.state.editingQuiz = JSON.parse(JSON.stringify(window.state.quizzes.find(q => q.id === id)));
-            window.setView('editor');
-        };
-
-        window.deleteQuiz = async (id) => {
-            if(confirm('למחוק את החידון?')) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id));
-            }
-        };
-
-        window.addQuestion = () => {
-            window.scrapeEditorData();
-            window.state.editingQuiz.questions.push({ text: '', type: 'multi', opts: ['', '', '', ''], correct: 0, time: 20, doublePoints: false, image: '' });
-            render();
-        };
-
-        window.deleteQuestion = (idx) => {
-            window.scrapeEditorData();
-            window.state.editingQuiz.questions.splice(idx, 1);
-            render();
-        };
-
-        window.setQuestionType = (idx, type) => {
-            window.scrapeEditorData();
-            window.state.editingQuiz.questions[idx].type = type;
-            if (type === 'tf') {
-                window.state.editingQuiz.questions[idx].opts = ['אמת', 'שקר'];
-                window.state.editingQuiz.questions[idx].correct = 0;
-            } else {
-                window.state.editingQuiz.questions[idx].opts = ['', '', '', ''];
-            }
-            render();
-        };
-
-        window.setCorrectAnswer = (qIdx, optIdx) => {
-            window.scrapeEditorData();
-            window.state.editingQuiz.questions[qIdx].correct = optIdx;
-            render();
-        };
-
-        window.scrapeEditorData = () => {
-            const quiz = window.state.editingQuiz;
-            quiz.title = document.getElementById('quizTitle').value;
-            quiz.questions.forEach((q, idx) => {
-                q.text = document.getElementById(`q_text_${idx}`).value;
-                q.time = parseInt(document.getElementById(`q_time_${idx}`).value) || 20;
-                q.image = document.getElementById(`q_img_${idx}`).value;
-                q.doublePoints = document.getElementById(`q_dbl_${idx}`).checked;
-                
-                if(q.type === 'multi') {
-                    for(let i=0; i<4; i++) {
-                        q.opts[i] = document.getElementById(`q_opt_${idx}_${i}`).value;
-                    }
-                }
+        window.hostGame = async (qid) => {
+            const quiz = window.state.quizzes.find(q => q.id === qid);
+            const pin = Math.floor(100000 + Math.random() * 899999).toString();
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', pin), {
+                pin, quiz, status: 'lobby', hostId: window.state.user.uid, currentQuestionIndex: 0
             });
-        };
-
-        window.saveQuiz = async () => {
-            window.scrapeEditorData();
-            const quizData = window.state.editingQuiz;
-            if(!quizData.title) return alert("חובה להזין שם לחידון");
-            if(quizData.questions.length === 0) return alert("חובה להוסיף לפחות שאלה אחת");
-
-            const col = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
-            if (quizData.id) {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', quizData.id), quizData);
-            } else {
-                await addDoc(col, { ...quizData, createdAt: Date.now() });
-            }
-            window.setView('dashboard');
-        };
-
-        window.hostGame = async (quizId) => {
-            const quiz = window.state.quizzes.find(q => q.id === quizId);
-            const newPin = Math.floor(100000 + Math.random() * 899999).toString();
-            const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', newPin);
-            await setDoc(gameRef, {
-                pin: newPin,
-                quiz: quiz,
-                status: 'lobby',
-                currentQuestionIndex: 0,
-                questionStartTime: 0,
-                hostId: window.state.user.uid
-            });
-            window.state.pin = newPin;
-            setupGameListeners(newPin);
+            window.state.pin = pin;
+            listenGame(pin);
             window.setView('host_lobby');
         };
 
         window.joinGame = async () => {
-            const p = document.getElementById('joinPin').value;
-            const n = document.getElementById('joinNick').value;
-            if (!p || !n) return alert("הכנס PIN וכינוי");
+            const pin = document.getElementById('pin').value;
+            const nick = document.getElementById('nick').value;
+            if(!pin || !nick) return;
+            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', pin));
+            if(!snap.exists()) return alert("PIN לא נמצא");
             
-            const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', p);
-            const snap = await getDoc(gameRef);
-            if (!snap.exists()) return alert("הקוד שגוי או שהמשחק לא פעיל");
-            
-            window.state.pin = p;
-            window.state.nickname = n;
-            setupGameListeners(p);
-
+            window.state.pin = pin;
+            window.state.nickname = nick;
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', window.state.user.uid), {
-                id: window.state.user.uid,
-                pin: p,
-                name: n,
-                score: 0,
-                hasAnswered: false,
-                needsNameChange: false
+                id: window.state.user.uid, pin, name: nick, score: 0, hasAnswered: false
             });
+            listenGame(pin);
             playSound('join');
             window.setView('player_waiting');
         };
 
-        window.kickPlayer = async (pid) => {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', pid), {
-                needsNameChange: true
-            });
-        };
-
-        window.updatePlayerName = async () => {
-            const newName = document.getElementById('newNameInput').value;
-            if(!newName) return;
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', window.state.user.uid), { 
-                name: newName, 
-                needsNameChange: false 
-            });
-            window.state.nickname = newName;
-        };
-
         window.startGame = async () => {
-            playSound('start');
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', window.state.pin), {
-                status: 'question',
-                currentQuestionIndex: 0,
-                questionStartTime: Date.now()
+                status: 'question', currentQuestionIndex: 0, questionStartTime: Date.now()
+            });
+            window.setView('host_game');
+        };
+
+        window.submitAnswer = async (idx) => {
+            const { gameState, myPlayerState, pin, user } = window.state;
+            if(myPlayerState.hasAnswered || gameState.status !== 'question') return;
+
+            const q = gameState.quiz.questions[gameState.currentQuestionIndex];
+            const isCorrect = idx === q.correct;
+            const points = isCorrect ? (q.doublePoints ? 2000 : 1000) : 0;
+
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', user.uid), {
+                hasAnswered: true, lastAnswerCorrect: isCorrect, lastPoints: points, score: (myPlayerState.score || 0) + points
             });
         };
 
         window.nextStep = async () => {
             const { gameState, pin, players } = window.state;
-            const isLast = gameState.currentQuestionIndex + 1 >= gameState.quiz.questions.length;
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'games', pin);
-            
-            if (gameState.status === 'question') {
+            if(gameState.status === 'question') {
                 await updateDoc(ref, { status: 'results' });
-            } else if (gameState.status === 'results') {
+            } else if(gameState.status === 'results') {
                 await updateDoc(ref, { status: 'leaderboard' });
-            } else if (gameState.status === 'leaderboard') {
-                if (isLast) {
+            } else if(gameState.status === 'leaderboard') {
+                if(gameState.currentQuestionIndex + 1 >= gameState.quiz.questions.length) {
                     await updateDoc(ref, { status: 'podium' });
                 } else {
-                    for (let p of players) {
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', p.id), {
-                            hasAnswered: false,
-                            lastAnswerCorrect: null
-                        });
+                    for(let p of players) {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', p.id), { hasAnswered: false });
                     }
                     await updateDoc(ref, {
                         status: 'question',
@@ -425,530 +282,196 @@
             }
         };
 
-        window.submitAnswer = async (idx) => {
-            const { myPlayerState, gameState, user, pin } = window.state;
-            if (myPlayerState?.hasAnswered || gameState.status !== 'question') return;
-            
-            const q = gameState.quiz.questions[gameState.currentQuestionIndex];
-            const isCorrect = idx === q.correct;
-            const timeTaken = Date.now() - gameState.questionStartTime;
-            
-            // Speed bonus calculation (max 1000 bonus points)
-            const maxTimeMs = q.time * 1000;
-            const speedRatio = Math.max(0, 1 - (timeTaken / maxTimeMs));
-            const bonus = Math.floor(speedRatio * 500);
-            
-            const basePoints = q.doublePoints ? 2000 : 1000;
-            const points = isCorrect ? basePoints + bonus : 0;
-            
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', user.uid), {
-                hasAnswered: true,
-                lastAnswerIndex: idx,
-                lastAnswerCorrect: isCorrect,
-                lastPointsGained: points,
-                score: (myPlayerState.score || 0) + points
-            });
-        };
-
-        // --- Render System ---
+        // --- Render Views ---
         function render() {
-            const appDiv = document.getElementById('app');
-            const { view, user } = window.state;
+            const app = document.getElementById('app');
+            const { view, user, gameState, myPlayerState } = window.state;
+            if(!user) return app.innerHTML = `<div class="h-screen flex items-center justify-center text-gray-400">מתחבר...</div>`;
 
-            if (!user) {
-                appDiv.innerHTML = `<div class="h-screen flex items-center justify-center text-2xl font-bold bg-gray-100 text-gray-500">מתחבר למערכת...</div>`;
-                return;
-            }
-
-            // Mute Button HTML
-            const muteBtn = `
-                <button onclick="window.toggleMute()" class="fixed top-4 left-4 z-50 p-3 bg-white/80 backdrop-blur rounded-full shadow-lg hover:bg-white transition">
-                    <i class="fas ${window.state.isMuted ? 'fa-volume-mute text-red-500' : 'fa-volume-up text-blue-500'} text-xl"></i>
+            let html = `
+                <button onclick="window.toggleMute()" class="fixed top-4 left-4 z-50 p-3 bg-white/80 rounded-full shadow">
+                    <i class="fas ${window.state.isMuted ? 'fa-volume-mute text-red-500' : 'fa-volume-up text-blue-500'}"></i>
                 </button>
             `;
 
-            let html = muteBtn;
-
-            switch(view) {
-                case 'home': html += renderHome(); break;
-                case 'login': html += renderLogin(); break;
-                case 'dashboard': html += renderDashboard(); break;
-                case 'editor': html += renderEditor(); break;
-                case 'join': html += renderJoin(); break;
-                case 'host_lobby': html += renderHostLobby(); break;
-                case 'host_game': html += renderHostGame(); break;
-                case 'player_waiting': html += renderPlayerWaiting(); break;
-                case 'player_game': html += renderPlayerGame(); break;
+            if(view === 'home') html += renderHome();
+            else if(view === 'login') html += renderLogin();
+            else if(view === 'dashboard') html += renderDashboard();
+            else if(view === 'join') html += renderJoin();
+            else if(view === 'host_lobby') html += renderHostLobby();
+            else if(view === 'player_waiting') html += renderPlayerWaiting();
+            else if(view === 'host_game') html += renderHostGame();
+            else if(view === 'player_game' || (gameState && view !== 'host_lobby')) {
+                 if(gameState.hostId === user.uid) html += renderHostGame();
+                 else html += renderPlayerGame();
             }
 
-            // To avoid losing focus on input during updates, we use innerHTML safely. 
-            // Editor handles state scraping before re-rendering.
-            appDiv.innerHTML = html;
-            
-            // Post-render actions (like setting focus or keeping input values if needed)
-            if(view === 'editor') restoreEditorValues();
+            app.innerHTML = html;
         }
 
-        // --- View Renderers ---
         function renderHome() {
             return `
-            <div class="h-screen theme-purple flex flex-col items-center justify-center p-6 text-white text-center">
-                <h1 class="text-8xl md:text-9xl font-black italic mb-12 drop-shadow-2xl animate-pulse-fast">Quizmo!</h1>
-                <div class="w-full max-w-sm flex flex-col gap-6">
-                    <button onclick="window.setView('join')" class="bg-white text-black py-6 rounded-2xl text-4xl font-black shadow-[0_8px_0_#ccc] active:translate-y-2 active:shadow-none transition-all">הצטרפות</button>
-                    <button onclick="window.setView('login')" class="theme-blue text-white py-4 rounded-2xl text-2xl font-bold theme-blue-shadow active:translate-y-2 active:shadow-none transition-all mt-4">
-                        <i class="fas fa-cog"></i> ניהול דביר
-                    </button>
+            <div class="h-screen theme-purple flex flex-col items-center justify-center text-white text-center">
+                <h1 class="text-9xl font-black italic mb-12 animate-pulse-fast drop-shadow-2xl">Quizmo!</h1>
+                <div class="w-full max-w-sm flex flex-col gap-4">
+                    <button onclick="window.setView('join')" class="bg-white text-black py-6 rounded-2xl text-4xl font-black shadow-[0_8px_0_#ccc] active:translate-y-1">הצטרפות</button>
+                    <button onclick="window.setView('login')" class="text-white/50 font-bold hover:text-white transition">ניהול דביר</button>
                 </div>
             </div>`;
         }
 
         function renderLogin() {
             return `
-            <div class="h-screen theme-purple flex items-center justify-center p-4">
-                <div class="bg-white p-10 rounded-[30px] w-full max-w-sm shadow-2xl text-center animate-bounce-in">
-                    <h2 class="text-3xl font-black mb-8 text-gray-800">היי דביר, סיסמה?</h2>
-                    <input type="password" id="adminPass" class="w-full p-4 bg-gray-100 rounded-xl mb-6 text-center text-2xl font-bold outline-none border-4 border-transparent focus:border-purple-500 transition-colors" placeholder="****" />
-                    <button onclick="window.handleLogin()" class="w-full theme-purple text-white py-4 rounded-xl font-black text-2xl shadow-lg hover:opacity-90">כניסה</button>
-                    <button onclick="window.setView('home')" class="mt-6 text-gray-400 font-bold hover:text-gray-600">ביטול</button>
+            <div class="h-screen theme-purple flex items-center justify-center">
+                <div class="bg-white p-10 rounded-[40px] shadow-2xl w-full max-w-sm text-center animate-bounce-in">
+                    <h2 class="text-3xl font-black mb-6">סיסמת מנהל</h2>
+                    <input type="password" id="pass" class="w-full p-4 bg-gray-100 rounded-xl mb-6 text-center text-2xl font-bold" placeholder="****">
+                    <button onclick="window.handleLogin()" class="w-full theme-purple text-white py-4 rounded-xl font-bold text-xl">כניסה</button>
                 </div>
             </div>`;
         }
 
         function renderDashboard() {
-            const { quizzes } = window.state;
-            let listHtml = quizzes.map(q => `
-                <div class="bg-white p-6 rounded-2xl shadow-lg border-r-[12px] border-purple-600 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div class="text-right w-full md:w-auto">
-                        <h3 class="text-3xl font-black text-gray-800">${q.title}</h3>
-                        <p class="text-gray-400 font-bold text-xl">${q.questions.length} שאלות</p>
-                    </div>
-                    <div class="flex gap-3 w-full md:w-auto justify-end">
-                        <button onclick="window.editQuiz('${q.id}')" class="p-4 bg-amber-500 text-white rounded-xl shadow-[0_4px_0_#b48608] hover:translate-y-1 hover:shadow-none transition-all"><i class="fas fa-edit text-xl"></i></button>
-                        <button onclick="window.deleteQuiz('${q.id}')" class="p-4 bg-red-500 text-white rounded-xl shadow-[0_4px_0_#b91c1c] hover:translate-y-1 hover:shadow-none transition-all"><i class="fas fa-trash text-xl"></i></button>
-                        <button onclick="window.hostGame('${q.id}')" class="theme-blue text-white px-8 py-4 rounded-xl font-black text-xl theme-blue-shadow hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-2"><i class="fas fa-play"></i> הפעל</button>
-                    </div>
-                </div>
-            `).join('');
-
-            if(quizzes.length === 0) listHtml = `<div class="text-center text-gray-400 font-bold text-2xl py-20">אין לך עדיין חידונים. צור אחד חדש!</div>`;
-
             return `
-            <div class="min-h-screen bg-gray-50 p-6 md:p-12">
-                <div class="max-w-5xl mx-auto">
-                    <div class="flex flex-col md:flex-row justify-between items-center mb-12 bg-white p-8 rounded-[30px] shadow-sm gap-6">
-                        <div class="text-right w-full">
-                            <h1 class="text-5xl font-black text-purple-900 mb-2">החידונים שלי</h1>
-                            <p class="text-gray-400 font-bold text-xl">מערכת הניהול של דביר</p>
+            <div class="p-8 max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-10">
+                    <h1 class="text-4xl font-black">החידונים שלי</h1>
+                    <button onclick="window.setView('home')" class="text-gray-400">חזור</button>
+                </div>
+                <div class="grid gap-4">
+                    ${window.state.quizzes.map(q => `
+                        <div class="bg-white p-6 rounded-2xl shadow flex justify-between items-center">
+                            <h3 class="text-2xl font-bold">${q.title}</h3>
+                            <button onclick="window.hostGame('${q.id}')" class="theme-blue text-white px-8 py-3 rounded-xl font-bold shadow-md">הפעל</button>
                         </div>
-                        <button onclick="window.createNewQuiz()" class="theme-green w-full md:w-auto text-white px-10 py-4 rounded-xl font-black text-2xl theme-green-shadow hover:translate-y-1 hover:shadow-none transition-all whitespace-nowrap"><i class="fas fa-plus"></i> צור חידון</button>
-                        <button onclick="window.setView('home')" class="bg-gray-200 text-gray-600 px-6 py-4 rounded-xl font-bold hover:bg-gray-300">חזור</button>
-                    </div>
-                    <div class="grid gap-6">
-                        ${listHtml}
-                    </div>
+                    `).join('')}
                 </div>
             </div>`;
-        }
-
-        function renderEditor() {
-            const qz = window.state.editingQuiz;
-            let qsHtml = qz.questions.map((q, idx) => {
-                let optsHtml = '';
-                if (q.type === 'tf') {
-                    optsHtml = `
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="flex flex-col gap-2">
-                                <div onclick="window.setCorrectAnswer(${idx}, 0)" class="cursor-pointer flex items-center p-4 rounded-xl border-4 ${q.correct === 0 ? 'theme-blue border-blue-600 text-white' : 'border-gray-200 bg-white'} transition-colors">
-                                    <div class="w-8 h-8 rounded-full border-4 ${q.correct === 0 ? 'border-white bg-white' : 'border-gray-300'} ml-4"></div>
-                                    <span class="text-2xl font-black flex-1 text-center">אמת</span>
-                                </div>
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <div onclick="window.setCorrectAnswer(${idx}, 1)" class="cursor-pointer flex items-center p-4 rounded-xl border-4 ${q.correct === 1 ? 'theme-red border-red-600 text-white' : 'border-gray-200 bg-white'} transition-colors">
-                                    <div class="w-8 h-8 rounded-full border-4 ${q.correct === 1 ? 'border-white bg-white' : 'border-gray-300'} ml-4"></div>
-                                    <span class="text-2xl font-black flex-1 text-center">שקר</span>
-                                </div>
-                            </div>
-                        </div>
-                        <input type="hidden" id="q_opt_${idx}_0" value="אמת">
-                        <input type="hidden" id="q_opt_${idx}_1" value="שקר">
-                        <input type="hidden" id="q_opt_${idx}_2" value="">
-                        <input type="hidden" id="q_opt_${idx}_3" value="">
-                    `;
-                } else {
-                    optsHtml = `
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${q.opts.map((opt, oIdx) => `
-                                <div class="flex items-center p-3 rounded-xl border-4 ${q.correct === oIdx ? THEMES[oIdx].bg.replace('theme','border') + ' bg-gray-50' : 'border-gray-200'}">
-                                    <div class="w-12 h-12 rounded-lg ${THEMES[oIdx].bg} text-white flex items-center justify-center font-bold text-xl ml-3 shrink-0">${THEMES[oIdx].icon.replace('3rem','1.5rem')}</div>
-                                    <input id="q_opt_${idx}_${oIdx}" class="flex-1 bg-transparent outline-none font-bold text-lg" placeholder="תשובה ${oIdx+1}..." value="${opt}">
-                                    <div onclick="window.setCorrectAnswer(${idx}, ${oIdx})" class="w-8 h-8 cursor-pointer rounded-full border-4 flex items-center justify-center ${q.correct === oIdx ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-gray-400'}"><i class="fas fa-check ${q.correct === oIdx ? 'block' : 'hidden'} text-xs"></i></div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                }
-
-                return `
-                <div class="bg-white p-8 rounded-[40px] shadow-xl mb-10 relative border-t-8 border-purple-600 animate-slide-up">
-                    <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
-                        <span class="bg-purple-100 text-purple-700 px-6 py-2 rounded-full font-black text-xl">שאלה ${idx+1}</span>
-                        
-                        <div class="flex items-center gap-6">
-                            <div class="flex items-center gap-2">
-                                <i class="fas fa-clock text-gray-400"></i>
-                                <select id="q_time_${idx}" class="bg-gray-100 p-2 rounded-lg font-bold outline-none">
-                                    <option value="5" ${q.time === 5 ? 'selected' : ''}>5 שניות</option>
-                                    <option value="10" ${q.time === 10 ? 'selected' : ''}>10 שניות</option>
-                                    <option value="20" ${q.time === 20 ? 'selected' : ''}>20 שניות</option>
-                                    <option value="30" ${q.time === 30 ? 'selected' : ''}>30 שניות</option>
-                                    <option value="60" ${q.time === 60 ? 'selected' : ''}>60 שניות</option>
-                                </select>
-                            </div>
-
-                            <label class="flex items-center gap-2 cursor-pointer font-black text-amber-500 bg-amber-50 px-4 py-2 rounded-lg">
-                                <input type="checkbox" id="q_dbl_${idx}" class="w-5 h-5 accent-amber-500" ${q.doublePoints ? 'checked' : ''}> 
-                                <i class="fas fa-bolt"></i> דאבל פוינטס
-                            </label>
-                            
-                            <button onclick="window.deleteQuestion(${idx})" class="text-red-400 hover:text-red-600 bg-red-50 p-3 rounded-lg transition-colors"><i class="fas fa-trash-alt text-xl"></i></button>
-                        </div>
-                    </div>
-                    
-                    <textarea id="q_text_${idx}" class="w-full p-6 text-3xl font-black bg-gray-50 rounded-2xl mb-6 text-center outline-none border-2 border-transparent focus:border-purple-300 resize-none h-32" placeholder="התחל להקליד את השאלה...">${q.text}</textarea>
-                    
-                    <div class="mb-6 bg-gray-50 p-4 rounded-xl">
-                        <label class="block text-sm font-bold text-gray-500 mb-2"><i class="fas fa-image"></i> קישור לתמונה (URL):</label>
-                        <input id="q_img_${idx}" class="w-full p-3 bg-white border border-gray-200 rounded-lg text-left dir-ltr outline-none" placeholder="https://..." value="${q.image || ''}">
-                    </div>
-
-                    <div class="flex gap-4 mb-8 bg-gray-100 p-2 rounded-2xl">
-                        <button onclick="window.setQuestionType(${idx}, 'multi')" class="flex-1 py-3 rounded-xl font-black text-lg transition-all ${q.type === 'multi' ? 'bg-white shadow text-purple-700' : 'text-gray-500 hover:bg-gray-200'}">4 אפשרויות</button>
-                        <button onclick="window.setQuestionType(${idx}, 'tf')" class="flex-1 py-3 rounded-xl font-black text-lg transition-all ${q.type === 'tf' ? 'bg-white shadow text-purple-700' : 'text-gray-500 hover:bg-gray-200'}">אמת או שקר</button>
-                    </div>
-
-                    ${optsHtml}
-                </div>`;
-            });
-
-            return `
-            <div class="min-h-screen bg-gray-100 pb-20">
-                <div class="bg-white p-6 sticky top-0 z-40 shadow-md flex justify-between items-center px-4 md:px-12 border-b-4 border-purple-600">
-                    <input id="quizTitle" class="text-3xl font-black text-purple-900 outline-none w-1/2 bg-transparent" placeholder="שם החידון..." value="${qz.title}">
-                    <div class="flex gap-4">
-                        <button onclick="window.setView('dashboard')" class="text-gray-500 font-bold px-4 hover:bg-gray-100 rounded-lg">ביטול</button>
-                        <button onclick="window.saveQuiz()" class="theme-green text-white px-10 py-3 rounded-xl font-black text-xl theme-green-shadow hover:translate-y-1 hover:shadow-none transition-all">שמור הכל</button>
-                    </div>
-                </div>
-                <div class="max-w-4xl mx-auto mt-10 px-4">
-                    ${qsHtml}
-                    <button onclick="window.addQuestion()" class="w-full py-10 border-4 border-dashed border-gray-300 rounded-[40px] text-gray-400 text-3xl font-black hover:text-purple-600 hover:border-purple-400 hover:bg-purple-50 transition-all shadow-sm"><i class="fas fa-plus-circle mb-2 block text-4xl"></i> הוסף שאלה</button>
-                </div>
-            </div>`;
-        }
-
-        function restoreEditorValues() {
-            // Uncontrolled inputs mean values are in DOM, but if we just re-rendered, they are set from state.
-            // This function is here if we needed to do extra DOM setup after a raw HTML render.
         }
 
         function renderJoin() {
             return `
             <div class="h-screen theme-purple flex items-center justify-center p-4">
-                <div class="bg-white p-10 rounded-[40px] w-full max-w-sm flex flex-col gap-6 text-center shadow-2xl animate-bounce-in">
-                    <h2 class="text-5xl font-black text-gray-800 italic mb-4">Quizmo!</h2>
-                    <div class="space-y-4">
-                        <input id="joinPin" class="w-full p-5 bg-gray-100 border-4 border-transparent rounded-2xl text-center text-4xl font-black focus:border-blue-500 focus:bg-white outline-none transition-all placeholder-gray-300 tracking-widest" placeholder="PIN" maxlength="6" value="${window.state.pin}">
-                        <input id="joinNick" class="w-full p-4 bg-gray-100 border-4 border-transparent rounded-2xl text-center text-2xl font-black focus:border-blue-500 focus:bg-white outline-none transition-all placeholder-gray-400" placeholder="כינוי" maxlength="15" value="${window.state.nickname}">
-                    </div>
-                    <button onclick="window.joinGame()" class="bg-gray-900 text-white py-5 rounded-2xl text-3xl font-black shadow-[0_6px_0_#000] active:translate-y-2 active:shadow-none transition-all mt-4">קדימה!</button>
-                    <button onclick="window.setView('home')" class="text-gray-400 font-bold hover:text-gray-600 mt-2">ביטול וחזרה</button>
+                <div class="bg-white p-10 rounded-[40px] shadow-2xl w-full max-w-sm text-center animate-bounce-in">
+                    <h2 class="text-5xl font-black italic mb-8">Quizmo!</h2>
+                    <input id="pin" class="w-full p-5 bg-gray-100 rounded-2xl text-center text-4xl font-black mb-4" placeholder="PIN">
+                    <input id="nick" class="w-full p-4 bg-gray-100 rounded-2xl text-center text-2xl font-black mb-6" placeholder="כינוי">
+                    <button onclick="window.joinGame()" class="w-full bg-black text-white py-5 rounded-2xl text-3xl font-black shadow-[0_6px_0_#333]">קדימה!</button>
                 </div>
             </div>`;
         }
 
         function renderHostLobby() {
-            const { pin, players } = window.state;
             return `
-            <div class="h-screen theme-purple flex flex-col items-center justify-center text-white p-6 overflow-hidden">
-                <div class="bg-white text-purple-900 p-8 md:p-12 rounded-[50px] shadow-2xl text-center mb-10 w-full max-w-3xl transform hover:scale-105 transition-all animate-slide-up">
-                    <p class="text-2xl font-black text-gray-400 mb-2 uppercase tracking-wider">קוד הצטרפות למשחק:</p>
-                    <h1 class="text-8xl md:text-[140px] leading-none font-black tracking-widest">${pin}</h1>
+            <div class="h-screen theme-purple flex flex-col items-center justify-center text-white">
+                <div class="bg-white text-purple-900 p-10 rounded-[50px] shadow-2xl text-center mb-12 animate-slide-up">
+                    <p class="text-xl font-bold text-gray-400">PIN הצטרפות:</p>
+                    <h1 class="text-[120px] font-black leading-none">${window.state.pin}</h1>
                 </div>
-                <div class="flex-1 w-full max-w-6xl overflow-y-auto px-4 md:px-10 pb-20">
-                    <div class="flex flex-col md:flex-row justify-between items-center mb-10 border-b border-white/20 pb-6 gap-6">
-                        <div class="bg-black/30 px-8 py-3 rounded-full">
-                            <span class="text-4xl font-black"><i class="fas fa-users"></i> ${players.length} שחקנים</span>
-                        </div>
-                        <button onclick="window.startGame()" ${players.length === 0 ? 'disabled' : ''} class="px-16 py-4 rounded-2xl text-3xl font-black shadow-[0_6px_0_rgba(0,0,0,0.3)] transition-all ${players.length === 0 ? 'bg-gray-400 opacity-50' : 'theme-blue hover:translate-y-1 hover:shadow-none'}">התחל עכשיו!</button>
-                    </div>
-                    <div class="flex flex-wrap gap-4 justify-center">
-                        ${players.map(p => `
-                            <div onclick="window.kickPlayer('${p.id}')" class="bg-white/10 hover:bg-red-500/80 cursor-pointer backdrop-blur-md px-8 py-4 rounded-2xl text-3xl font-black border border-white/20 transition-all group animate-bounce-in shadow-lg">
-                                ${p.name}
-                                <span class="hidden group-hover:inline ml-2 text-sm bg-white text-red-600 px-2 py-1 rounded">החלף שם</span>
-                            </div>
-                        `).join('')}
-                        ${players.length === 0 ? '<div class="text-3xl text-white/50 font-bold animate-pulse mt-10">ממתין לשחקנים...</div>' : ''}
-                    </div>
+                <div class="flex flex-wrap justify-center gap-4 px-10">
+                    ${window.state.players.map(p => `<div class="bg-white/10 px-6 py-3 rounded-xl text-3xl font-black border border-white/20 animate-bounce-in">${p.name}</div>`).join('')}
                 </div>
+                <button onclick="window.startGame()" class="mt-12 theme-blue px-20 py-5 rounded-2xl text-3xl font-black shadow-lg">התחל!</button>
+            </div>`;
+        }
+
+        function renderPlayerWaiting() {
+            return `
+            <div class="h-screen theme-green flex flex-col items-center justify-center text-white text-center p-10">
+                <h2 class="text-7xl font-black italic mb-4 animate-pulse-fast">אתה בפנים!</h2>
+                <p class="text-3xl opacity-80">חכה שהמנהל יתחיל...</p>
+                <div class="mt-10 bg-black/20 px-10 py-5 rounded-3xl border-2 border-white/20 text-4xl font-black">${window.state.nickname}</div>
             </div>`;
         }
 
         function renderHostGame() {
-            const { gameState, players, timeLeft } = window.state;
-            if (!gameState || gameState.status === 'lobby') return '';
-
+            const { gameState, timeLeft, players } = window.state;
             const q = gameState.quiz.questions[gameState.currentQuestionIndex];
-            
-            // 1. QUESTION VIEW
-            if (gameState.status === 'question') {
-                const answered = players.filter(p => p.hasAnswered).length;
-                const optsHtml = q.type === 'tf' ? 
-                    `<div class="grid grid-cols-2 gap-6 p-6 h-[30vh]">
-                        <div class="theme-blue text-white flex items-center justify-center rounded-2xl text-6xl font-black shadow-lg relative overflow-hidden theme-blue-shadow"><div class="absolute left-10 text-8xl opacity-30"><i class="fas fa-square" style="transform: rotate(45deg);"></i></div>אמת</div>
-                        <div class="theme-red text-white flex items-center justify-center rounded-2xl text-6xl font-black shadow-lg relative overflow-hidden theme-red-shadow"><div class="absolute left-10 text-8xl opacity-30"><i class="fas fa-caret-up"></i></div>שקר</div>
-                    </div>` :
-                    `<div class="grid grid-cols-2 gap-4 p-4 h-[30vh]">
-                        ${q.opts.map((opt, i) => `
-                            <div class="${THEMES[i].bg} text-white flex items-center px-10 rounded-2xl text-4xl font-black shadow-lg relative overflow-hidden ${THEMES[i].shadow}">
-                                <div class="absolute left-8 text-6xl opacity-30">${THEMES[i].icon}</div>
-                                ${opt}
-                            </div>
-                        `).join('')}
-                    </div>`;
 
+            if(gameState.status === 'question') {
                 return `
-                <div class="h-screen flex flex-col bg-[#f2f2f2] text-black overflow-hidden">
-                    <div class="bg-white p-8 md:p-12 text-center shadow-xl z-10 border-b-4 border-gray-200">
-                        ${q.doublePoints ? '<div class="text-amber-500 font-black text-2xl mb-4 flex items-center justify-center gap-2 animate-pulse"><i class="fas fa-bolt"></i> נקודות כפולות!</div>' : ''}
-                        <h1 class="text-5xl md:text-7xl font-black leading-tight">${q.text}</h1>
+                <div class="h-screen flex flex-col bg-white overflow-hidden">
+                    <div class="p-10 text-center shadow">
+                        <h1 class="text-6xl font-black">${q.text}</h1>
                     </div>
-                    <div class="flex-1 flex flex-col items-center justify-center p-6 relative">
-                        ${q.image ? `<img src="${q.image}" class="max-h-[35vh] rounded-3xl shadow-2xl mb-8 object-contain border-8 border-white" alt="Question image">` : ''}
-                        
-                        <div class="flex w-full max-w-6xl justify-between items-center px-10 mt-auto mb-8">
-                             <div class="w-40 h-40 rounded-full border-[16px] ${timeLeft <= 5 ? 'border-red-500 text-red-500 animate-pulse' : 'border-purple-800 text-purple-900'} flex items-center justify-center text-7xl font-black bg-white shadow-2xl transition-colors">
-                                ${timeLeft}
-                             </div>
-                             <div class="text-center bg-white p-6 rounded-3xl shadow-xl">
-                                <div class="text-8xl font-black text-purple-900">${answered}</div>
-                                <div class="text-3xl font-bold text-gray-500 mt-2">תשובות</div>
-                             </div>
+                    <div class="flex-1 flex flex-col items-center justify-center relative p-10">
+                        ${q.image ? `<img src="${q.image}" class="max-h-[40vh] rounded-2xl mb-8">` : ''}
+                        <div class="flex w-full max-w-4xl justify-between items-center">
+                            <div class="w-32 h-32 rounded-full border-8 border-purple-900 flex items-center justify-center text-5xl font-black">${timeLeft}</div>
+                            <div class="text-center bg-gray-100 p-6 rounded-2xl">
+                                <div class="text-6xl font-black">${players.filter(p => p.hasAnswered).length}</div>
+                                <div class="text-xl font-bold text-gray-400">תשובות</div>
+                            </div>
                         </div>
                     </div>
-                    ${optsHtml}
-                    <button onclick="window.nextStep()" class="fixed bottom-6 left-6 bg-white/80 backdrop-blur px-8 py-3 rounded-full font-bold shadow-lg border-2 border-gray-300 hover:bg-gray-100 transition-all text-xl"><i class="fas fa-forward"></i> דלג עכשיו</button>
-                </div>`;
-            }
-
-            // 2. RESULTS VIEW (Bar Chart)
-            if (gameState.status === 'results') {
-                const isTF = q.type === 'tf';
-                const optsCount = isTF ? 2 : 4;
-                const counts = Array(optsCount).fill(0);
-                players.forEach(p => {
-                    if(p.hasAnswered && p.lastAnswerIndex !== undefined && p.lastAnswerIndex < optsCount) {
-                        counts[p.lastAnswerIndex]++;
-                    }
-                });
-                
-                const maxCount = Math.max(...counts, 1); // Avoid div by 0
-
-                return `
-                <div class="h-screen flex flex-col bg-[#f2f2f2]">
-                    <div class="bg-white p-8 flex justify-between items-center shadow-lg border-b-4 border-gray-200">
-                        <h2 class="text-4xl font-black text-gray-800 flex-1 ml-10">${q.text}</h2>
-                        <button onclick="window.nextStep()" class="theme-blue text-white px-12 py-4 rounded-xl font-black text-3xl theme-blue-shadow hover:translate-y-1 hover:shadow-none transition-all">הבא <i class="fas fa-chevron-left ml-2"></i></button>
-                    </div>
-                    <div class="flex-1 flex items-end justify-center gap-8 px-20 pb-20 pt-10">
-                        ${counts.map((c, i) => {
-                            const isCorrect = q.correct === i;
-                            const heightPercent = Math.max((c / maxCount) * 100, 5); // min 5% height
-                            const theme = isTF ? (i===0 ? THEMES[1] : THEMES[0]) : THEMES[i]; // Blue for True, Red for False in TF
-                            
-                            return `
-                            <div class="flex-1 flex flex-col items-center max-w-[200px]">
-                                <span class="text-5xl font-black mb-4 ${isCorrect ? 'text-green-600 animate-bounce' : 'text-gray-500'}">${c > 0 ? c : ''}</span>
-                                ${isCorrect ? '<div class="text-green-500 text-6xl mb-4"><i class="fas fa-check"></i></div>' : ''}
-                                <div class="${isCorrect ? theme.bg : 'bg-gray-300'} w-full rounded-t-xl transition-all duration-1000 ease-out flex items-end justify-center pb-6 opacity-0 animate-slide-up" style="height: ${heightPercent}%; opacity: 1;">
-                                    <div class="text-white text-5xl">${theme.icon}</div>
-                                </div>
-                            </div>`;
-                        }).join('')}
+                    <div class="grid grid-cols-2 gap-2 p-2 h-[30vh]">
+                        ${THEMES.map((t, i) => `<div class="${t.bg} text-white flex items-center justify-center rounded-xl text-4xl font-black relative overflow-hidden">${t.icon}${q.opts[i] || ''}</div>`).join('')}
                     </div>
                 </div>`;
             }
 
-            // 3. LEADERBOARD VIEW
-            if (gameState.status === 'leaderboard') {
+            if(gameState.status === 'results') {
+                const counts = [0,0,0,0];
+                players.forEach(p => { if(p.hasAnswered) counts[p.lastAnswerIndex || 0]++; });
+                const max = Math.max(...counts, 1);
                 return `
-                <div class="h-screen theme-purple text-white p-12 flex flex-col items-center">
-                    <div class="w-full max-w-5xl flex justify-between items-center mb-16">
-                        <h1 class="text-7xl font-black italic drop-shadow-lg">לוח תוצאות</h1>
-                        <button onclick="window.nextStep()" class="bg-white text-black px-12 py-4 rounded-2xl font-black text-3xl shadow-[0_6px_0_#ccc] hover:translate-y-1 hover:shadow-none transition-all">הבא <i class="fas fa-arrow-left"></i></button>
+                <div class="h-screen flex flex-col bg-gray-100 p-10">
+                    <div class="flex justify-between items-center mb-10">
+                        <h2 class="text-4xl font-black">${q.text}</h2>
+                        <button onclick="window.nextStep()" class="theme-blue text-white px-12 py-4 rounded-xl font-black text-2xl">הבא</button>
                     </div>
-                    <div class="w-full max-w-4xl flex flex-col gap-6">
-                        ${players.slice(0, 5).map((p, i) => `
-                            <div class="bg-white text-black p-6 rounded-2xl flex justify-between items-center shadow-xl animate-slide-up" style="animation-delay: ${i*150}ms; opacity: 0; animation-fill-mode: forwards;">
-                                <div class="flex items-center gap-6">
-                                    <span class="text-3xl font-black text-gray-400 w-10 text-center">${i+1}</span>
-                                    <span class="text-4xl font-black">${p.name}</span>
-                                </div>
-                                <span class="text-4xl font-black tabular-nums bg-gray-100 px-6 py-2 rounded-xl">${p.score}</span>
+                    <div class="flex-1 flex items-end justify-center gap-10">
+                        ${counts.map((c, i) => `
+                            <div class="flex-1 flex flex-col items-center">
+                                <div class="${q.correct === i ? THEMES[i].bg : 'bg-gray-300'} w-full rounded-t-xl animate-slide-up" style="height: ${(c/max)*80 + 10}%"></div>
+                                <div class="text-2xl font-black mt-4">${c}</div>
                             </div>
                         `).join('')}
                     </div>
                 </div>`;
             }
 
-            // 4. PODIUM VIEW
-            if (gameState.status === 'podium') {
-                const top = players.slice(0, 3);
+            if(gameState.status === 'leaderboard') {
                 return `
-                <div class="h-screen theme-purple flex flex-col items-center justify-end text-white relative overflow-hidden pb-0">
-                    <h1 class="absolute top-20 text-8xl font-black italic drop-shadow-2xl text-yellow-400 animate-pulse">סיום המשחק!</h1>
-                    <div class="flex items-end gap-2 md:gap-6 h-[60vh] w-full max-w-4xl justify-center px-4">
-                        
-                        <!-- 2nd Place -->
-                        ${top[1] ? `
-                        <div class="flex flex-col items-center animate-slide-up w-1/3 z-20" style="animation-delay: 500ms; opacity:0; animation-fill-mode: forwards;">
-                            <div class="text-4xl font-black mb-4 truncate w-full text-center">${top[1].name}</div>
-                            <div class="bg-gray-200 text-gray-800 font-black text-2xl mb-2 px-4 py-1 rounded-full">${top[1].score}</div>
-                            <div class="theme-blue w-full h-[40vh] rounded-t-3xl shadow-2xl flex flex-col items-center p-6 border-x-4 border-t-4 border-white/30 relative">
-                                <span class="text-8xl font-black text-white drop-shadow-md">2</span>
-                            </div>
-                        </div>` : '<div class="w-1/3"></div>'}
-                        
-                        <!-- 1st Place -->
-                        ${top[0] ? `
-                        <div class="flex flex-col items-center animate-slide-up w-1/3 z-30" style="animation-delay: 1500ms; opacity:0; animation-fill-mode: forwards;">
-                            <div class="text-6xl animate-bounce mb-2">🏆</div>
-                            <div class="text-5xl font-black mb-4 text-yellow-400 truncate w-full text-center">${top[0].name}</div>
-                            <div class="bg-yellow-400 text-yellow-900 font-black text-2xl mb-2 px-6 py-1 rounded-full">${top[0].score}</div>
-                            <div class="theme-red w-full h-[50vh] rounded-t-3xl shadow-2xl flex flex-col items-center p-6 border-x-4 border-t-4 border-yellow-400/50 relative">
-                                <span class="text-9xl font-black text-white drop-shadow-lg">1</span>
-                            </div>
-                        </div>` : '<div class="w-1/3"></div>'}
-                        
-                        <!-- 3rd Place -->
-                        ${top[2] ? `
-                        <div class="flex flex-col items-center animate-slide-up w-1/3 z-10" style="animation-delay: 1000ms; opacity:0; animation-fill-mode: forwards;">
-                            <div class="text-3xl font-black mb-4 truncate w-full text-center">${top[2].name}</div>
-                            <div class="bg-gray-200 text-gray-800 font-black text-2xl mb-2 px-4 py-1 rounded-full">${top[2].score}</div>
-                            <div class="theme-green w-full h-[30vh] rounded-t-3xl shadow-2xl flex flex-col items-center p-6 border-x-4 border-t-4 border-white/30 relative">
-                                <span class="text-7xl font-black text-white drop-shadow-md">3</span>
-                            </div>
-                        </div>` : '<div class="w-1/3"></div>'}
-
+                <div class="h-screen theme-purple text-white p-20 flex flex-col items-center">
+                    <div class="w-full max-w-4xl flex justify-between items-center mb-10">
+                        <h1 class="text-6xl font-black">דירוג</h1>
+                        <button onclick="window.nextStep()" class="bg-white text-black px-10 py-3 rounded-xl font-bold">הבא</button>
                     </div>
-                    <button onclick="window.location.reload()" class="absolute top-6 right-6 bg-white/20 hover:bg-white/40 px-6 py-2 rounded-full font-bold transition">חזור למסך הבית <i class="fas fa-home"></i></button>
+                    <div class="w-full max-w-2xl flex flex-col gap-4">
+                        ${players.slice(0,5).map((p, i) => `<div class="bg-white text-black p-6 rounded-2xl flex justify-between items-center shadow-lg"><span class="text-2xl font-black">#${i+1} ${p.name}</span><span class="text-2xl font-black">${p.score}</span></div>`).join('')}
+                    </div>
                 </div>`;
             }
 
+            if(gameState.status === 'podium') {
+                return `
+                <div class="h-screen theme-purple flex flex-col items-center justify-center text-white p-20">
+                    <h1 class="text-8xl font-black mb-20 italic">המנצח!</h1>
+                    <div class="text-6xl font-black text-yellow-400 mb-4">🏆 ${players[0]?.name}</div>
+                    <div class="text-4xl font-bold">${players[0]?.score} נקודות</div>
+                    <button onclick="location.reload()" class="mt-20 text-white/50 underline">חזור להתחלה</button>
+                </div>`;
+            }
             return '';
-        }
-
-        function renderPlayerWaiting() {
-            const { myPlayerState, nickname } = window.state;
-            
-            if (myPlayerState?.needsNameChange) {
-                return `
-                <div class="h-screen bg-red-600 flex flex-col items-center justify-center text-white p-8">
-                    <div class="text-center animate-bounce-in max-w-sm w-full">
-                        <i class="fas fa-exclamation-triangle text-8xl mb-6 text-yellow-300"></i>
-                        <h2 class="text-4xl font-black mb-4">אופס, השם לא מתאים!</h2>
-                        <p class="text-xl mb-8 opacity-90">המנהל ביקש שתבחר כינוי אחר כדי לשחק.</p>
-                        <input id="newNameInput" class="w-full p-5 rounded-2xl text-black font-black text-center text-3xl mb-6 outline-none" value="${nickname}" placeholder="כינוי חדש">
-                        <button onclick="window.updatePlayerName()" class="bg-white text-red-600 px-12 py-5 rounded-2xl font-black text-3xl shadow-[0_6px_0_#991b1b] w-full active:translate-y-2 active:shadow-none transition-all">עדכן שם</button>
-                    </div>
-                </div>`;
-            }
-
-            return `
-            <div class="h-screen theme-green flex flex-col items-center justify-center text-white p-8">
-                <div class="text-center animate-bounce-in">
-                    <h2 class="text-6xl font-black mb-4 animate-pulse-fast italic">אתה בפנים!</h2>
-                    <p class="text-3xl mb-12 font-bold opacity-90">הסתכל על המסך הראשי...</p>
-                    <div class="bg-black/20 px-12 py-6 rounded-[30px] border-4 border-white/20 shadow-xl">
-                        <span class="text-5xl font-black tracking-tight">${nickname}</span>
-                    </div>
-                </div>
-            </div>`;
         }
 
         function renderPlayerGame() {
-            const { gameState, myPlayerState, players, user, nickname } = window.state;
-            const q = gameState.quiz.questions[gameState.currentQuestionIndex];
-            
-            if (gameState.status === 'question') {
-                if (myPlayerState?.hasAnswered) {
-                    return `<div class="h-screen theme-purple flex items-center justify-center text-white text-5xl font-black italic animate-pulse">נשלח! ממתין...</div>`;
-                }
-
-                if (q.type === 'tf') {
-                    return `
-                    <div class="h-screen grid grid-cols-1 grid-rows-2 gap-4 p-4 bg-[#f2f2f2]">
-                        <button onclick="window.submitAnswer(0)" class="theme-blue flex flex-col items-center justify-center rounded-3xl theme-blue-shadow active:translate-y-2 active:shadow-none transition-all">
-                            <span class="text-white text-[120px] drop-shadow-lg"><i class="fas fa-square" style="transform: rotate(45deg);"></i></span>
-                            <span class="text-white text-5xl font-black mt-4">אמת</span>
-                        </button>
-                        <button onclick="window.submitAnswer(1)" class="theme-red flex flex-col items-center justify-center rounded-3xl theme-red-shadow active:translate-y-2 active:shadow-none transition-all">
-                            <span class="text-white text-[120px] drop-shadow-lg"><i class="fas fa-caret-up"></i></span>
-                            <span class="text-white text-5xl font-black mt-4">שקר</span>
-                        </button>
-                    </div>`;
-                }
-
+            const { gameState, myPlayerState } = window.state;
+            if(gameState.status === 'question') {
+                if(myPlayerState.hasAnswered) return `<div class="h-screen theme-purple flex items-center justify-center text-white text-4xl font-black italic">נשלח! ממתין...</div>`;
+                const q = gameState.quiz.questions[gameState.currentQuestionIndex];
                 return `
-                <div class="h-screen grid grid-cols-2 grid-rows-2 gap-3 p-3 bg-[#f2f2f2]">
-                    ${THEMES.map((t, i) => `
-                        <button onclick="window.submitAnswer(${i})" class="${t.bg} flex items-center justify-center rounded-2xl ${t.shadow} active:translate-y-2 active:shadow-none transition-all">
-                            <span class="text-white text-7xl md:text-[120px] drop-shadow-lg">${t.icon}</span>
-                        </button>
-                    `).join('')}
+                <div class="h-screen grid grid-cols-2 grid-rows-2 gap-2 p-2 bg-gray-200">
+                    ${THEMES.map((t, i) => `<button onclick="window.submitAnswer(${i})" class="${t.bg} rounded-2xl flex items-center justify-center active:scale-95 transition text-white text-7xl">${t.icon}</button>`).join('')}
                 </div>`;
             }
-
-            if (gameState.status === 'results') {
-                const isCorrect = myPlayerState?.lastAnswerCorrect;
-                const points = myPlayerState?.lastPointsGained || 0;
-                
-                // Play sound once when entering results
-                if(!window._soundPlayedForQuestion || window._soundPlayedForQuestion !== gameState.currentQuestionIndex) {
-                    if (myPlayerState?.hasAnswered) playSound(isCorrect ? 'correct' : 'wrong');
-                    window._soundPlayedForQuestion = gameState.currentQuestionIndex;
-                }
-
-                return `
-                <div class="h-screen flex flex-col items-center justify-center text-white text-center p-6 ${isCorrect ? 'theme-green' : 'theme-red'}">
-                    <div class="animate-bounce-in">
-                        <h2 class="text-7xl font-black mb-8">${isCorrect ? 'נכון!' : 'טעות!'}</h2>
-                        <div class="bg-black/20 p-8 rounded-[30px] border-4 border-white/10 shadow-xl inline-block">
-                            <div class="text-2xl font-bold opacity-90 mb-2">צברת בשאלה הזו:</div>
-                            <div class="text-6xl font-black">+${points}</div>
-                        </div>
-                        <div class="mt-12 bg-white/20 px-6 py-2 rounded-full inline-block text-2xl font-bold italic">הסתכל על המסך הראשי...</div>
-                    </div>
-                </div>`;
+            if(gameState.status === 'results') {
+                const win = myPlayerState.lastAnswerCorrect;
+                if(win) playSound('correct'); else playSound('wrong');
+                return `<div class="h-screen ${win ? 'theme-green' : 'theme-red'} flex flex-col items-center justify-center text-white text-center p-10"><h2 class="text-7xl font-black mb-6">${win ? 'נכון!' : 'טעות!'}</h2><div class="text-4xl font-bold">+${myPlayerState.lastPoints}</div></div>`;
             }
-
-            if (gameState.status === 'leaderboard' || gameState.status === 'podium') {
-                const rank = players.findIndex(p => p.id === user.uid) + 1;
-                return `
-                <div class="h-screen theme-purple flex flex-col items-center justify-center text-white p-10 text-center relative overflow-hidden">
-                    <div class="z-10 animate-slide-up">
-                        <h2 class="text-3xl font-bold mb-4 opacity-80">הדירוג שלך:</h2>
-                        <div class="text-[150px] font-black leading-none mb-6 text-yellow-400 drop-shadow-2xl">#${rank}</div>
-                        <div class="text-4xl font-black opacity-90 mb-10">${nickname}</div>
-                        <div class="bg-black/30 px-10 py-5 rounded-full text-3xl font-bold border-2 border-white/20">סך הכל: ${myPlayerState?.score || 0} נק'</div>
-                    </div>
-                    ${rank <= 3 && gameState.status === 'podium' ? '<div class="absolute inset-0 bg-[url(\'data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' viewBox=\\\'0 0 100 100\\\'><text y=\\\'1em\\\' font-size=\\\'80\\\'>🎉</text></svg>\')] opacity-10 mix-blend-overlay" style="background-size: 150px;"></div>' : ''}
-                </div>`;
-            }
-
-            return '';
+            return `<div class="h-screen theme-purple flex items-center justify-center text-white text-4xl font-black italic">הסתכל על המסך!</div>`;
         }
 
     </script>
