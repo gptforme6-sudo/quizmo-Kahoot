@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quizmo - The Ultimate Quiz</title>
+    <title>Quizmo - The Ultimate Kahoot Clone</title>
     
+    <!-- External Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     
-    <!-- Firebase Imports -->
+    <!-- Firebase SDKs -->
     <script type="importmap">
     {
       "imports": {
@@ -24,138 +25,684 @@
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Rubik:wght@400;700;900&display=swap');
         
         :root {
-            --kahoot-red: #e21b3c;
-            --kahoot-blue: #1368ce;
-            --kahoot-yellow: #d89e00;
-            --kahoot-green: #26890c;
-            --kahoot-purple: #46178f;
+            --k-red: #e21b3c;
+            --k-blue: #1368ce;
+            --k-yellow: #ffa600;
+            --k-green: #26890c;
+            --k-purple: #46178f;
+            --k-light-purple: #864cbf;
+            --k-dark-bg: #121212;
         }
 
         body { 
-            font-family: 'Rubik', sans-serif; 
+            font-family: 'Rubik', 'Montserrat', sans-serif; 
+            margin: 0; 
+            overflow-x: hidden; 
             background: #f2f2f2;
-            margin: 0;
-            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .bg-lobby { 
-            background: linear-gradient(135deg, #46178f, #250a4d, #6a2cc9); 
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            color: white;
-        }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* Kahoot Style Gradients */
+        .bg-kahoot {
+            background: linear-gradient(135deg, var(--k-purple) 0%, #250a4d 100%);
+            background-attachment: fixed;
         }
 
         .k-btn {
             box-shadow: 0 4px 0 rgba(0,0,0,0.2);
-            transition: transform 0.1s, box-shadow 0.1s;
+            transition: all 0.1s ease;
+            position: relative;
         }
         .k-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 0px 0 rgba(0,0,0,0);
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.2);
         }
 
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--kahoot-purple); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Shape Icons */
+        .shape-square::before { content: '▲'; font-size: 1.5rem; margin-left: 8px; }
+        .shape-diamond::before { content: '◆'; font-size: 2rem; margin-left: 8px; }
+        .shape-circle::before { content: '●'; font-size: 1.5rem; margin-left: 8px; }
+        .shape-triangle::before { content: '■'; font-size: 1.5rem; margin-left: 8px; }
+
+        /* Timer Circle */
+        .timer-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 8px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: 900;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--k-purple); border-radius: 10px; }
+
+        .answer-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 12px;
+            height: 40vh;
+        }
+
+        .podium-item {
+            transition: height 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
     </style>
 </head>
-<body>
+<body class="bg-gray-100">
 
-    <div id="app" class="min-h-screen">
-        <div class="h-screen flex flex-col items-center justify-center bg-lobby text-white text-center p-6">
-            <div class="loader mb-4"></div>
-            <h1 class="text-4xl font-black mb-2 animate-pulse">Quizmo</h1>
-            <p id="boot-status" class="opacity-70">מכין את סביבת המשחק...</p>
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Loader Screen -->
+        <div id="loader" class="fixed inset-0 bg-kahoot flex flex-col items-center justify-center z-[9999]">
+            <h1 class="text-6xl font-black text-white italic mb-8 animate__animated animate__pulse animate__infinite">Quizmo</h1>
+            <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+            <p id="loader-msg" class="text-white mt-4 font-bold opacity-75 text-xl">טוען עולם של ידע...</p>
         </div>
+
+        <!-- Main Content Area -->
+        <main id="view-container" class="flex-grow"></main>
     </div>
+
+    <!-- Audio Elements -->
+    <audio id="audio-lobby" loop src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Kahoot+Lobby+Music&filename=24/244191-44390772-888e-4a6c-94c6-e666a4b3d3f1.mp3"></audio>
+    <audio id="audio-question" src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Kahoot+Question+Music&filename=24/244191-c91836f3-8f0a-4a52-9b24-345091c0e3a1.mp3"></audio>
 
     <script type="module">
         import { initializeApp } from "firebase/app";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "firebase/firestore";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, query, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
 
-        // הגדרות ברירת מחדל למניעת קריסה בגיטהאב
-        const fallbackConfig = { apiKey: "demo", projectId: "demo" };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo_default';
-        
-        let app, auth, db, currentUser;
-        let isDemoMode = false;
+        // --- CONFIGURATION ---
+        // הדבק כאן את הקונפיג שלך מ-Firebase Console
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "",
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
+        };
 
-        async function initApp() {
-            const status = document.getElementById('boot-status');
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'quizmo_v1';
+        let app, auth, db, user;
+        let currentState = { view: 'landing' };
+
+        // --- CORE APP INIT ---
+        async function init() {
             try {
-                let config;
-                // בדיקה אם אנחנו בסביבת פיתוח עם Firebase מוכן
-                if (typeof __firebase_config !== 'undefined') {
-                    config = JSON.parse(__firebase_config);
-                } else {
-                    // אנחנו בגיטהאב - ננסה לבדוק אם המשתמש הזין נתונים ידנית
-                    config = fallbackConfig;
-                    isDemoMode = true;
-                }
-
-                if (isDemoMode) {
-                    status.innerHTML = "מצב תצוגה בלבד (Demo Mode)<br><span class='text-sm opacity-50'>כדי לשחק עם חברים בגיטהאב, יש לחבר Firebase בקוד.</span>";
-                    setTimeout(() => renderHome(), 1500);
-                    return;
-                }
-
-                app = initializeApp(config);
+                app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                await signInAnonymously(auth);
-                onAuthStateChanged(auth, (user) => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (u) => {
+                    user = u;
                     if (user) {
-                        currentUser = user;
-                        renderHome();
+                        document.getElementById('loader').classList.add('hidden');
+                        renderLanding();
                     }
                 });
-            } catch (e) {
-                console.warn("Firebase Init bypassed", e);
-                renderHome(); // בכל מקרה נציג את הבית ולא שגיאה
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader-msg').innerText = "שגיאת חיבור. וודא שהזנת Firebase Config.";
             }
         }
 
-        function renderHome() {
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = `
-                <div class="h-screen bg-lobby flex flex-col items-center justify-center p-4">
-                    <h1 class="text-7xl font-black italic mb-10 drop-shadow-lg text-white">Quizmo!</h1>
+        // --- UI ROUTING & RENDERING ---
+        function renderLanding() {
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6 text-center">
+                    <h1 class="text-7xl font-black text-white italic mb-12 drop-shadow-2xl animate__animated animate__backInDown">Quizmo</h1>
                     <div class="w-full max-w-sm space-y-4">
-                        <button onclick="alert('במצב גיטהאב ללא שרת, הצטרפות חסומה. יש להגדיר Firebase.')" class="k-btn w-full bg-white text-gray-900 py-5 rounded-md text-2xl font-black">
-                            הצטרפות למשחק
-                        </button>
-                        <button onclick="showAdmin()" class="w-full text-white/70 hover:text-white font-bold text-lg underline">
-                            כניסת מנהל (דביר)
-                        </button>
+                        <button onclick="router('player-join')" class="k-btn w-full bg-white text-gray-900 py-6 rounded-lg text-2xl font-black hover:bg-gray-100">הצטרפות למשחק</button>
+                        <button onclick="adminLogin()" class="w-full text-white/60 hover:text-white font-bold text-lg underline mt-4">ניהול דביר</button>
                     </div>
-                    ${isDemoMode ? '<div class="mt-10 bg-yellow-400 text-black px-4 py-2 rounded-full font-bold text-sm">פועל במצב תצוגה (ללא שרת)</div>' : ''}
                 </div>
             `;
         }
 
-        window.showAdmin = () => {
+        window.adminLogin = () => {
             const pin = prompt("הכנס קוד גישה למנהל (2160):");
-            if(pin === '2160') {
-                document.getElementById('app').innerHTML = `
-                    <div class="p-10 text-center bg-white h-screen">
-                        <h2 class="text-3xl font-black mb-6 text-purple-900">ברוך הבא דביר</h2>
-                        <p class="mb-6">המשחק מוכן לעבודה! בגיטהאב, כדי לשמור חידונים, עליך להדביק את המפתחות שקיבלת מ-Firebase בקוד המקור.</p>
-                        <button onclick="location.reload()" class="bg-gray-200 px-6 py-2 rounded font-bold">חזרה</button>
+            if (pin === '2160') renderAdminDashboard();
+            else alert("גישה נחסמה.");
+        };
+
+        // --- ADMIN DASHBOARD ---
+        async function renderAdminDashboard() {
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="min-h-screen bg-gray-100">
+                    <nav class="bg-white shadow-md p-4 flex justify-between items-center">
+                        <h2 class="text-2xl font-black text-purple-900 italic">Quizmo Admin</h2>
+                        <button onclick="renderLanding()" class="bg-gray-200 px-4 py-2 rounded font-bold">יציאה</button>
+                    </nav>
+                    <div class="p-6 max-w-4xl mx-auto">
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="text-3xl font-black text-gray-800">החידונים שלי</h3>
+                            <button onclick="renderEditor()" class="bg-green-600 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 k-btn">
+                                <i class="fas fa-plus"></i> צור חידון חדש
+                            </button>
+                        </div>
+                        <div id="quiz-list" class="grid gap-4">
+                            <div class="animate-pulse bg-white h-24 rounded-lg"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            loadQuizzes();
+        }
+
+        async function loadQuizzes() {
+            const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes'));
+            onSnapshot(q, (snapshot) => {
+                const list = document.getElementById('quiz-list');
+                list.innerHTML = '';
+                snapshot.forEach(docSnap => {
+                    const quiz = docSnap.data();
+                    const id = docSnap.id;
+                    list.innerHTML += `
+                        <div class="bg-white p-6 rounded-lg shadow-sm border-l-8 border-purple-600 flex justify-between items-center animate__animated animate__fadeInUp">
+                            <div>
+                                <h4 class="text-xl font-bold">${quiz.title}</h4>
+                                <p class="text-gray-500">${quiz.questions?.length || 0} שאלות</p>
+                            </div>
+                            <div class="flex gap-3">
+                                <button onclick="startHost('${id}')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold k-btn">הפעל</button>
+                                <button onclick="renderEditor('${id}')" class="bg-gray-100 p-2 rounded text-gray-700 hover:bg-gray-200"><i class="fas fa-edit"></i></button>
+                                <button onclick="deleteQuiz('${id}')" class="bg-red-50 text-red-600 p-2 rounded hover:bg-red-100"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+                });
+                if (snapshot.empty) list.innerHTML = `<p class="text-center text-gray-400 py-10">אין חידונים עדיין. צור את הראשון!</p>`;
+            });
+        }
+
+        // --- EDITOR LOGIC ---
+        window.renderEditor = async (quizId = null) => {
+            let quiz = { title: '', questions: [] };
+            if (quizId) {
+                const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', quizId);
+                const res = await getDoc(docRef);
+                quiz = res.data();
+            }
+
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="min-h-screen bg-gray-50 flex flex-col">
+                    <header class="bg-white p-4 border-b flex justify-between items-center sticky top-0 z-10">
+                        <input id="quiz-title" type="text" value="${quiz.title}" placeholder="שם החידון..." class="text-2xl font-black outline-none border-b-2 border-transparent focus:border-purple-600 px-2">
+                        <div class="flex gap-4">
+                            <button onclick="renderAdminDashboard()" class="text-gray-500 font-bold">ביטול</button>
+                            <button onclick="saveQuiz('${quizId}')" class="bg-green-600 text-white px-8 py-2 rounded-full font-black k-btn">שמור</button>
+                        </div>
+                    </header>
+                    <div class="flex-grow flex overflow-hidden">
+                        <aside class="w-64 bg-white border-l overflow-y-auto p-4 flex flex-col gap-4" id="editor-sidebar"></aside>
+                        <main class="flex-grow p-8 overflow-y-auto" id="editor-main"></main>
+                    </div>
+                </div>
+            `;
+            
+            let questions = quiz.questions || [];
+            let activeIdx = 0;
+
+            const refreshEditor = () => {
+                const sidebar = document.getElementById('editor-sidebar');
+                sidebar.innerHTML = questions.map((q, i) => `
+                    <div onclick="selectQ(${i})" class="p-3 border-2 rounded-lg cursor-pointer ${i === activeIdx ? 'border-purple-600 bg-purple-50' : 'border-gray-200'}">
+                        <div class="text-xs text-gray-400 mb-1">שאלה ${i+1}</div>
+                        <div class="font-bold truncate">${q.text || '(ללא שאלה)'}</div>
+                    </div>
+                `).join('');
+                sidebar.innerHTML += `<button onclick="addQ()" class="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 font-bold hover:bg-gray-50">+ הוסף שאלה</button>`;
+
+                const main = document.getElementById('editor-main');
+                const q = questions[activeIdx] || { text: '', type: 'multi', options: ['', '', '', ''], correct: 0, time: 20, points: 1000 };
+                
+                main.innerHTML = `
+                    <div class="max-w-2xl mx-auto space-y-6">
+                        <textarea oninput="updateQ(this, 'text')" class="w-full text-center text-3xl font-bold p-6 border-b-4 focus:border-purple-600 outline-none bg-white rounded-lg shadow-sm" placeholder="הקלד כאן את השאלה...">${q.text}</textarea>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <label class="block text-sm font-bold text-gray-500 mb-2">סוג שאלה</label>
+                                <select onchange="updateQ(this, 'type')" class="w-full p-2 bg-gray-100 rounded">
+                                    <option value="multi" ${q.type === 'multi' ? 'selected' : ''}>רב ברירה (4)</option>
+                                    <option value="boolean" ${q.type === 'boolean' ? 'selected' : ''}>אמת או שקר</option>
+                                </select>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <label class="block text-sm font-bold text-gray-500 mb-2">זמן (שניות)</label>
+                                <input type="number" oninput="updateQ(this, 'time')" value="${q.time}" class="w-full p-2 bg-gray-100 rounded">
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <label class="block text-sm font-bold text-gray-500 mb-2">נקודות</label>
+                                <select onchange="updateQ(this, 'points')" class="w-full p-2 bg-gray-100 rounded text-yellow-600 font-bold">
+                                    <option value="1000" ${q.points == 1000 ? 'selected' : ''}>סטנדרט</option>
+                                    <option value="2000" ${q.points == 2000 ? 'selected' : ''}>🔥 דאבל פוינט</option>
+                                </select>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <label class="block text-sm font-bold text-gray-500 mb-2">תמונה (URL)</label>
+                                <input type="text" oninput="updateQ(this, 'image')" value="${q.image || ''}" placeholder="הדבק קישור לתמונה..." class="w-full p-2 bg-gray-100 rounded">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mt-8">
+                            ${q.type === 'multi' ? 
+                                q.options.map((opt, i) => `
+                                    <div class="flex items-center gap-2 p-4 rounded-lg shadow-sm k-btn ${i==0?'bg-red-500':i==1?'bg-blue-500':i==2?'bg-yellow-500':'bg-green-500'}">
+                                        <input type="radio" name="correct" ${q.correct == i ? 'checked' : ''} onchange="updateQ(${i}, 'correct')" class="w-6 h-6 cursor-pointer">
+                                        <input type="text" oninput="updateOpt(${i}, this)" value="${opt}" placeholder="תשובה ${i+1}" class="bg-white/20 text-white placeholder-white/70 p-2 rounded w-full outline-none font-bold">
+                                    </div>
+                                `).join('') 
+                                : 
+                                `
+                                <button onclick="updateQ(0, 'correct')" class="p-6 rounded-lg text-white font-black text-2xl ${q.correct == 0 ? 'ring-4 ring-black' : ''} bg-blue-600 k-btn">אמת</button>
+                                <button onclick="updateQ(1, 'correct')" class="p-6 rounded-lg text-white font-black text-2xl ${q.correct == 1 ? 'ring-4 ring-black' : ''} bg-red-600 k-btn">שקר</button>
+                                `
+                            }
+                        </div>
+                        <button onclick="removeQ()" class="w-full text-red-500 font-bold py-4 opacity-50 hover:opacity-100 transition">מחק שאלה זו</button>
                     </div>
                 `;
+            };
+
+            window.addQ = () => { questions.push({ text: '', type: 'multi', options: ['', '', '', ''], correct: 0, time: 20, points: 1000 }); activeIdx = questions.length - 1; refreshEditor(); };
+            window.selectQ = (i) => { activeIdx = i; refreshEditor(); };
+            window.updateQ = (el, field) => { 
+                const val = (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') ? el.value : el;
+                questions[activeIdx][field] = val; 
+                if(field === 'type' || field === 'correct') refreshEditor();
+            };
+            window.updateOpt = (i, el) => { questions[activeIdx].options[i] = el.value; };
+            window.removeQ = () => { if(questions.length > 1) { questions.splice(activeIdx, 1); activeIdx = 0; refreshEditor(); } };
+
+            window.saveQuiz = async (id) => {
+                const title = document.getElementById('quiz-title').value;
+                const data = { title, questions, updatedAt: Date.now() };
+                if (id && id !== 'null') {
+                    await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', id), data);
+                } else {
+                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes'), data);
+                }
+                renderAdminDashboard();
+            };
+
+            if (questions.length === 0) addQ();
+            else refreshEditor();
+        };
+
+        // --- GAME HOST LOGIC ---
+        window.startHost = async (quizId) => {
+            const pin = Math.floor(100000 + Math.random() * 900000).toString();
+            const quizSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', quizId));
+            const quiz = quizSnap.data();
+
+            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), {
+                quizId,
+                status: 'lobby',
+                currentQ: -1,
+                players: {},
+                responses: {},
+                lastAction: Date.now()
+            });
+
+            document.getElementById('audio-lobby').play();
+            
+            const container = document.getElementById('view-container');
+            const renderLobby = (players) => {
+                const pList = Object.entries(players || {});
+                container.innerHTML = `
+                    <div class="h-screen bg-kahoot flex flex-col p-8 overflow-hidden">
+                        <div class="flex justify-between items-start text-white">
+                            <div class="bg-white text-black p-4 rounded-lg shadow-xl">
+                                <p class="text-sm font-bold opacity-70">הצטרפות בכתובת:</p>
+                                <p class="text-2xl font-black">Quizmo.it</p>
+                            </div>
+                            <div class="text-center bg-white/10 p-6 rounded-2xl backdrop-blur-md">
+                                <p class="text-xl font-bold uppercase tracking-widest">Game PIN:</p>
+                                <p class="text-8xl font-black">${pin}</p>
+                            </div>
+                            <button onclick="startGame('${pin}')" class="bg-black text-white px-10 py-5 rounded-lg text-3xl font-black k-btn">התחל!</button>
+                        </div>
+                        <div class="flex-grow mt-10">
+                            <div class="flex justify-between items-center text-white mb-6">
+                                <h3 class="text-4xl font-black"><i class="fas fa-users"></i> ${pList.length} שחקנים</h3>
+                            </div>
+                            <div class="flex flex-wrap gap-4 justify-center overflow-y-auto max-h-[50vh]">
+                                ${pList.map(([id, p]) => `
+                                    <div onclick="forceRename('${pin}', '${id}', '${p.name}')" class="bg-white text-purple-900 px-6 py-2 rounded shadow-lg text-2xl font-bold animate__animated animate__bounceIn">
+                                        ${p.name}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            onSnapshot(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), (snap) => {
+                const game = snap.data();
+                if (!game) return;
+                if (game.status === 'lobby') renderLobby(game.players);
+                else if (game.status === 'question') renderQuestionHost(pin, game, quiz);
+                else if (game.status === 'leaderboard') renderLeaderboardHost(pin, game, quiz);
+                else if (game.status === 'podium') renderPodiumHost(game);
+            });
+        };
+
+        window.startGame = async (pin) => {
+            document.getElementById('audio-lobby').pause();
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), { status: 'question', currentQ: 0, responses: {}, startTime: Date.now() });
+        };
+
+        function renderQuestionHost(pin, game, quiz) {
+            const q = quiz.questions[game.currentQ];
+            const responses = Object.keys(game.responses || {}).length;
+            const totalPlayers = Object.keys(game.players || {}).length;
+
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="h-screen flex flex-col bg-white">
+                    <div class="p-4 bg-gray-100 flex justify-between items-center">
+                        <h2 class="text-3xl font-black">${q.text}</h2>
+                        ${q.points > 1000 ? '<span class="bg-yellow-400 px-3 py-1 rounded-full font-black text-sm">🔥 DOUBLE POINTS</span>' : ''}
+                    </div>
+                    <div class="flex-grow flex items-center justify-center p-8 relative">
+                        <div class="timer-circle border-purple-600 text-purple-600 absolute right-10 top-10" id="host-timer">${q.time}</div>
+                        <div class="text-left absolute left-10 top-10">
+                            <p class="text-5xl font-black text-gray-300">${responses}</p>
+                            <p class="font-bold text-gray-400">תשובות</p>
+                        </div>
+                        ${q.image ? `<img src="${q.image}" class="max-h-[40vh] rounded-lg shadow-2xl">` : `<div class="w-64 h-64 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-300 text-8xl font-black italic">Q</div>`}
+                    </div>
+                    <div class="answer-grid">
+                        ${q.type === 'multi' ? `
+                            <div class="bg-red-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-square"></span> ${q.options[0]}</div>
+                            <div class="bg-blue-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-diamond"></span> ${q.options[1]}</div>
+                            <div class="bg-yellow-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-circle"></span> ${q.options[2]}</div>
+                            <div class="bg-green-500 rounded text-white p-6 text-3xl font-bold flex items-center shadow-lg"><span class="shape-triangle"></span> ${q.options[3]}</div>
+                        ` : `
+                            <div class="bg-blue-600 rounded text-white p-6 text-3xl font-bold flex items-center justify-center shadow-lg col-span-1">אמת</div>
+                            <div class="bg-red-600 rounded text-white p-6 text-3xl font-bold flex items-center justify-center shadow-lg col-span-1">שקר</div>
+                        `}
+                    </div>
+                    <footer class="p-4 bg-gray-100 flex justify-between items-center">
+                        <span class="font-bold text-gray-500">PIN: ${pin}</span>
+                        <button onclick="endQuestion('${pin}')" class="bg-blue-600 text-white px-6 py-2 rounded font-bold k-btn">דלג</button>
+                    </footer>
+                </div>
+            `;
+
+            let timeLeft = q.time;
+            const interval = setInterval(async () => {
+                timeLeft--;
+                const timerEl = document.getElementById('host-timer');
+                if(timerEl) timerEl.innerText = timeLeft;
+                
+                if (timeLeft <= 0 || responses >= totalPlayers) {
+                    clearInterval(interval);
+                    endQuestion(pin);
+                }
+            }, 1000);
+        }
+
+        window.endQuestion = async (pin) => {
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), { status: 'leaderboard' });
+        };
+
+        function renderLeaderboardHost(pin, game, quiz) {
+            const players = Object.entries(game.players).sort((a,b) => b[1].score - a[1].score).slice(0, 5);
+            const isLast = game.currentQ >= quiz.questions.length - 1;
+
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="h-screen bg-kahoot flex flex-col p-10 text-white">
+                    <h2 class="text-5xl font-black mb-10 text-center">Scoreboard</h2>
+                    <div class="max-w-2xl mx-auto w-full space-y-3">
+                        ${players.map((p, i) => `
+                            <div class="bg-white/10 p-4 rounded flex justify-between items-center animate__animated animate__fadeInRight" style="animation-delay: ${i*0.1}s">
+                                <span class="text-2xl font-black">${p[1].name}</span>
+                                <span class="text-2xl font-bold">${p[1].score}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="mt-auto flex justify-center">
+                        <button onclick="${isLast ? `showPodium('${pin}')` : `nextQuestion('${pin}')`}" class="bg-white text-purple-900 px-12 py-4 rounded-lg text-2xl font-black k-btn">
+                            ${isLast ? 'לפודיום!' : 'הבא'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.nextQuestion = async (pin) => {
+            const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
+            const snap = await getDoc(docRef);
+            await updateDoc(docRef, { status: 'question', currentQ: snap.data().currentQ + 1, responses: {}, startTime: Date.now() });
+        };
+
+        window.showPodium = async (pin) => {
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), { status: 'podium' });
+        };
+
+        function renderPodiumHost(game) {
+            const winners = Object.entries(game.players).sort((a,b) => b[1].score - a[1].score).slice(0, 3);
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="h-screen bg-kahoot flex flex-col items-center justify-end p-20 text-white overflow-hidden">
+                    <h1 class="text-6xl font-black mb-20 italic">האלופים של Quizmo!</h1>
+                    <div class="flex items-end gap-4 w-full max-w-4xl h-96">
+                        <!-- 2nd -->
+                        <div class="flex-1 flex flex-col items-center">
+                            <span class="text-2xl font-bold mb-2">${winners[1]?.[1].name || ''}</span>
+                            <div class="bg-white/20 w-full rounded-t-lg podium-item" style="height: 60%">
+                                <div class="text-6xl font-black text-center mt-4">2</div>
+                            </div>
+                        </div>
+                        <!-- 1st -->
+                        <div class="flex-1 flex flex-col items-center">
+                            <i class="fas fa-crown text-yellow-400 text-5xl mb-2 animate-bounce"></i>
+                            <span class="text-3xl font-black mb-2">${winners[0]?.[1].name || 'אין מנצח'}</span>
+                            <div class="bg-white/40 w-full rounded-t-lg podium-item" style="height: 90%">
+                                <div class="text-8xl font-black text-center mt-4">1</div>
+                            </div>
+                        </div>
+                        <!-- 3rd -->
+                        <div class="flex-1 flex flex-col items-center">
+                            <span class="text-2xl font-bold mb-2">${winners[2]?.[1].name || ''}</span>
+                            <div class="bg-white/10 w-full rounded-t-lg podium-item" style="height: 40%">
+                                <div class="text-4xl font-black text-center mt-4">3</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="location.reload()" class="mt-20 bg-white text-black px-10 py-3 rounded-full font-bold">סגור משחק</button>
+                </div>
+            `;
+        }
+
+        // --- PLAYER LOGIC ---
+        window.router = (v) => {
+            if (v === 'player-join') renderPlayerJoin();
+        };
+
+        function renderPlayerJoin() {
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6">
+                    <h1 class="text-5xl font-black text-white italic mb-10">Quizmo</h1>
+                    <div class="bg-white p-4 rounded-lg shadow-2xl w-full max-w-xs space-y-3">
+                        <input id="join-pin" type="tel" placeholder="Game PIN" class="w-full p-4 border-2 border-gray-200 rounded text-center text-xl font-bold outline-none focus:border-purple-600">
+                        <button onclick="validatePIN()" class="k-btn w-full bg-gray-800 text-white py-4 rounded font-black text-xl">Enter</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.validatePIN = async () => {
+            const pin = document.getElementById('join-pin').value;
+            const gameRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
+            const snap = await getDoc(gameRef);
+            
+            if (snap.exists() && snap.data().status === 'lobby') {
+                renderPlayerNickname(pin);
             } else {
-                alert("קוד שגוי");
+                alert("קוד משחק לא תקין או שהמשחק כבר התחיל.");
             }
         };
 
-        initApp();
+        function renderPlayerNickname(pin) {
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6">
+                    <h1 class="text-5xl font-black text-white italic mb-10">Quizmo</h1>
+                    <div class="bg-white p-4 rounded-lg shadow-2xl w-full max-w-xs space-y-3">
+                        <input id="join-nick" type="text" placeholder="כינוי" class="w-full p-4 border-2 border-gray-200 rounded text-center text-xl font-bold outline-none focus:border-purple-600">
+                        <button onclick="joinGame('${pin}')" class="k-btn w-full bg-green-600 text-white py-4 rounded font-black text-xl">OK, go!</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.joinGame = async (pin) => {
+            const name = document.getElementById('join-nick').value;
+            if(!name) return;
+            
+            const gameRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
+            await updateDoc(gameRef, { [`players.${user.uid}`]: { name, score: 0, streak: 0 } });
+            
+            renderPlayerWaiting(pin, name);
+        };
+
+        function renderPlayerWaiting(pin, name) {
+            const container = document.getElementById('view-container');
+            container.innerHTML = `
+                <div class="h-screen bg-kahoot flex flex-col items-center justify-center p-6 text-white text-center">
+                    <div class="mb-10 animate-pulse"><i class="fas fa-spinner fa-4x fa-spin"></i></div>
+                    <h2 class="text-3xl font-black mb-2">נכנסת למשחק!</h2>
+                    <p class="text-xl opacity-80">אתה רואה את הכינוי שלך על המסך?</p>
+                    <div class="mt-10 bg-black/20 p-4 rounded-full px-10 font-black text-2xl">${name}</div>
+                </div>
+            `;
+
+            onSnapshot(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), async (snap) => {
+                const game = snap.data();
+                if(!game) return;
+
+                // בדיקה אם המנהל חייב אותנו לשנות שם
+                if (game.players[user.uid]?.mustRename) {
+                    renderPlayerNickname(pin);
+                    return;
+                }
+
+                if (game.status === 'question') {
+                    renderPlayerQuestion(pin, game);
+                } else if (game.status === 'leaderboard' || game.status === 'podium') {
+                    renderPlayerFeedback(pin, game);
+                }
+            });
+        }
+
+        function renderPlayerQuestion(pin, game) {
+            const q = game.quizId; // We would ideally fetch the quiz data here too
+            // For efficiency, we assume the host shows the question and options
+            const container = document.getElementById('view-container');
+            
+            // Check if already answered
+            if (game.responses?.[user.uid]) {
+                container.innerHTML = `<div class="h-screen bg-kahoot flex items-center justify-center text-white text-4xl font-black text-center p-10">תשובה נקלטה!<br>נחכה לאחרים...</div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="h-screen bg-gray-100 grid grid-cols-2 gap-2 p-2">
+                    <button onclick="submitAnswer('${pin}', 0)" class="bg-red-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-square"></button>
+                    <button onclick="submitAnswer('${pin}', 1)" class="bg-blue-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-diamond"></button>
+                    <button onclick="submitAnswer('${pin}', 2)" class="bg-yellow-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-circle"></button>
+                    <button onclick="submitAnswer('${pin}', 3)" class="bg-green-500 rounded flex items-center justify-center text-white text-6xl k-btn shape-triangle"></button>
+                </div>
+            `;
+        }
+
+        window.submitAnswer = async (pin, ansIdx) => {
+            const gameRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin);
+            const snap = await getDoc(gameRef);
+            const game = snap.data();
+            const quizSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', game.quizId));
+            const quiz = quizSnap.data();
+            const q = quiz.questions[game.currentQ];
+
+            const responseTime = Date.now() - game.startTime;
+            const isCorrect = q.correct == ansIdx;
+            
+            let pointsWon = 0;
+            if (isCorrect) {
+                const timeFactor = Math.max(0, 1 - (responseTime / (q.time * 1000)));
+                pointsWon = Math.round(q.points * timeFactor);
+            }
+
+            const newScore = (game.players[user.uid].score || 0) + pointsWon;
+
+            await updateDoc(gameRef, { 
+                [`responses.${user.uid}`]: { ansIdx, pointsWon, isCorrect },
+                [`players.${user.uid}.score`]: newScore
+            });
+        };
+
+        function renderPlayerFeedback(pin, game) {
+            const res = game.responses?.[user.uid];
+            const container = document.getElementById('view-container');
+            
+            if(!res) {
+                container.innerHTML = `<div class="h-screen bg-gray-500 flex items-center justify-center text-white text-4xl font-black">לא ענית בזמן...</div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="h-screen ${res.isCorrect ? 'bg-green-600' : 'bg-red-600'} flex flex-col items-center justify-center p-10 text-white text-center">
+                    <i class="fas ${res.isCorrect ? 'fa-check-circle' : 'fa-times-circle'} text-9xl mb-10"></i>
+                    <h2 class="text-5xl font-black mb-4">${res.isCorrect ? 'נכון מאוד!' : 'אופס, טעות...'}</h2>
+                    <p class="text-2xl font-bold">+ ${res.pointsWon} נקודות</p>
+                    <div class="mt-10 bg-black/20 p-4 rounded-lg">
+                        <p class="text-sm uppercase opacity-70">סך הכל נקודות</p>
+                        <p class="text-4xl font-black">${game.players[user.uid].score}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.forceRename = async (pin, pId, currentName) => {
+            if(confirm(`לחייב את ${currentName} לשנות שם?`)) {
+                await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'games', pin), {
+                    [`players.${pId}.mustRename`]: true,
+                    [`players.${pId}.name`]: "Rename Me..."
+                });
+            }
+        };
+
+        window.deleteQuiz = async (id) => {
+            if(confirm("בטוח שברצונך למחוק חידון זה?")) {
+                await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'quizzes', id));
+            }
+        };
+
+        // --- START ---
+        init();
+
     </script>
 </body>
 </html>
