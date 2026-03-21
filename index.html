@@ -73,7 +73,8 @@
             <h1 class="text-5xl font-black text-[#46178f] mb-8 italic tracking-tighter">Kahoot!</h1>
             
             <div id="join-step-1">
-                <input type="number" id="pin-input" placeholder="Game PIN" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
+                <!-- שינוי ל-text עם inputmode כדי למנוע באגים של דפדפן בקריאת מספרים -->
+                <input type="text" inputmode="numeric" id="pin-input" placeholder="Game PIN" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
                 <button onclick="checkPin()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k">Enter</button>
                 <div id="pin-error" class="text-red-500 font-bold mt-2 hidden">We didn't recognize that PIN.</div>
             </div>
@@ -203,7 +204,8 @@
             <div class="text-2xl font-black text-gray-800">Join at <span class="text-[#46178f]">www.kahoot.it</span><br>or with the Kahoot! app</div>
             <div class="text-center">
                 <div class="text-sm font-bold text-gray-500 uppercase tracking-widest">Game PIN:</div>
-                <div class="text-7xl font-black text-gray-900 tracking-widest" id="h-pin-display"></div>
+                <!-- הוספת פונקציית העתקה בלחיצה -->
+                <div class="text-7xl font-black text-gray-900 tracking-widest cursor-pointer hover:opacity-70 transition duration-150" id="h-pin-display" onclick="copyPin()" title="לחץ כאן כדי להעתיק את הקוד!"></div>
             </div>
             <button onclick="hostStartGame()" id="h-start-btn" class="bg-[var(--k-blue)] text-white font-bold text-2xl py-3 px-8 rounded btn-k opacity-50 pointer-events-none">Start</button>
         </div>
@@ -327,24 +329,28 @@
 
         // ==================== PLAYER LOGIC ====================
         function checkPin() {
-            // הוספת trim() מונעת שגיאה אם המשתמש הכניס רווח בטעות
-            const pin = document.getElementById('pin-input').value.trim();
+            // טיפול מקדים מחמיר בטקסט
+            const pinStr = document.getElementById('pin-input').value.toString().trim();
             document.getElementById('pin-error').classList.add('hidden');
-            if(pin.length === 0) return;
+            if(pinStr.length === 0) return;
 
-            // אימות מהיר ומדויק מול הלוקאל סטורג' שפותר את כל בעיות התקשורת באותו דפדפן
-            if (localStorage.getItem('k_active_pin') === pin) {
-                activePin = pin;
+            // בדיקה מקומית (עובדת מצוין עבור טאבים שונים באותו דפדפן בדיוק)
+            if (localStorage.getItem('k_active_pin') === pinStr) {
+                activePin = pinStr;
                 document.getElementById('join-step-1').classList.add('hidden');
                 document.getElementById('join-step-2').classList.remove('hidden');
                 return;
             }
 
-            // גיבוי ל-BroadcastChannel אם מדובר בטאבים אחרים לחלוטין שלא חולקים סטורג' נגיש
-            bc.postMessage({ type: 'REQ_JOIN', pin: pin, id: myId });
+            // גיבוי רשתי (למקרה שהלוקאל סטורג' מוגבל)
+            bc.postMessage({ type: 'REQ_JOIN', pin: pinStr, id: myId });
             
-            // הגדלת זמן ההמתנה ל-800 מילישניות ליתר ביטחון
-            setTimeout(() => { if(!activePin) document.getElementById('pin-error').classList.remove('hidden'); }, 800);
+            // הגדלתי את זמן ההמתנה כדי לוודא שאין עיכוב בגלל הדפדפן
+            setTimeout(() => { 
+                if(!activePin) {
+                    document.getElementById('pin-error').classList.remove('hidden'); 
+                }
+            }, 1000);
         }
 
         function joinGame() {
@@ -490,11 +496,32 @@
         function hostInit(idx) {
             hostQuiz = quizzes[idx];
             activePin = Math.floor(100000 + Math.random() * 900000).toString();
-            localStorage.setItem('k_active_pin', activePin); // שמירת החדר בלוקאל סטורג'
+            localStorage.setItem('k_active_pin', activePin); 
             hostPlayers = []; hostQIdx = 0;
             document.getElementById('h-pin-display').innerText = activePin;
             updateHostLobby();
             nav('view-h-lobby');
+        }
+
+        // פונקציית העתקה ללוח
+        function copyPin() {
+            if(!activePin) return;
+            // יצירת אלמנט זמני להעתקה שעובד בכל הדפדפנים
+            const el = document.createElement('textarea');
+            el.value = activePin;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            
+            // חיווי למשתמש
+            const disp = document.getElementById('h-pin-display');
+            disp.innerText = "COPIED";
+            disp.classList.add('text-[var(--k-green)]');
+            setTimeout(() => { 
+                disp.innerText = activePin; 
+                disp.classList.remove('text-[var(--k-green)]');
+            }, 1000);
         }
 
         function updateHostLobby() {
@@ -516,7 +543,7 @@
 
         function hostEndGame() { 
             activePin = null; 
-            localStorage.removeItem('k_active_pin'); // מחיקת החדר מהלוקאל סטורג' בסגירה
+            localStorage.removeItem('k_active_pin'); 
             bc.postMessage({ type: 'END', pin: activePin }); 
             nav('view-admin-dash'); 
         }
