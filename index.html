@@ -2,577 +2,680 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kahoot Clone - Dvir</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kahoot!</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --k-red: #e21b3c;
+            --k-blue: #1368ce;
+            --k-yellow: #d89e00;
+            --k-green: #26890c;
+            --k-purple: #46178f;
+            --k-bg: #f2f2f2;
+        }
+
         body {
             font-family: 'Montserrat', sans-serif;
-            background-color: #f2f2f2;
-            overflow-x: hidden;
+            background-color: var(--k-bg);
+            margin: 0;
+            overflow: hidden; /* מניעת גלילה במסכי משחק */
             user-select: none;
         }
 
-        .bg-k-red { background-color: #e21b3c; }
-        .bg-k-blue { background-color: #1368ce; }
-        .bg-k-yellow { background-color: #d89e00; }
-        .bg-k-green { background-color: #26890c; }
+        /* כפתורי קהוט תלת מימדיים */
+        .btn-k {
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn-k:active {
+            box-shadow: 0 0px 0 rgba(0, 0, 0, 0.2);
+            transform: translateY(4px);
+        }
+
+        /* צורות קהוט אמיתיות */
+        .shape-container { display: flex; justify-content: center; align-items: center; }
+        .k-shape { background-color: white; }
+        .k-triangle { width: 0; height: 0; border-left: 3vw solid transparent; border-right: 3vw solid transparent; border-bottom: 5.2vw solid white; background-color: transparent; }
+        .k-diamond { width: 4.5vw; height: 4.5vw; transform: rotate(45deg); }
+        .k-circle { width: 5.5vw; height: 5.5vw; border-radius: 50%; }
+        .k-square { width: 5vw; height: 5vw; }
+
+        /* צורות קהוט אמיתיות למסך השחקן (גדולות יותר) */
+        .p-triangle { width: 0; height: 0; border-left: 40px solid transparent; border-right: 40px solid transparent; border-bottom: 70px solid white; background-color: transparent; }
+        .p-diamond { width: 60px; height: 60px; transform: rotate(45deg); background-color: white; }
+        .p-circle { width: 70px; height: 70px; border-radius: 50%; background-color: white; }
+        .p-square { width: 65px; height: 65px; background-color: white; }
+
+        /* אנימציות */
+        @keyframes pulse-bg { 0% { background-color: #46178f; } 50% { background-color: #25076b; } 100% { background-color: #46178f; } }
+        .bg-animated { animation: pulse-bg 10s infinite alternate; }
+        @keyframes spinner { to { transform: rotate(360deg); } }
+        .spinner { border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; width: 40px; height: 40px; animation: spinner 1s linear infinite; }
         
-        .hover-k-red:hover { background-color: #c01733; }
-        .hover-k-blue:hover { background-color: #1059b0; }
-        .hover-k-yellow:hover { background-color: #b88600; }
-        .hover-k-green:hover { background-color: #20750a; }
+        /* ניהול מסכים */
+        .view-section { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; overflow-y: auto; }
+        .view-section.active { display: flex; }
 
-        .btn-shadow { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); }
-        .btn-shadow:active { box-shadow: 0 0 0 rgba(0, 0, 0, 0.2); transform: translateY(4px); }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes pulse-bg { 0% { background-color: #e21b3c; } 33% { background-color: #1368ce; } 66% { background-color: #26890c; } 100% { background-color: #e21b3c; } }
-        @keyframes bounce-in { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        .animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
-        .animate-bounce-in { animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        /* גרף תוצאות */
+        .bar-chart { display: flex; align-items: flex-end; justify-content: center; gap: 2vw; height: 30vh; margin-top: 20px; border-bottom: 4px solid #ccc; width: 80%; }
+        .bar { width: 10vw; transition: height 1s ease-out; display: flex; justify-content: center; color: transparent; }
         
-        .bg-animated { animation: pulse-bg 15s infinite alternate; }
-
-        .shape-triangle { width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-bottom: 52px solid white; }
-        .shape-diamond { width: 45px; height: 45px; background-color: white; transform: rotate(45deg); }
-        .shape-circle { width: 55px; height: 55px; background-color: white; border-radius: 50%; }
-        .shape-square { width: 50px; height: 50px; background-color: white; }
-
-        .view-section { display: none; width: 100%; min-height: 100vh; }
-        .view-section.active { display: flex; flex-direction: column; }
-
-        .lobby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
-        .player-pill { background: white; color: #333; font-weight: 700; padding: 0.5rem 1rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s; }
-        .player-pill:hover { background: #ffebeb; text-decoration: line-through; }
-
-        .bar-chart { display: flex; align-items: flex-end; justify-content: center; gap: 20px; height: 200px; margin-top: 20px; }
-        .bar { width: 60px; transition: height 1s ease-out; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: white; font-weight: bold; padding-bottom: 5px;}
+        .shadow-text { text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
     </style>
 </head>
-<body class="text-gray-800">
+<body>
 
-    <!-- Audio Logic -->
-    <script>
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let isMusicMuted = false;
-        let lobbyInterval, timerInterval;
+    <!-- ==================== HOME / PLAYER LOGIN ==================== -->
+    <div id="view-home" class="view-section active bg-animated justify-center items-center">
+        <div class="bg-white p-8 rounded shadow-2xl w-11/12 max-w-sm text-center">
+            <h1 class="text-5xl font-black text-[#46178f] mb-8 italic tracking-tighter">Kahoot!</h1>
+            
+            <div id="join-step-1">
+                <input type="number" id="pin-input" placeholder="Game PIN" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
+                <button onclick="checkPin()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k">Enter</button>
+                <div id="pin-error" class="text-red-500 font-bold mt-2 hidden">We didn't recognize that PIN.</div>
+            </div>
 
-        function playBeep(freq, type, duration, vol = 0.1) {
-            if (isMusicMuted) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-        }
+            <div id="join-step-2" class="hidden">
+                <input type="text" id="nick-input" placeholder="Nickname" maxlength="15" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
+                <button onclick="joinGame()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k">OK, go!</button>
+            </div>
+        </div>
+        
+        <button onclick="nav('view-admin-login')" class="absolute bottom-4 text-white/50 hover:text-white text-sm underline">כניסת מנהל משחק</button>
+    </div>
 
-        function startLobbyMusic() {
-            if (lobbyInterval) clearInterval(lobbyInterval);
-            let step = 0;
-            const notes = [440, 554, 659, 554, 440, 330, 440, 554];
-            lobbyInterval = setInterval(() => {
-                playBeep(notes[step % notes.length], 'sine', 0.4, 0.05);
-                step++;
-            }, 500);
-        }
+    <!-- ==================== PLAYER: WAITING LOBBY ==================== -->
+    <div id="view-p-waiting" class="view-section justify-center items-center bg-[var(--k-green)] text-white text-center">
+        <h2 class="text-4xl font-bold mb-4">You're in!</h2>
+        <p class="text-xl font-semibold opacity-90">See your nickname on screen</p>
+        <div class="mt-8 text-2xl font-black" id="p-waiting-nick"></div>
+    </div>
 
-        function stopLobbyMusic() { clearInterval(lobbyInterval); }
+    <!-- ==================== PLAYER: GET READY ==================== -->
+    <div id="view-p-getready" class="view-section justify-center items-center bg-[#46178f] text-white text-center">
+        <h2 class="text-5xl font-black shadow-text mb-8">Get Ready!</h2>
+        <div class="spinner"></div>
+    </div>
 
-        function startTimerMusic() {
-            if (timerInterval) clearInterval(timerInterval);
-            let toggle = false;
-            timerInterval = setInterval(() => {
-                playBeep(toggle ? 800 : 600, 'square', 0.1, 0.03);
-                toggle = !toggle;
-            }, 500);
-        }
-
-        function stopTimerMusic() { clearInterval(timerInterval); }
-    </script>
-
-    <!-- HOME SCREEN -->
-    <div id="view-home" class="view-section active justify-center items-center bg-animated text-white text-center">
-        <h1 class="text-6xl font-black mb-12 drop-shadow-lg">Kahoot!</h1>
-        <div class="flex flex-col gap-6 w-full max-w-sm px-4">
-            <button onclick="nav('view-player-join')" class="bg-white text-gray-900 font-bold text-2xl py-4 rounded btn-shadow hover:bg-gray-100 transition-colors">
-                הצטרפות למשחק
-            </button>
-            <button onclick="nav('view-admin-login')" class="text-white/70 hover:text-white font-bold text-lg mt-4 underline">
-                כניסת מנהל
-            </button>
+    <!-- ==================== PLAYER: BUTTONS (NO TEXT) ==================== -->
+    <div id="view-p-buttons" class="view-section bg-white p-2">
+        <div class="grid grid-cols-2 grid-rows-2 gap-2 w-full h-full" id="p-btn-grid">
+            <button onclick="submitAnswer(0)" class="bg-[var(--k-red)] rounded flex justify-center items-center btn-k"><div class="p-triangle"></div></button>
+            <button onclick="submitAnswer(1)" class="bg-[var(--k-blue)] rounded flex justify-center items-center btn-k"><div class="p-diamond"></div></button>
+            <button onclick="submitAnswer(2)" id="p-btn-2" class="bg-[var(--k-yellow)] rounded flex justify-center items-center btn-k"><div class="p-circle"></div></button>
+            <button onclick="submitAnswer(3)" id="p-btn-3" class="bg-[var(--k-green)] rounded flex justify-center items-center btn-k"><div class="p-square"></div></button>
         </div>
     </div>
 
-    <!-- ADMIN: LOGIN -->
-    <div id="view-admin-login" class="view-section justify-center items-center bg-gray-100">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md animate-fade-in text-center">
-            <h2 class="text-2xl font-bold mb-6">כניסת מנהל</h2>
-            <input type="password" id="admin-password" placeholder="סיסמה" class="w-full border-2 border-gray-300 rounded p-3 mb-4 text-center text-xl focus:border-blue-500 outline-none" onkeypress="if(event.key === 'Enter') checkAdminLogin()">
-            <button onclick="checkAdminLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded btn-shadow transition-colors">היכנס</button>
-            <button onclick="nav('view-home')" class="mt-4 text-gray-500 hover:text-gray-800 underline">חזור</button>
+    <!-- ==================== PLAYER: WAITING FOR OTHERS ==================== -->
+    <div id="view-p-wait-result" class="view-section justify-center items-center bg-gray-200 text-gray-700 text-center">
+        <div class="spinner border-gray-400 border-top-gray-700 mb-6"></div>
+        <h2 class="text-3xl font-bold">Waiting for others...</h2>
+    </div>
+
+    <!-- ==================== PLAYER: RESULT ==================== -->
+    <div id="view-p-result" class="view-section justify-center items-center text-white text-center">
+        <h2 id="p-res-title" class="text-5xl font-black mb-4 shadow-text">Correct</h2>
+        <div class="bg-black/20 px-8 py-3 rounded text-3xl font-bold mb-12 shadow-text">
+            <span id="p-res-points">+0</span>
+        </div>
+        <div class="bg-black/30 w-full p-4 absolute bottom-0 flex justify-between px-6 text-xl font-bold">
+            <span id="p-res-name">Nick</span>
+            <span><span id="p-res-total">0</span></span>
         </div>
     </div>
 
-    <!-- ADMIN: DASHBOARD -->
-    <div id="view-admin-dashboard" class="view-section bg-gray-100">
+    <!-- ==================== ADMIN: LOGIN ==================== -->
+    <div id="view-admin-login" class="view-section bg-gray-100 justify-center items-center">
+        <div class="bg-white p-8 rounded shadow-lg w-full max-w-sm text-center border-t-8 border-[#46178f]">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">פאנל ניהול</h2>
+            <input type="password" id="admin-pass" placeholder="סיסמה (2160)" class="w-full border rounded p-3 mb-4 text-center text-xl" onkeypress="if(event.key==='Enter') loginAdmin()">
+            <button onclick="loginAdmin()" class="w-full bg-[#46178f] text-white font-bold py-3 rounded btn-k">היכנס</button>
+            <button onclick="nav('view-home')" class="mt-4 text-gray-500 underline text-sm">חזרה למשחק</button>
+        </div>
+    </div>
+
+    <!-- ==================== ADMIN: DASHBOARD ==================== -->
+    <div id="view-admin-dash" class="view-section bg-gray-100">
         <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-gray-800">החידונים שלי</h2>
-            <button onclick="nav('view-home')" class="text-gray-600 hover:text-gray-900 font-semibold">התנתק</button>
+            <h1 class="text-3xl font-black text-[#46178f] italic">Kahoot!</h1>
+            <button onclick="nav('view-home')" class="text-gray-600 font-bold hover:text-black">יציאה מניהול</button>
         </header>
-        <main class="p-6 max-w-5xl w-full mx-auto animate-slide-up flex-grow">
-            <button onclick="openQuizCreator()" class="bg-k-green hover:bg-k-green text-white font-bold py-3 px-6 rounded btn-shadow transition-colors mb-8 flex items-center gap-2">
-                + צור חידון חדש
-            </button>
-            <div id="quiz-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        </main>
+        <div class="p-6 max-w-6xl mx-auto w-full flex-grow overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">החידונים שלי</h2>
+                <button onclick="openEditor(-1)" class="bg-[var(--k-blue)] text-white font-bold py-2 px-6 rounded btn-k">צור חדש</button>
+            </div>
+            <div id="quiz-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </div>
     </div>
 
-    <!-- ADMIN: QUIZ CREATOR -->
-    <div id="view-quiz-creator" class="view-section bg-gray-100">
-        <header class="bg-white shadow px-6 py-4 flex justify-between items-center z-10">
-            <input type="text" id="quiz-title-input" placeholder="שם החידון..." class="text-2xl font-bold text-gray-800 border-b-2 border-transparent focus:border-blue-500 outline-none bg-transparent">
-            <div class="flex gap-3">
-                <button onclick="nav('view-admin-dashboard')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded btn-shadow">ביטול</button>
-                <button onclick="saveQuiz()" class="bg-k-green hover:bg-green-700 text-white font-bold py-2 px-6 rounded btn-shadow">שמור חידון</button>
+    <!-- ==================== ADMIN: CREATOR ==================== -->
+    <div id="view-admin-creator" class="view-section bg-gray-100">
+        <header class="bg-white shadow px-4 py-3 flex justify-between items-center z-10">
+            <input type="text" id="quiz-title" placeholder="הכנס שם לחידון..." class="text-xl font-bold border-b-2 border-transparent focus:border-gray-400 outline-none w-1/3">
+            <div class="flex gap-2">
+                <button onclick="nav('view-admin-dash')" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded btn-k">ביטול</button>
+                <button onclick="saveQuiz()" class="bg-[var(--k-green)] text-white font-bold py-2 px-6 rounded btn-k">שמור</button>
             </div>
         </header>
         <div class="flex flex-grow overflow-hidden">
-            <div class="w-64 bg-white border-l border-gray-200 p-4 flex flex-col gap-3 overflow-y-auto" id="creator-sidebar">
-                <button onclick="addQuestion()" class="border-2 border-dashed border-gray-400 text-gray-500 hover:bg-gray-50 hover:text-gray-700 font-bold py-3 rounded mt-2">
-                    + הוסף שאלה
-                </button>
-            </div>
-            <div class="flex-grow p-6 flex flex-col overflow-y-auto" id="creator-main">
-                <div class="bg-white p-6 rounded shadow-md mb-6 relative">
-                    <button onclick="deleteCurrentQuestion()" class="absolute top-4 left-4 text-red-500 hover:text-red-700">🗑️</button>
-                    <div class="flex justify-between mb-4 gap-4">
-                        <div class="flex-1">
-                            <label class="block text-sm font-bold text-gray-700 mb-1">סוג השאלה</label>
-                            <select id="q-type" class="w-full border rounded p-2" onchange="updateQuestionUI()">
-                                <option value="regular">4 תשובות</option>
-                                <option value="boolean">אמת או שקר</option>
-                            </select>
-                        </div>
-                        <div class="flex-1">
-                            <label class="block text-sm font-bold text-gray-700 mb-1">זמן (שניות)</label>
-                            <select id="q-time" class="w-full border rounded p-2" onchange="updateCurrentQuestionData()">
-                                <option value="10">10</option><option value="20" selected>20</option><option value="30">30</option><option value="60">60</option>
-                            </select>
-                        </div>
-                        <div class="flex-1 flex items-end pb-2">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="q-double" class="w-5 h-5" onchange="updateCurrentQuestionData()">
-                                <span class="font-bold text-gray-700">נקודות כפולות</span>
-                            </label>
-                        </div>
+            <!-- Sidebar -->
+            <div class="w-48 bg-white border-l border-gray-200 p-2 overflow-y-auto flex flex-col gap-2" id="creator-sidebar"></div>
+            <!-- Main Editor -->
+            <div class="flex-grow p-4 flex flex-col items-center overflow-y-auto">
+                <div class="w-full max-w-4xl bg-white p-6 rounded shadow flex flex-col relative">
+                    <button onclick="deleteCurrentQ()" class="absolute top-4 left-4 text-red-500 font-bold">🗑️ מחק שאלה</button>
+                    
+                    <div class="flex gap-4 mb-4 justify-center">
+                        <select id="q-time" class="border rounded p-2 font-bold" onchange="updateQData()">
+                            <option value="10">10 שניות</option><option value="20" selected>20 שניות</option><option value="30">30 שניות</option><option value="60">60 שניות</option>
+                        </select>
+                        <select id="q-type" class="border rounded p-2 font-bold" onchange="changeQType()">
+                            <option value="regular">מרובע שאלות (4)</option><option value="boolean">אמת/שקר (2)</option>
+                        </select>
                     </div>
-                    <input type="text" id="q-text" placeholder="הקלד שאלה..." class="w-full text-center text-3xl font-bold border-b-2 border-gray-300 focus:border-blue-500 py-3 mb-6 outline-none" oninput="updateCurrentQuestionData()">
-                    <div class="flex justify-center mb-8">
-                        <div class="w-64 h-48 bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col justify-center items-center rounded relative overflow-hidden group">
-                            <img id="q-image-preview" class="absolute inset-0 w-full h-full object-cover hidden">
-                            <span class="text-sm font-bold text-gray-500 cursor-pointer" onclick="document.getElementById('q-image-input').click()">העלה תמונה</span>
-                            <input type="file" id="q-image-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-                            <button id="q-remove-image" class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 hidden" onclick="removeImage()">X</button>
-                        </div>
+
+                    <input type="text" id="q-text" placeholder="הקלד את השאלה כאן" class="w-full text-center text-3xl font-bold py-4 outline-none border-b-2 focus:border-gray-300 mb-6" oninput="updateQData()">
+
+                    <div class="w-64 h-48 mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex justify-center items-center relative mb-8 rounded group cursor-pointer" onclick="document.getElementById('q-img-upload').click()">
+                        <span class="text-gray-500 font-bold group-hover:text-black">➕ הוסף תמונה</span>
+                        <img id="q-img-preview" class="absolute inset-0 w-full h-full object-cover hidden rounded">
+                        <input type="file" id="q-img-upload" accept="image/*" class="hidden" onchange="uploadImage(event)">
+                        <button onclick="removeImage(event)" id="q-img-remove" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 hidden z-10">X</button>
                     </div>
-                    <div id="answers-container" class="grid grid-cols-2 gap-4"></div>
+
+                    <!-- Answers Editor -->
+                    <div class="grid grid-cols-2 gap-2" id="q-answers-container">
+                        <!-- Created dynamically -->
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- HOST: LOBBY -->
-    <div id="view-host-lobby" class="view-section bg-animated text-white flex flex-col relative">
-        <div class="absolute top-4 right-4 flex gap-4 z-10">
-            <button onclick="toggleMusic()" id="music-icon" class="bg-white/20 hover:bg-white/30 p-3 rounded-full btn-shadow transition">🔊</button>
-            <button onclick="endGameHost()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded font-bold btn-shadow transition">סגור</button>
+    <!-- ==================== HOST: LOBBY ==================== -->
+    <div id="view-h-lobby" class="view-section bg-[#f2f2f2]">
+        <div class="w-full bg-white flex justify-between items-center px-8 py-4 shadow z-10">
+            <div class="text-2xl font-black text-gray-800">Join at <span class="text-[#46178f]">www.kahoot.it</span><br>or with the Kahoot! app</div>
+            <div class="text-center">
+                <div class="text-sm font-bold text-gray-500 uppercase tracking-widest">Game PIN:</div>
+                <div class="text-7xl font-black text-gray-900 tracking-widest" id="h-pin-display"></div>
+            </div>
+            <button onclick="hostStartGame()" id="h-start-btn" class="bg-[var(--k-blue)] text-white font-bold text-2xl py-3 px-8 rounded btn-k opacity-50 pointer-events-none">Start</button>
         </div>
-        <div class="flex-grow flex flex-col items-center pt-20 px-6 text-center">
-            <h2 class="text-3xl font-bold mb-2">קוד הצטרפות:</h2>
-            <div class="bg-white text-gray-900 text-7xl font-black py-4 px-12 rounded shadow-2xl tracking-widest mb-12" id="host-pin-display"></div>
-            <div class="flex justify-between items-end w-full max-w-5xl mb-4 px-4">
-                <div class="text-2xl font-bold"><span id="host-player-count">0</span> שחקנים</div>
-                <button onclick="startHostGame()" id="btn-start-game" class="bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold py-3 px-8 rounded btn-shadow transition opacity-50 cursor-not-allowed">התחל</button>
-            </div>
-            <div class="w-full max-w-5xl bg-white/10 rounded-lg p-6 flex-grow overflow-y-auto mb-8">
-                <div id="host-players-list" class="lobby-grid"></div>
-            </div>
+        <div class="flex-grow relative w-full h-full overflow-hidden bg-animated">
+            <div class="absolute inset-0 flex flex-wrap content-start p-8 gap-4 overflow-y-auto" id="h-players-list"></div>
+            <div class="absolute bottom-6 left-6 bg-white/20 rounded px-6 py-2 text-white font-bold text-2xl shadow-text"><span id="h-player-count">0</span> Players</div>
+            <button onclick="hostEndGame()" class="absolute bottom-6 right-6 bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded btn-k">סגור חדר</button>
         </div>
     </div>
 
-    <!-- HOST: QUESTION -->
-    <div id="view-host-question" class="view-section bg-gray-100 relative">
-        <button onclick="skipQuestion()" class="absolute top-6 left-6 bg-white text-gray-800 font-bold py-2 px-6 rounded-full btn-shadow hover:bg-gray-200 transition z-20">דלג ⏭</button>
-        <div class="text-center pt-10 px-8 mb-6 z-10">
-            <h2 id="host-q-text" class="text-5xl font-bold text-gray-800 mb-6">שאלה</h2>
-            <div class="flex justify-center items-center mb-6 relative h-64">
-                <div class="absolute left-10 w-24 h-24 bg-purple-600 text-white rounded-full flex justify-center items-center text-4xl font-black shadow-lg" id="host-timer">20</div>
-                <img id="host-q-image" class="h-full max-w-2xl object-contain rounded shadow hidden">
-                <div class="absolute right-10 text-2xl font-bold text-gray-500 bg-white px-4 py-2 rounded shadow">תשובות: <span id="host-answers-count">0</span></div>
-            </div>
+    <!-- ==================== HOST: GET READY ==================== -->
+    <div id="view-h-getready" class="view-section justify-center items-center bg-white text-gray-800 text-center">
+        <h2 class="text-6xl font-black mb-6">Are you ready?</h2>
+        <h3 class="text-4xl font-bold text-gray-600" id="h-getready-title">Title</h3>
+        <div class="mt-8 spinner border-gray-300 border-top-[var(--k-blue)]"></div>
+    </div>
+
+    <!-- ==================== HOST: QUESTION ==================== -->
+    <div id="view-h-question" class="view-section bg-[#f2f2f2] flex-col relative">
+        <button onclick="hostSkipQ()" class="absolute top-4 left-4 bg-gray-300 font-bold py-2 px-4 rounded btn-k z-20 hover:bg-gray-400">Skip</button>
+        <div class="text-center py-6 px-10 bg-white shadow z-10 flex justify-center items-center h-24">
+            <h2 class="text-4xl font-bold text-gray-800 w-full truncate" id="h-q-title"></h2>
         </div>
-        <div id="host-q-options" class="grid grid-cols-2 gap-4 p-6 flex-grow max-w-6xl mx-auto w-full"></div>
-    </div>
-
-    <!-- HOST: QUESTION RESULTS -->
-    <div id="view-host-results" class="view-section bg-gray-100 flex flex-col items-center justify-center relative">
-        <button onclick="nextHostStep()" class="absolute top-6 left-6 bg-blue-600 text-white font-bold py-3 px-8 rounded btn-shadow hover:bg-blue-700 transition z-20">הבא ❯</button>
-        <h2 class="text-4xl font-bold text-gray-800 mb-8">תוצאות</h2>
-        <div id="host-results-chart" class="bar-chart w-full max-w-4xl px-8 border-b-2 border-gray-400"></div>
-    </div>
-
-    <!-- HOST: SCOREBOARD -->
-    <div id="view-host-scoreboard" class="view-section bg-gray-100 flex flex-col items-center justify-center relative">
-        <button onclick="nextHostStep()" class="absolute top-6 left-6 bg-blue-600 text-white font-bold py-3 px-8 rounded btn-shadow hover:bg-blue-700 transition z-20">הבא ❯</button>
-        <h2 class="text-5xl font-bold text-gray-800 mb-12">לוח תוצאות</h2>
-        <div id="host-scoreboard-list" class="w-full max-w-2xl flex flex-col gap-4"></div>
-    </div>
-
-    <!-- HOST: PODIUM -->
-    <div id="view-host-podium" class="view-section bg-[#1368ce] text-white flex flex-col items-center justify-end pb-20 relative overflow-hidden text-center">
-        <h2 class="text-6xl font-black mb-20 z-10 animate-slide-up">פודיום</h2>
-        <div class="flex items-end justify-center gap-4 z-10 h-64">
-            <div class="flex flex-col items-center animate-slide-up" style="animation-delay: 0.5s;">
-                <div id="podium-name-2" class="text-2xl font-bold mb-2">-</div>
-                <div class="w-32 h-32 bg-gray-300 rounded-t-lg flex justify-center items-start pt-4 text-4xl font-black text-gray-600">2</div>
-            </div>
-            <div class="flex flex-col items-center animate-bounce-in" style="animation-delay: 1s;">
-                <div id="podium-name-1" class="text-3xl font-bold mb-2">-</div>
-                <div class="w-40 h-48 bg-yellow-400 rounded-t-lg flex justify-center items-start pt-4 text-6xl font-black text-yellow-700 shadow-2xl">1</div>
-            </div>
-            <div class="flex flex-col items-center animate-slide-up" style="animation-delay: 0.2s;">
-                <div id="podium-name-3" class="text-2xl font-bold mb-2">-</div>
-                <div class="w-32 h-24 bg-orange-400 rounded-t-lg flex justify-center items-start pt-4 text-4xl font-black text-orange-700">3</div>
+        <div class="flex-grow flex justify-center items-center relative p-4">
+            <div class="absolute left-10 w-24 h-24 bg-[var(--k-purple)] rounded-full flex justify-center items-center text-white text-4xl font-black btn-k shadow-lg" id="h-timer">20</div>
+            <img id="h-q-img" class="max-h-64 rounded shadow hidden">
+            <div class="absolute right-10 text-center">
+                <div class="text-4xl font-black text-gray-800" id="h-ans-count">0</div>
+                <div class="text-xl font-bold text-gray-500">Answers</div>
             </div>
         </div>
-        <button onclick="nav('view-admin-dashboard')" class="absolute top-6 left-6 bg-white/20 hover:bg-white/30 text-white font-bold py-3 px-8 rounded btn-shadow transition z-20">חזור לניהול</button>
+        <div class="grid gap-2 p-2 mx-auto w-full max-w-7xl h-48" id="h-options-grid"></div>
     </div>
 
-    <!-- PLAYER: JOIN PIN -->
-    <div id="view-player-join" class="view-section justify-center items-center bg-gray-100 p-4">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center">
-            <h1 class="text-5xl font-black text-blue-600 mb-8 tracking-tighter">Kahoot!</h1>
-            <input type="number" id="player-pin-input" placeholder="קוד משחק" class="w-full border-2 border-gray-300 rounded p-4 mb-4 text-center text-2xl font-bold outline-none">
-            <button onclick="joinGameWithPin()" class="w-full bg-gray-900 text-white font-bold py-4 text-xl rounded btn-shadow">היכנס</button>
-            <button onclick="nav('view-home')" class="mt-4 text-gray-500 block w-full">חזור</button>
-            <div id="join-error" class="text-red-500 font-bold mt-4 hidden">חדר לא נמצא</div>
+    <!-- ==================== HOST: RESULTS GRAPH ==================== -->
+    <div id="view-h-results" class="view-section bg-[#f2f2f2] flex-col items-center">
+        <div class="w-full flex justify-end p-4">
+            <button onclick="hostNextStep()" class="bg-[var(--k-blue)] text-white font-bold py-3 px-8 rounded btn-k text-xl">Next</button>
         </div>
+        <h2 class="text-4xl font-black text-gray-800 mt-10">Results</h2>
+        <div class="bar-chart" id="h-chart"></div>
+        <div class="grid grid-cols-4 gap-4 w-3/4 max-w-4xl mt-6" id="h-res-legend"></div>
     </div>
 
-    <!-- PLAYER: NICKNAME -->
-    <div id="view-player-nick" class="view-section justify-center items-center bg-gray-100 p-4">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center">
-            <h1 class="text-5xl font-black text-blue-600 mb-8 tracking-tighter">Kahoot!</h1>
-            <input type="text" id="player-nick-input" placeholder="כינוי" maxlength="15" class="w-full border-2 border-gray-300 rounded p-4 mb-4 text-center text-2xl font-bold outline-none">
-            <button onclick="submitNickname()" class="w-full bg-gray-900 text-white font-bold py-4 text-xl rounded btn-shadow">בוא נתחיל!</button>
+    <!-- ==================== HOST: SCOREBOARD ==================== -->
+    <div id="view-h-scoreboard" class="view-section bg-[#f2f2f2] flex-col items-center">
+        <div class="w-full flex justify-end p-4">
+            <button onclick="hostNextStep()" class="bg-[var(--k-blue)] text-white font-bold py-3 px-8 rounded btn-k text-xl">Next</button>
         </div>
+        <h2 class="text-5xl font-black text-gray-800 mt-4 mb-8">Scoreboard</h2>
+        <div class="w-full max-w-2xl flex flex-col gap-2" id="h-score-list"></div>
     </div>
 
-    <!-- PLAYER: WAITING -->
-    <div id="view-player-waiting" class="view-section justify-center items-center bg-k-green text-white text-center p-6">
-        <h2 class="text-3xl font-bold mb-4">אתה בפנים!</h2>
-        <p class="text-xl font-semibold opacity-80" id="player-waiting-name">מחכה למנהל...</p>
-    </div>
-
-    <!-- PLAYER: BUTTONS -->
-    <div id="view-player-buttons" class="view-section bg-gray-100 p-2">
-        <div id="player-buttons-grid" class="w-full h-full flex-grow grid gap-2 pb-2"></div>
-    </div>
-
-    <!-- PLAYER: RESULT -->
-    <div id="view-player-result" class="view-section justify-center items-center text-white text-center p-6">
-        <h2 id="p-result-title" class="text-5xl font-black mb-6">נכון!</h2>
-        <div id="p-result-icon" class="text-6xl mb-6">✔️</div>
-        <div class="bg-black/20 rounded-lg p-6 inline-block mb-12">
-            <div id="p-result-points" class="text-4xl font-black">+0</div>
-        </div>
-        <div class="bg-black/40 w-full p-4 absolute bottom-0 left-0 flex justify-between px-8 text-xl font-bold">
-            <span id="p-result-name"></span>
-            <span>סה"כ: <span id="p-result-total">0</span></span>
+    <!-- ==================== HOST: PODIUM ==================== -->
+    <div id="view-h-podium" class="view-section bg-[var(--k-purple)] text-white flex-col items-center justify-end pb-10">
+        <button onclick="nav('view-admin-dash')" class="absolute top-4 left-4 bg-white/20 text-white font-bold py-2 px-4 rounded hover:bg-white/30 btn-k">חזרה לניהול</button>
+        <h2 class="text-6xl font-black mb-auto mt-20 shadow-text">Podium</h2>
+        
+        <div class="flex items-end justify-center gap-2 h-64 w-full max-w-3xl">
+            <!-- Place 2 -->
+            <div class="flex flex-col items-center w-1/3 z-10">
+                <div id="pod-name-2" class="text-2xl font-bold mb-2 shadow-text"></div>
+                <div id="pod-score-2" class="text-lg font-bold mb-2"></div>
+                <div class="w-full bg-[var(--k-blue)] h-32 rounded-t flex justify-center pt-4 text-5xl font-black text-white/50 border-t-8 border-white/20">2</div>
+            </div>
+            <!-- Place 1 -->
+            <div class="flex flex-col items-center w-1/3 z-20">
+                <div id="pod-name-1" class="text-3xl font-bold mb-2 shadow-text"></div>
+                <div id="pod-score-1" class="text-xl font-bold mb-2"></div>
+                <div class="w-full bg-[var(--k-yellow)] h-48 rounded-t flex justify-center pt-4 text-6xl font-black text-white/50 border-t-8 border-white/20">1</div>
+            </div>
+            <!-- Place 3 -->
+            <div class="flex flex-col items-center w-1/3 z-0">
+                <div id="pod-name-3" class="text-2xl font-bold mb-2 shadow-text"></div>
+                <div id="pod-score-3" class="text-lg font-bold mb-2"></div>
+                <div class="w-full bg-[var(--k-green)] h-24 rounded-t flex justify-center pt-4 text-4xl font-black text-white/50 border-t-8 border-white/20">3</div>
+            </div>
         </div>
     </div>
 
     <script>
         const ADMIN_PASS = "2160";
-        let quizzes = JSON.parse(localStorage.getItem('quizzes')) || [];
-        const channel = new BroadcastChannel('kahoot-clone-channel');
+        const bc = new BroadcastChannel('kahoot_1to1');
+        
+        // Data Structures
+        let quizzes = JSON.parse(localStorage.getItem('k_quizzes')) || [];
+        
+        // Global States
+        let myId = Math.random().toString(36).substr(2, 9);
+        let myName = "";
+        let myScore = 0;
+        let activePin = null;
 
-        let hostCurrentQuiz = null, hostPin = null, hostPlayers = [], hostQIndex = 0, hostTimer = 0, timerIntervalRef = null;
-        let myPlayerId = 'p_' + Math.random().toString(36).substr(2, 9), myName = '', myScore = 0, myCurrentPin = null;
-        let editingQuizIndex = -1, currentQuizData = { title: '', questions: [] }, currentQIndex = 0;
+        let hostQuiz = null;
+        let hostPlayers = [];
+        let hostQIdx = 0;
+        let hostTimer = 0;
+        let hostTimerInt = null;
 
-        function nav(viewId) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
+        let editingQuizIndex = -1;
+        let creatorQuiz = null;
+        let creatorQIdx = 0;
+
+        const colors = ['var(--k-red)', 'var(--k-blue)', 'var(--k-yellow)', 'var(--k-green)'];
+        const shapes = ['triangle', 'diamond', 'circle', 'square'];
+
+        // Sounds (Beeps)
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        function beep(f, t) {
+            const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.type = 'square'; o.frequency.value = f;
+            o.connect(g); g.connect(ctx.destination);
+            o.start(); g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + t); o.stop(ctx.currentTime + t);
         }
 
-        function checkAdminLogin() {
-            if (document.getElementById('admin-password').value === ADMIN_PASS) {
-                document.getElementById('admin-password').value = '';
-                renderDashboard();
-                nav('view-admin-dashboard');
+        // Navigation
+        function nav(id) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // ==================== PLAYER LOGIC ====================
+        function checkPin() {
+            const pin = document.getElementById('pin-input').value;
+            document.getElementById('pin-error').classList.add('hidden');
+            if(pin.length === 0) return;
+            bc.postMessage({ type: 'REQ_JOIN', pin: pin, id: myId });
+            // Timeout to simulate checking
+            setTimeout(() => { if(!activePin) document.getElementById('pin-error').classList.remove('hidden'); }, 500);
+        }
+
+        function joinGame() {
+            myName = document.getElementById('nick-input').value.trim();
+            if(!myName) return;
+            bc.postMessage({ type: 'PLAYER_ENTER', pin: activePin, player: { id: myId, name: myName, score: 0 } });
+            document.getElementById('p-waiting-nick').innerText = myName;
+            nav('view-p-waiting');
+        }
+
+        function submitAnswer(idx) {
+            nav('view-p-wait-result');
+            bc.postMessage({ type: 'PLAYER_ANS', pin: activePin, id: myId, ans: idx });
+        }
+
+        // ==================== ADMIN LOGIC ====================
+        function loginAdmin() {
+            if(document.getElementById('admin-pass').value === ADMIN_PASS) {
+                document.getElementById('admin-pass').value = '';
+                renderDash();
+                nav('view-admin-dash');
             } else { alert('סיסמה שגויה'); }
         }
 
-        function renderDashboard() {
-            const list = document.getElementById('quiz-list');
-            list.innerHTML = '';
-            quizzes.forEach((quiz, index) => {
-                const qDiv = document.createElement('div');
-                qDiv.className = 'bg-white p-6 rounded-lg shadow border border-gray-200';
-                qDiv.innerHTML = `
-                    <h3 class="text-xl font-bold mb-2 truncate">${quiz.title || 'ללא שם'}</h3>
-                    <p class="text-gray-500 mb-6">${quiz.questions.length} שאלות</p>
-                    <div class="flex gap-2">
-                        <button onclick="editQuiz(${index})" class="flex-1 bg-gray-200 py-2 rounded font-bold">✏️ עריכה</button>
-                        <button onclick="deleteQuiz(${index})" class="flex-1 bg-red-100 text-red-600 py-2 rounded font-bold">🗑️</button>
-                    </div>
-                    <button onclick="initHostLobby(${index})" class="w-full mt-3 bg-blue-600 text-white font-bold py-3 rounded btn-shadow">▶️ הפעל</button>
-                `;
-                list.appendChild(qDiv);
+        function renderDash() {
+            const l = document.getElementById('quiz-list');
+            l.innerHTML = '';
+            quizzes.forEach((q, i) => {
+                l.innerHTML += `
+                    <div class="bg-white p-6 rounded shadow border-t-4 border-[var(--k-purple)]">
+                        <h3 class="text-xl font-bold mb-2 truncate text-gray-800">${q.title}</h3>
+                        <p class="text-gray-500 mb-4 font-semibold">${q.questions.length} Questions</p>
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="openEditor(${i})" class="flex-1 bg-gray-200 hover:bg-gray-300 font-bold py-2 rounded">ערוך</button>
+                            <button onclick="deleteQuiz(${i})" class="flex-1 bg-red-100 text-red-600 hover:bg-red-200 font-bold py-2 rounded">מחק</button>
+                        </div>
+                        <button onclick="hostInit(${i})" class="w-full bg-[var(--k-green)] text-white font-bold py-3 rounded btn-k text-lg">Play</button>
+                    </div>`;
             });
         }
 
-        function deleteQuiz(index) {
-            if(confirm('למחוק?')) { quizzes.splice(index, 1); saveQuizzesToStorage(); renderDashboard(); }
-        }
+        function deleteQuiz(i) { if(confirm('למחוק חידון זה?')) { quizzes.splice(i,1); saveQuizzes(); renderDash(); } }
+        function saveQuizzes() { localStorage.setItem('k_quizzes', JSON.stringify(quizzes)); }
 
-        function openQuizCreator() {
-            editingQuizIndex = -1;
-            currentQuizData = { title: '', questions: [createNewQuestion()] };
-            currentQIndex = 0;
-            initCreatorUI();
-            nav('view-quiz-creator');
-        }
-
-        function editQuiz(index) {
+        // ==================== CREATOR LOGIC ====================
+        function getEmptyQ() { return { type: 'regular', time: 20, text: '', img: null, ans: ['','','',''], correct: 0 }; }
+        
+        function openEditor(index) {
             editingQuizIndex = index;
-            currentQuizData = JSON.parse(JSON.stringify(quizzes[index]));
-            currentQIndex = 0;
-            initCreatorUI();
-            nav('view-quiz-creator');
+            if(index === -1) { creatorQuiz = { title: '', questions: [getEmptyQ()] }; } 
+            else { creatorQuiz = JSON.parse(JSON.stringify(quizzes[index])); }
+            document.getElementById('quiz-title').value = creatorQuiz.title;
+            creatorQIdx = 0;
+            renderCreatorSide();
+            loadQ();
+            nav('view-admin-creator');
         }
 
-        function createNewQuestion() {
-            return { type: 'regular', text: '', time: 20, double: false, image: null, answers: ['', '', '', ''], correctIndex: 0 };
-        }
-
-        function initCreatorUI() {
-            document.getElementById('quiz-title-input').value = currentQuizData.title;
-            renderCreatorSidebar();
-            loadQuestionToEditor(0);
-        }
-
-        function renderCreatorSidebar() {
-            const sidebar = document.getElementById('creator-sidebar');
-            Array.from(sidebar.children).forEach(child => { if (!child.onclick || !child.onclick.toString().includes('addQuestion')) sidebar.removeChild(child); });
-            currentQuizData.questions.forEach((q, index) => {
-                const div = document.createElement('div');
-                div.className = `p-3 rounded cursor-pointer border-2 ${index === currentQIndex ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
-                div.onclick = () => loadQuestionToEditor(index);
-                div.innerHTML = `<div class="text-xs font-bold text-gray-500">שאלה ${index+1}</div><div class="truncate text-sm font-semibold">${q.text || '...'}</div>`;
-                sidebar.insertBefore(div, sidebar.lastElementChild);
+        function renderCreatorSide() {
+            const sb = document.getElementById('creator-sidebar'); sb.innerHTML = '';
+            creatorQuiz.questions.forEach((q, i) => {
+                const isSel = i === creatorQIdx;
+                sb.innerHTML += `
+                    <div class="p-2 rounded cursor-pointer border-2 ${isSel ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-100'}" onclick="creatorQIdx=${i}; loadQ();">
+                        <div class="text-xs font-bold text-gray-500">שאלה ${i+1}</div>
+                        <div class="text-sm font-bold truncate">${q.text || '...'}</div>
+                    </div>`;
             });
+            sb.innerHTML += `<button onclick="creatorQuiz.questions.push(getEmptyQ()); creatorQIdx=creatorQuiz.questions.length-1; renderCreatorSide(); loadQ();" class="mt-2 bg-gray-200 font-bold py-2 rounded hover:bg-gray-300">➕ הוסף שאלה</button>`;
         }
 
-        function loadQuestionToEditor(index) {
-            currentQIndex = index;
-            const q = currentQuizData.questions[index];
-            document.getElementById('q-type').value = q.type;
-            document.getElementById('q-time').value = q.time;
-            document.getElementById('q-double').checked = q.double;
+        function loadQ() {
+            const q = creatorQuiz.questions[creatorQIdx];
             document.getElementById('q-text').value = q.text;
-            const imgPreview = document.getElementById('q-image-preview');
-            const removeBtn = document.getElementById('q-remove-image');
-            if (q.image) { imgPreview.src = q.image; imgPreview.classList.remove('hidden'); removeBtn.classList.remove('hidden'); }
-            else { imgPreview.classList.add('hidden'); removeBtn.classList.add('hidden'); }
-            renderAnswersEditor();
-            renderCreatorSidebar();
+            document.getElementById('q-time').value = q.time;
+            document.getElementById('q-type').value = q.type;
+            
+            const imgP = document.getElementById('q-img-preview');
+            const imgR = document.getElementById('q-img-remove');
+            if(q.img) { imgP.src = q.img; imgP.classList.remove('hidden'); imgR.classList.remove('hidden'); }
+            else { imgP.classList.add('hidden'); imgR.classList.add('hidden'); }
+            
+            renderCreatorAns();
+            renderCreatorSide();
         }
 
-        function updateQuestionUI() {
-            const type = document.getElementById('q-type').value;
-            const q = currentQuizData.questions[currentQIndex];
-            q.type = type;
-            if (type === 'boolean') { q.answers = ['אמת', 'שקר']; q.correctIndex = Math.min(q.correctIndex, 1); }
-            else { while(q.answers.length < 4) q.answers.push(''); }
-            renderAnswersEditor();
-        }
-
-        function renderAnswersEditor() {
-            const container = document.getElementById('answers-container');
-            container.innerHTML = '';
-            const q = currentQuizData.questions[currentQIndex];
-            const colors = ['bg-k-red', 'bg-k-blue', 'bg-k-yellow', 'bg-k-green'];
-            const shapes = ['<div class="shape-triangle"></div>','<div class="shape-diamond"></div>','<div class="shape-circle"></div>','<div class="shape-square"></div>'];
+        function renderCreatorAns() {
+            const q = creatorQuiz.questions[creatorQIdx];
+            const c = document.getElementById('q-answers-container'); c.innerHTML = '';
             const count = q.type === 'regular' ? 4 : 2;
+            const bgc = ['bg-[#e21b3c]','bg-[#1368ce]','bg-[#d89e00]','bg-[#26890c]'];
+            
             for(let i=0; i<count; i++) {
-                const isCorrect = q.correctIndex === i;
-                container.innerHTML += `
-                    <div class="relative flex items-center bg-white rounded border ${isCorrect ? 'border-green-500 border-4' : 'border-gray-200'} overflow-hidden h-24">
-                        <div class="${colors[i]} w-16 h-full flex justify-center items-center">${shapes[i]}</div>
-                        ${q.type === 'regular' ? `<textarea class="flex-grow p-4 resize-none outline-none font-bold" oninput="currentQuizData.questions[currentQIndex].answers[${i}]=this.value">${q.answers[i]}</textarea>` : `<div class="flex-grow p-4 text-2xl font-bold">${q.answers[i]}</div>`}
-                        <button class="absolute left-2 w-10 h-10 rounded-full border-4 ${isCorrect ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}" onclick="setCorrectAnswer(${i})">${isCorrect ? '✓' : ''}</button>
+                const isC = q.correct === i;
+                c.innerHTML += `
+                    <div class="relative flex items-center bg-white rounded shadow-sm border ${isC ? 'border-green-500 border-4' : 'border-gray-200'} h-24 overflow-hidden">
+                        <div class="${bgc[i]} w-12 h-full flex justify-center items-center"><div class="shape-container"><div class="k-shape k-${shapes[i]} scale-50"></div></div></div>
+                        ${q.type === 'regular' 
+                            ? `<textarea class="flex-grow p-3 resize-none outline-none font-bold h-full" placeholder="הוסף תשובה" oninput="creatorQuiz.questions[creatorQIdx].ans[${i}]=this.value">${q.ans[i]}</textarea>` 
+                            : `<div class="flex-grow p-4 text-xl font-bold flex items-center">${i===0?'True':'False'}</div>`
+                        }
+                        <button class="absolute left-2 w-10 h-10 rounded-full border-4 ${isC?'bg-green-500 border-green-500 text-white':'border-gray-300'}" onclick="creatorQuiz.questions[creatorQIdx].correct=${i}; renderCreatorAns();">${isC?'✓':''}</button>
                     </div>`;
             }
         }
 
-        function setCorrectAnswer(idx) { currentQuizData.questions[currentQIndex].correctIndex = idx; renderAnswersEditor(); }
-        function addQuestion() { currentQuizData.questions.push(createNewQuestion()); loadQuestionToEditor(currentQuizData.questions.length-1); }
-        function deleteCurrentQuestion() { if(currentQuizData.questions.length > 1) { currentQuizData.questions.splice(currentQIndex, 1); loadQuestionToEditor(0); } }
-        function handleImageUpload(e) { const reader = new FileReader(); reader.onload = (ev) => { currentQuizData.questions[currentQIndex].image = ev.target.result; loadQuestionToEditor(currentQIndex); }; reader.readAsDataURL(e.target.files[0]); }
-        function removeImage() { currentQuizData.questions[currentQIndex].image = null; loadQuestionToEditor(currentQIndex); }
-        function updateCurrentQuestionData() { const q = currentQuizData.questions[currentQIndex]; q.text = document.getElementById('q-text').value; q.time = parseInt(document.getElementById('q-time').value); q.double = document.getElementById('q-double').checked; renderCreatorSidebar(); }
-        function saveQuiz() { currentQuizData.title = document.getElementById('quiz-title-input').value || 'ללא שם'; if (editingQuizIndex >= 0) quizzes[editingQuizIndex] = currentQuizData; else quizzes.push(currentQuizData); saveQuizzesToStorage(); renderDashboard(); nav('view-admin-dashboard'); }
-        function saveQuizzesToStorage() { localStorage.setItem('quizzes', JSON.stringify(quizzes)); }
+        function updateQData() {
+            const q = creatorQuiz.questions[creatorQIdx];
+            q.text = document.getElementById('q-text').value;
+            q.time = parseInt(document.getElementById('q-time').value);
+            renderCreatorSide();
+        }
 
-        // Host
-        function initHostLobby(idx) { hostCurrentQuiz = quizzes[idx]; hostPin = Math.floor(100000 + Math.random() * 900000).toString(); hostPlayers = []; hostQIndex = 0; document.getElementById('host-pin-display').innerText = hostPin; updateHostLobbyUI(); channel.postMessage({ type: 'HOST_CREATED', pin: hostPin }); startLobbyMusic(); nav('view-host-lobby'); }
-        function updateHostLobbyUI() { document.getElementById('host-player-count').innerText = hostPlayers.length; const btn = document.getElementById('btn-start-game'); hostPlayers.length > 0 ? btn.classList.remove('opacity-50', 'cursor-not-allowed') : btn.classList.add('opacity-50', 'cursor-not-allowed'); const list = document.getElementById('host-players-list'); list.innerHTML = ''; hostPlayers.forEach(p => { const d = document.createElement('div'); d.className = 'player-pill animate-bounce-in'; d.innerText = p.name; d.onclick = () => kickPlayer(p.id); list.appendChild(d); }); }
-        function kickPlayer(id) { hostPlayers = hostPlayers.filter(p => p.id !== id); updateHostLobbyUI(); channel.postMessage({ type: 'KICK_PLAYER', pin: hostPin, id: id }); }
-        function toggleMusic() { isMusicMuted = !isMusicMuted; document.getElementById('music-icon').innerText = isMusicMuted ? '🔇' : '🔊'; }
-        function endGameHost() { stopLobbyMusic(); stopTimerMusic(); clearInterval(timerIntervalRef); channel.postMessage({ type: 'GAME_ENDED', pin: hostPin }); nav('view-admin-dashboard'); }
-        function startHostGame() { stopLobbyMusic(); showHostQuestion(); }
-        function showHostQuestion() {
-            const q = hostCurrentQuiz.questions[hostQIndex];
-            document.getElementById('host-q-text').innerText = q.text;
-            const img = document.getElementById('host-q-image');
-            if(q.image) { img.src = q.image; img.classList.remove('hidden'); } else img.classList.add('hidden');
-            hostPlayers.forEach(p => { p.currentAnswer = null; p.answerTime = null; });
-            document.getElementById('host-answers-count').innerText = '0';
-            renderHostOptions(q);
-            nav('view-host-question');
-            channel.postMessage({ type: 'QUESTION_START', pin: hostPin, qType: q.type, timeLimit: q.time });
-            hostTimer = q.time; document.getElementById('host-timer').innerText = hostTimer; startTimerMusic();
-            timerIntervalRef = setInterval(() => { hostTimer--; document.getElementById('host-timer').innerText = hostTimer; if(hostTimer <= 0) skipQuestion(); }, 1000);
+        function changeQType() {
+            const q = creatorQuiz.questions[creatorQIdx];
+            q.type = document.getElementById('q-type').value;
+            if(q.type === 'boolean') { q.ans = ['True','False']; q.correct = Math.min(q.correct, 1); }
+            renderCreatorAns();
         }
-        function renderHostOptions(q) {
-            const c = document.getElementById('host-q-options'); c.innerHTML = '';
-            const colors = ['bg-k-red', 'bg-k-blue', 'bg-k-yellow', 'bg-k-green'];
-            const shapes = ['<div class="shape-triangle"></div>','<div class="shape-diamond"></div>','<div class="shape-circle"></div>','<div class="shape-square"></div>'];
-            const count = q.type === 'regular' ? 4 : 2;
-            const tfColors = ['bg-k-blue', 'bg-k-red'];
-            for(let i=0; i<count; i++) {
-                const color = q.type === 'boolean' ? tfColors[i] : colors[i];
-                c.innerHTML += `<div class="${color} rounded p-6 text-white text-3xl font-bold flex items-center gap-6"><div class="w-16 h-16 flex justify-center items-center">${shapes[i]}</div><div>${q.answers[i]}</div></div>`;
-            }
+
+        function deleteCurrentQ() {
+            if(creatorQuiz.questions.length > 1) {
+                creatorQuiz.questions.splice(creatorQIdx, 1);
+                creatorQIdx = 0; renderCreatorSide(); loadQ();
+            } else alert('חייבת להיות לפחות שאלה אחת');
         }
-        function skipQuestion() { clearInterval(timerIntervalRef); stopTimerMusic(); processResults(); }
-        function processResults() {
-            const q = hostCurrentQuiz.questions[hostQIndex];
-            const max = q.double ? 2000 : 1000;
-            let counts = [0,0,0,0];
+
+        function uploadImage(e) {
+            const r = new FileReader();
+            r.onload = ev => { creatorQuiz.questions[creatorQIdx].img = ev.target.result; loadQ(); };
+            if(e.target.files[0]) r.readAsDataURL(e.target.files[0]);
+        }
+        function removeImage(e) { e.stopPropagation(); creatorQuiz.questions[creatorQIdx].img = null; document.getElementById('q-img-upload').value=''; loadQ(); }
+
+        function saveQuiz() {
+            creatorQuiz.title = document.getElementById('quiz-title').value || 'Untitled Kahoot';
+            if(editingQuizIndex === -1) quizzes.push(creatorQuiz);
+            else quizzes[editingQuizIndex] = creatorQuiz;
+            saveQuizzes(); renderDash(); nav('view-admin-dash');
+        }
+
+        // ==================== HOST GAME LOGIC ====================
+        function hostInit(idx) {
+            hostQuiz = quizzes[idx];
+            activePin = Math.floor(100000 + Math.random() * 900000).toString();
+            hostPlayers = []; hostQIdx = 0;
+            document.getElementById('h-pin-display').innerText = activePin;
+            updateHostLobby();
+            nav('view-h-lobby');
+        }
+
+        function updateHostLobby() {
+            document.getElementById('h-player-count').innerText = hostPlayers.length;
+            const list = document.getElementById('h-players-list'); list.innerHTML = '';
             hostPlayers.forEach(p => {
-                if(p.currentAnswer !== null) {
-                    counts[p.currentAnswer]++;
-                    if(p.currentAnswer === q.correctIndex) {
-                        const pts = Math.round((1 - ((p.answerTime/q.time)/2)) * max);
-                        p.score += pts;
-                        channel.postMessage({ type: 'RESULT_INDIVIDUAL', pin: hostPin, id: p.id, correct: true, points: pts, total: p.score });
-                    } else channel.postMessage({ type: 'RESULT_INDIVIDUAL', pin: hostPin, id: p.id, correct: false, points: 0, total: p.score });
-                } else channel.postMessage({ type: 'RESULT_INDIVIDUAL', pin: hostPin, id: p.id, correct: false, points: 0, total: p.score });
+                list.innerHTML += `<div class="bg-white text-gray-800 font-bold px-4 py-2 rounded shadow text-xl cursor-pointer hover:line-through" onclick="kick('${p.id}')">${p.name}</div>`;
             });
-            const chart = document.getElementById('host-results-chart'); chart.innerHTML = '';
-            const maxAns = Math.max(...counts, 1);
-            for(let i=0; i<(q.type === 'regular' ? 4 : 2); i++) {
-                const h = (counts[i]/maxAns)*100;
-                chart.innerHTML += `<div class="bar" style="height: ${Math.max(h,5)}%; background-color: ${i===q.correctIndex?'#26890c':'#ccc'}">${counts[i]}</div>`;
-            }
-            nav('view-host-results');
-        }
-        function nextHostStep() {
-            if(document.getElementById('view-host-results').classList.contains('active')) { renderScoreboard(); nav('view-host-scoreboard'); }
-            else { hostQIndex++; if(hostQIndex < hostCurrentQuiz.questions.length) showHostQuestion(); else { renderPodium(); nav('view-host-podium'); } }
-        }
-        function renderScoreboard() {
-            const l = document.getElementById('host-scoreboard-list'); l.innerHTML = '';
-            [...hostPlayers].sort((a,b)=>b.score-a.score).slice(0,5).forEach(p => {
-                l.innerHTML += `<div class="bg-white p-4 rounded flex justify-between font-bold shadow"><span>${p.name}</span><span>${p.score}</span></div>`;
-            });
-        }
-        function renderPodium() {
-            const s = [...hostPlayers].sort((a,b)=>b.score-a.score);
-            if(s[0]) document.getElementById('podium-name-1').innerText = s[0].name;
-            if(s[1]) document.getElementById('podium-name-2').innerText = s[1].name;
-            if(s[2]) document.getElementById('podium-name-3').innerText = s[2].name;
+            const btn = document.getElementById('h-start-btn');
+            if(hostPlayers.length > 0) { btn.classList.remove('opacity-50','pointer-events-none'); btn.classList.add('hover:bg-blue-700'); }
+            else { btn.classList.add('opacity-50','pointer-events-none'); }
         }
 
-        // Player
-        function joinGameWithPin() {
-            const pin = document.getElementById('player-pin-input').value;
-            document.getElementById('join-error').classList.add('hidden');
-            channel.postMessage({ type: 'CHECK_PIN', pin: pin, playerId: myPlayerId });
-            setTimeout(() => { if(!myCurrentPin) document.getElementById('join-error').classList.remove('hidden'); }, 500);
+        function kick(id) {
+            hostPlayers = hostPlayers.filter(p => p.id !== id);
+            bc.postMessage({ type: 'KICK', pin: activePin, id: id });
+            updateHostLobby();
         }
-        function submitNickname() {
-            myName = document.getElementById('player-nick-input').value;
-            channel.postMessage({ type: 'PLAYER_JOIN', pin: myCurrentPin, player: { id: myPlayerId, name: myName, score: 0 } });
-            document.getElementById('player-waiting-name').innerText = myName; nav('view-player-waiting');
+
+        function hostEndGame() { activePin = null; bc.postMessage({ type: 'END', pin: activePin }); nav('view-admin-dash'); }
+
+        function hostStartGame() {
+            bc.postMessage({ type: 'STATE', pin: activePin, state: 'GET_READY' });
+            document.getElementById('h-getready-title').innerText = hostQuiz.title;
+            nav('view-h-getready');
+            setTimeout(showQ, 5000);
         }
-        function showPlayerButtons(type, time) {
-            const g = document.getElementById('player-buttons-grid'); g.innerHTML = '';
-            const count = type === 'regular' ? 4 : 2;
-            const start = Date.now();
-            const colors = ['bg-k-red', 'bg-k-blue', 'bg-k-yellow', 'bg-k-green'];
-            const tfColors = ['bg-k-blue', 'bg-k-red'];
-            const shapes = ['triangle','diamond','circle','square'];
-            g.className = `w-full h-full flex-grow grid gap-2 ${type==='regular'?'grid-cols-2':'grid-cols-1'}`;
+
+        function showQ() {
+            const q = hostQuiz.questions[hostQIdx];
+            document.getElementById('h-q-title').innerText = q.text;
+            const img = document.getElementById('h-q-img');
+            if(q.img) { img.src = q.img; img.classList.remove('hidden'); } else img.classList.add('hidden');
+            
+            hostPlayers.forEach(p => { p.currAns = null; p.ansTime = null; });
+            document.getElementById('h-ans-count').innerText = '0';
+            
+            // Render Options
+            const og = document.getElementById('h-options-grid'); og.innerHTML = '';
+            const count = q.type === 'regular' ? 4 : 2;
+            og.className = `grid gap-2 p-2 mx-auto w-full max-w-7xl h-48 ${count===4 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-2 grid-rows-1'}`;
+            const bgc = ['bg-[var(--k-red)]','bg-[var(--k-blue)]','bg-[var(--k-yellow)]','bg-[var(--k-green)]'];
+            
             for(let i=0; i<count; i++) {
-                const b = document.createElement('button');
-                b.className = `${type==='boolean'?tfColors[i]:colors[i]} rounded flex justify-center items-center h-full`;
-                b.innerHTML = `<div class="shape-${shapes[i]}"></div>`;
-                b.onclick = () => {
-                    channel.postMessage({ type: 'SUBMIT_ANSWER', pin: myCurrentPin, id: myPlayerId, answer: i, time: (Date.now()-start)/1000 });
-                    nav('view-player-waiting');
-                };
-                g.appendChild(b);
+                og.innerHTML += `
+                    <div class="${bgc[i]} rounded text-white flex items-center px-4 btn-k shadow-sm">
+                        <div class="shape-container w-12 h-12 mr-4"><div class="k-shape k-${shapes[i]} scale-75"></div></div>
+                        <span class="text-2xl font-bold shadow-text flex-grow">${q.ans[i]}</span>
+                    </div>`;
             }
-            nav('view-player-buttons');
+
+            nav('view-h-question');
+            hostTimer = q.time;
+            document.getElementById('h-timer').innerText = hostTimer;
+            const startTime = Date.now();
+            
+            bc.postMessage({ type: 'STATE', pin: activePin, state: 'QUESTION', qType: q.type });
+            
+            clearInterval(hostTimerInt);
+            hostTimerInt = setInterval(() => {
+                hostTimer--;
+                document.getElementById('h-timer').innerText = hostTimer;
+                if(hostTimer%2===0) beep(400, 0.1); else beep(600, 0.1);
+                if(hostTimer <= 0) hostSkipQ();
+            }, 1000);
         }
 
-        channel.onmessage = (m) => {
-            const d = m.data;
-            if(hostPin && d.pin === hostPin) {
-                if(d.type === 'CHECK_PIN') channel.postMessage({ type: 'PIN_VALID', pin: hostPin, playerId: d.playerId });
-                if(d.type === 'PLAYER_JOIN' && !hostPlayers.find(p=>p.id===d.player.id)) { hostPlayers.push(d.player); updateHostLobbyUI(); }
-                if(d.type === 'SUBMIT_ANSWER') {
-                    const p = hostPlayers.find(x=>x.id===d.id);
-                    if(p) { p.currentAnswer = d.answer; p.answerTime = d.time; 
-                    document.getElementById('host-answers-count').innerText = hostPlayers.filter(x=>x.currentAnswer!==null).length;
-                    if(hostPlayers.every(x=>x.currentAnswer!==null)) skipQuestion(); }
+        function hostSkipQ() {
+            clearInterval(hostTimerInt);
+            const q = hostQuiz.questions[hostQIdx];
+            const maxPts = 1000;
+            let counts = [0,0,0,0];
+
+            hostPlayers.forEach(p => {
+                let pts = 0; let correct = false;
+                if(p.currAns !== null) {
+                    counts[p.currAns]++;
+                    if(p.currAns === q.correct) {
+                        pts = Math.round((1 - ((p.ansTime/q.time)/2)) * maxPts);
+                        correct = true;
+                    }
+                }
+                p.score += pts;
+                bc.postMessage({ type: 'RESULT', pin: activePin, id: p.id, correct: correct, pts: pts, total: p.score, rank: 0 }); // rank simplified for 1to1 clone size
+            });
+
+            // Draw Chart
+            const chart = document.getElementById('h-chart'); chart.innerHTML = '';
+            const legend = document.getElementById('h-res-legend'); legend.innerHTML = '';
+            const count = q.type === 'regular' ? 4 : 2;
+            const max = Math.max(...counts, 1);
+            const bgc = ['var(--k-red)','var(--k-blue)','var(--k-yellow)','var(--k-green)'];
+
+            for(let i=0; i<count; i++) {
+                const h = (counts[i]/max)*100;
+                const isC = i === q.correct;
+                chart.innerHTML += `
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="text-xl font-bold text-gray-800">${counts[i]}</div>
+                        <div class="w-16 flex flex-col justify-end h-full">
+                            <div style="height: ${Math.max(h,5)}%; background-color: ${isC ? 'var(--k-green)' : bgc[i]}; transition: height 1s" class="rounded-t border-b-4 border-black/20"></div>
+                        </div>
+                        <div class="bg-gray-300 w-12 h-6 flex justify-center items-center rounded mt-2"><div class="shape-container scale-50"><div class="k-shape k-${shapes[i]}" style="background-color: ${bgc[i]}"></div></div></div>
+                    </div>`;
+            }
+            nav('view-h-results');
+        }
+
+        function hostNextStep() {
+            if(document.getElementById('view-h-results').classList.contains('active')) {
+                // To Scoreboard
+                const l = document.getElementById('h-score-list'); l.innerHTML = '';
+                [...hostPlayers].sort((a,b)=>b.score-a.score).slice(0,5).forEach(p => {
+                    l.innerHTML += `<div class="bg-white p-4 text-2xl font-bold flex justify-between shadow rounded border-l-8 border-[var(--k-purple)]"><span>${p.name}</span><span>${p.score}</span></div>`;
+                });
+                nav('view-h-scoreboard');
+            } else if (document.getElementById('view-h-scoreboard').classList.contains('active')) {
+                hostQIdx++;
+                if(hostQIdx < hostQuiz.questions.length) {
+                    bc.postMessage({ type: 'STATE', pin: activePin, state: 'GET_READY' });
+                    document.getElementById('h-getready-title').innerText = hostQuiz.questions[hostQIdx].text;
+                    nav('view-h-getready');
+                    setTimeout(showQ, 5000);
+                } else {
+                    // Podium
+                    const s = [...hostPlayers].sort((a,b)=>b.score-a.score);
+                    for(let i=1; i<=3; i++) {
+                        document.getElementById(`pod-name-${i}`).innerText = s[i-1] ? s[i-1].name : '';
+                        document.getElementById(`pod-score-${i}`).innerText = s[i-1] ? s[i-1].score : '';
+                    }
+                    bc.postMessage({ type: 'STATE', pin: activePin, state: 'PODIUM' });
+                    nav('view-h-podium');
                 }
             }
-            if(d.type === 'PIN_VALID' && d.playerId === myPlayerId) { myCurrentPin = d.pin; nav('view-player-nick'); }
-            if(myCurrentPin && d.pin === myCurrentPin) {
-                if(d.type === 'KICK_PLAYER' && d.id === myPlayerId) { myCurrentPin = null; nav('view-player-join'); }
-                if(d.type === 'QUESTION_START') showPlayerButtons(d.qType, d.timeLimit);
-                if(d.type === 'RESULT_INDIVIDUAL' && d.id === myPlayerId) {
-                    document.getElementById('p-result-points').innerText = `+${d.points}`;
-                    document.getElementById('p-result-total').innerText = d.total;
-                    document.getElementById('p-result-name').innerText = myName;
-                    document.getElementById('p-result-title').innerText = d.correct ? 'נכון!' : 'לא נכון!';
-                    document.getElementById('view-player-result').className = `view-section active justify-center items-center text-white text-center ${d.correct?'bg-k-green':'bg-k-red'}`;
-                    nav('view-player-result');
+        }
+
+        // ==================== BROADCAST LISTENER ====================
+        bc.onmessage = (m) => {
+            const d = m.data;
+            
+            // HOST RECEIVING
+            if(activePin && hostQuiz && d.pin === activePin) {
+                if(d.type === 'REQ_JOIN') bc.postMessage({ type: 'ACK_JOIN', pin: activePin, id: d.id });
+                if(d.type === 'PLAYER_ENTER' && !hostPlayers.find(p=>p.id===d.player.id)) { hostPlayers.push(d.player); updateHostLobby(); }
+                if(d.type === 'PLAYER_ANS') {
+                    const p = hostPlayers.find(x=>x.id===d.id);
+                    if(p) { p.currAns = d.ans; p.ansTime = hostQuiz.questions[hostQIdx].time - hostTimer; }
+                    document.getElementById('h-ans-count').innerText = hostPlayers.filter(x=>x.currAns!==null).length;
+                    if(hostPlayers.every(x=>x.currAns!==null)) hostSkipQ();
                 }
-                if(d.type === 'GAME_ENDED') { myCurrentPin = null; nav('view-home'); }
+            }
+
+            // PLAYER RECEIVING
+            if(d.type === 'ACK_JOIN' && d.id === myId) {
+                activePin = d.pin;
+                document.getElementById('join-step-1').classList.add('hidden');
+                document.getElementById('join-step-2').classList.remove('hidden');
+            }
+            
+            if(activePin && d.pin === activePin) {
+                if(d.type === 'KICK' && d.id === myId) { window.location.reload(); }
+                if(d.type === 'END') { window.location.reload(); }
+                if(d.type === 'STATE') {
+                    if(d.state === 'GET_READY') nav('view-p-getready');
+                    if(d.state === 'QUESTION') {
+                        const isReg = d.qType === 'regular';
+                        document.getElementById('p-btn-2').style.display = isReg ? 'flex' : 'none';
+                        document.getElementById('p-btn-3').style.display = isReg ? 'flex' : 'none';
+                        document.getElementById('p-btn-grid').className = `grid gap-2 w-full h-full ${isReg ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1 grid-rows-2'}`;
+                        nav('view-p-buttons');
+                    }
+                    if(d.state === 'PODIUM') {
+                        document.getElementById('p-res-title').innerText = "Game Over!";
+                        document.getElementById('p-res-points').style.display = 'none';
+                        nav('view-p-result');
+                    }
+                }
+                if(d.type === 'RESULT' && d.id === myId) {
+                    document.getElementById('p-res-title').innerText = d.correct ? 'Correct' : 'Incorrect';
+                    document.getElementById('p-res-points').innerText = `+${d.pts}`;
+                    document.getElementById('p-res-total').innerText = d.total;
+                    document.getElementById('p-res-name').innerText = myName;
+                    const v = document.getElementById('view-p-result');
+                    v.style.backgroundColor = d.correct ? 'var(--k-green)' : 'var(--k-red)';
+                    nav('view-p-result');
+                }
             }
         };
 
+        // Create sample if empty
         if(quizzes.length === 0) {
-            quizzes.push({ title: 'חידון דוגמה', questions: [{ type: 'regular', text: 'מה הצבע של השמיים?', time: 20, double: false, image: null, answers: ['אדום', 'כחול', 'ירוק', 'צהוב'], correctIndex: 1 }] });
-            saveQuizzesToStorage();
+            quizzes.push({ title: 'Sample Kahoot', questions: [{ type: 'regular', time: 20, text: 'What color is the sky?', img: null, ans: ['Red', 'Blue', 'Green', 'Yellow'], correct: 1 }] });
+            saveQuizzes();
         }
-        nav('view-home');
     </script>
 </body>
 </html>
