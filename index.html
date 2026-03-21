@@ -327,12 +327,24 @@
 
         // ==================== PLAYER LOGIC ====================
         function checkPin() {
-            const pin = document.getElementById('pin-input').value;
+            // הוספת trim() מונעת שגיאה אם המשתמש הכניס רווח בטעות
+            const pin = document.getElementById('pin-input').value.trim();
             document.getElementById('pin-error').classList.add('hidden');
             if(pin.length === 0) return;
+
+            // אימות מהיר ומדויק מול הלוקאל סטורג' שפותר את כל בעיות התקשורת באותו דפדפן
+            if (localStorage.getItem('k_active_pin') === pin) {
+                activePin = pin;
+                document.getElementById('join-step-1').classList.add('hidden');
+                document.getElementById('join-step-2').classList.remove('hidden');
+                return;
+            }
+
+            // גיבוי ל-BroadcastChannel אם מדובר בטאבים אחרים לחלוטין שלא חולקים סטורג' נגיש
             bc.postMessage({ type: 'REQ_JOIN', pin: pin, id: myId });
-            // Timeout to simulate checking
-            setTimeout(() => { if(!activePin) document.getElementById('pin-error').classList.remove('hidden'); }, 500);
+            
+            // הגדלת זמן ההמתנה ל-800 מילישניות ליתר ביטחון
+            setTimeout(() => { if(!activePin) document.getElementById('pin-error').classList.remove('hidden'); }, 800);
         }
 
         function joinGame() {
@@ -478,6 +490,7 @@
         function hostInit(idx) {
             hostQuiz = quizzes[idx];
             activePin = Math.floor(100000 + Math.random() * 900000).toString();
+            localStorage.setItem('k_active_pin', activePin); // שמירת החדר בלוקאל סטורג'
             hostPlayers = []; hostQIdx = 0;
             document.getElementById('h-pin-display').innerText = activePin;
             updateHostLobby();
@@ -501,7 +514,12 @@
             updateHostLobby();
         }
 
-        function hostEndGame() { activePin = null; bc.postMessage({ type: 'END', pin: activePin }); nav('view-admin-dash'); }
+        function hostEndGame() { 
+            activePin = null; 
+            localStorage.removeItem('k_active_pin'); // מחיקת החדר מהלוקאל סטורג' בסגירה
+            bc.postMessage({ type: 'END', pin: activePin }); 
+            nav('view-admin-dash'); 
+        }
 
         function hostStartGame() {
             bc.postMessage({ type: 'STATE', pin: activePin, state: 'GET_READY' });
