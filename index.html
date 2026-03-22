@@ -3,107 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kahoot!</title>
+    <title>Kahoot! Fixed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --k-red: #e21b3c;
-            --k-blue: #1368ce;
-            --k-yellow: #d89e00;
-            --k-green: #26890c;
-            --k-purple: #46178f;
-            --k-bg: #f2f2f2;
+            --k-red: #e21b3c; --k-blue: #1368ce; --k-yellow: #d89e00; --k-green: #26890c; --k-purple: #46178f; --k-bg: #f2f2f2;
         }
-
-        body {
-            font-family: 'Montserrat', sans-serif;
-            background-color: var(--k-bg);
-            margin: 0;
-            overflow: hidden; 
-            user-select: none;
-        }
-
-        .btn-k {
-            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
-            transition: transform 0.1s, box-shadow 0.1s;
-        }
-        .btn-k:active {
-            box-shadow: 0 0px 0 rgba(0, 0, 0, 0.2);
-            transform: translateY(4px);
-        }
-
+        body { font-family: 'Montserrat', sans-serif; background-color: var(--k-bg); margin: 0; overflow-x: hidden; user-select: none; }
+        .btn-k { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); transition: transform 0.1s, box-shadow 0.1s; }
+        .btn-k:active { box-shadow: 0 0px 0 rgba(0, 0, 0, 0.2); transform: translateY(4px); }
         .shape-container { display: flex; justify-content: center; align-items: center; }
         .k-shape { background-color: white; }
         .k-triangle { width: 0; height: 0; border-left: 3vw solid transparent; border-right: 3vw solid transparent; border-bottom: 5.2vw solid white; background-color: transparent; }
         .k-diamond { width: 4.5vw; height: 4.5vw; transform: rotate(45deg); }
         .k-circle { width: 5.5vw; height: 5.5vw; border-radius: 50%; }
         .k-square { width: 5vw; height: 5vw; }
-
         .p-triangle { width: 0; height: 0; border-left: 40px solid transparent; border-right: 40px solid transparent; border-bottom: 70px solid white; background-color: transparent; }
         .p-diamond { width: 60px; height: 60px; transform: rotate(45deg); background-color: white; }
         .p-circle { width: 70px; height: 70px; border-radius: 50%; background-color: white; }
         .p-square { width: 65px; height: 65px; background-color: white; }
-
         @keyframes pulse-bg { 0% { background-color: #46178f; } 50% { background-color: #25076b; } 100% { background-color: #46178f; } }
         .bg-animated { animation: pulse-bg 10s infinite alternate; }
-        @keyframes spinner { to { transform: rotate(360deg); } }
         .spinner { border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; width: 40px; height: 40px; animation: spinner 1s linear infinite; }
-        
+        @keyframes spinner { to { transform: rotate(360deg); } }
         .view-section { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; overflow-y: auto; }
         .view-section.active { display: flex; }
-
         .bar-chart { display: flex; align-items: flex-end; justify-content: center; gap: 2vw; height: 30vh; margin-top: 20px; border-bottom: 4px solid #ccc; width: 80%; }
-        .bar { width: 10vw; transition: height 1s ease-out; display: flex; justify-content: center; color: transparent; }
-        
         .shadow-text { text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
 
-    <!-- UI Navigation Script (מוגן מפני קריסות פיירבייס/סאונד) -->
+    <!-- UI Logic Global -->
     <script>
         window.nav = function(id) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         };
+        // Helper global for question template
+        window.generateEmptyQuestion = function() {
+            return { type: 'regular', time: 20, text: '', img: null, ans: ['', '', '', ''], correct: 0 };
+        };
     </script>
 
-    <!-- ==================== HOME / PLAYER LOGIN ==================== -->
+    <!-- VIEWS (Home, Waiting, Buttons, Result, Admin, Host, Podium) -->
+    
+    <!-- HOME -->
     <div id="view-home" class="view-section active bg-animated justify-center items-center">
         <div class="bg-white p-8 rounded shadow-2xl w-11/12 max-w-sm text-center z-10">
             <h1 class="text-5xl font-black text-[#46178f] mb-8 italic tracking-tighter">Kahoot!</h1>
-            
             <div id="join-step-1">
                 <input type="text" inputmode="numeric" id="pin-input" placeholder="Game PIN" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
                 <button onclick="checkPin()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k" id="btn-enter">Enter</button>
-                <div id="pin-error" class="text-red-500 font-bold mt-2 hidden">We didn't recognize that PIN.</div>
+                <div id="pin-error" class="text-red-500 font-bold mt-2 hidden">PIN לא תקין.</div>
             </div>
-
             <div id="join-step-2" class="hidden">
                 <input type="text" id="nick-input" placeholder="Nickname" maxlength="15" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
                 <button onclick="joinGame()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k">OK, go!</button>
             </div>
         </div>
-        
-        <!-- הכפתור שסודר - מוגן עם z-index ומרווח לחיצה גדול יותר -->
-        <button onclick="nav('view-admin-login')" class="absolute bottom-4 text-white/50 hover:text-white text-sm underline z-50 p-4 cursor-pointer font-bold">כניסת מנהל משחק</button>
+        <button onclick="nav('view-admin-login')" class="absolute bottom-4 text-white/50 hover:text-white text-sm underline z-50 p-4 font-bold">כניסת מנהל משחק</button>
     </div>
 
-    <!-- ==================== PLAYER: WAITING LOBBY ==================== -->
+    <!-- ADMIN LOGIN -->
+    <div id="view-admin-login" class="view-section bg-gray-100 justify-center items-center">
+        <div class="bg-white p-8 rounded shadow-lg w-full max-w-sm text-center border-t-8 border-[#46178f]">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">פאנל ניהול</h2>
+            <input type="password" id="admin-pass" placeholder="סיסמה (2160)" class="w-full border rounded p-3 mb-4 text-center text-xl">
+            <div id="admin-error" class="text-red-500 font-bold mb-4 hidden">סיסמה שגויה.</div>
+            <button onclick="loginAdmin()" class="w-full bg-[#46178f] text-white font-bold py-3 rounded btn-k">היכנס</button>
+            <button onclick="nav('view-home')" class="mt-4 text-gray-500 underline text-sm p-2">חזרה</button>
+        </div>
+    </div>
+
+    <!-- ADMIN DASHBOARD -->
+    <div id="view-admin-dash" class="view-section bg-gray-100">
+        <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-black text-[#46178f] italic">Kahoot!</h1>
+            <button onclick="nav('view-home')" class="text-gray-600 font-bold">יציאה</button>
+        </header>
+        <div class="p-6 max-w-6xl mx-auto w-full">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">החידונים שלי</h2>
+                <button onclick="openEditor(null)" class="bg-[var(--k-blue)] text-white font-bold py-2 px-6 rounded btn-k">צור חידון חדש</button>
+            </div>
+            <div id="quiz-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </div>
+    </div>
+
+    <!-- ADMIN CREATOR (Fixed logic) -->
+    <div id="view-admin-creator" class="view-section bg-gray-100">
+        <header class="bg-white shadow px-4 py-3 flex justify-between items-center z-10">
+            <input type="text" id="quiz-title" placeholder="שם החידון..." class="text-xl font-bold border-b-2 border-transparent focus:border-gray-400 outline-none w-1/3">
+            <div class="flex gap-2">
+                <button onclick="nav('view-admin-dash')" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded btn-k">ביטול</button>
+                <button onclick="saveQuiz()" id="btn-save-quiz" class="bg-[var(--k-green)] text-white font-bold py-2 px-6 rounded btn-k">שמור חידון</button>
+            </div>
+        </header>
+        <div class="flex flex-grow overflow-hidden">
+            <div class="w-56 bg-white border-l border-gray-200 p-2 overflow-y-auto flex flex-col gap-2" id="creator-sidebar"></div>
+            <div class="flex-grow p-4 flex flex-col items-center overflow-y-auto">
+                <div class="w-full max-w-4xl bg-white p-6 rounded shadow relative">
+                    <button onclick="deleteCurrentQ()" class="absolute top-4 left-4 text-red-500 font-bold p-2">🗑️ מחק שאלה</button>
+                    <div class="flex gap-4 mb-4 justify-center">
+                        <select id="q-time" class="border rounded p-2 font-bold" onchange="updateQData()">
+                            <option value="10">10 שניות</option><option value="20" selected>20 שניות</option><option value="60">60 שניות</option>
+                        </select>
+                        <select id="q-type" class="border rounded p-2 font-bold" onchange="changeQType()">
+                            <option value="regular">4 תשובות</option><option value="boolean">נכון/לא נכון</option>
+                        </select>
+                    </div>
+                    <input type="text" id="q-text" placeholder="הקלד את השאלה כאן" class="w-full text-center text-3xl font-bold py-4 border-b-2 mb-6 outline-none" oninput="updateQData()">
+                    <div class="w-64 h-48 mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex justify-center items-center relative mb-8 rounded cursor-pointer" onclick="document.getElementById('q-img-upload').click()">
+                        <span id="q-img-upload-text" class="text-gray-500 font-bold">➕ הוסף תמונה</span>
+                        <img id="q-img-preview" class="absolute inset-0 w-full h-full object-cover hidden rounded">
+                        <input type="file" id="q-img-upload" accept="image/*" class="hidden" onchange="uploadImage(event)">
+                        <button onclick="removeImage(event)" id="q-img-remove" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 hidden z-10">X</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2" id="q-answers-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HOST & PLAYER REMAINING VIEWS (Wait, Buttons, Podium etc - minimal labels) -->
     <div id="view-p-waiting" class="view-section justify-center items-center bg-[var(--k-green)] text-white text-center">
-        <h2 class="text-4xl font-bold mb-4">You're in!</h2>
-        <p class="text-xl font-semibold opacity-90">See your nickname on screen</p>
-        <div class="mt-8 text-2xl font-black" id="p-waiting-nick"></div>
+        <h2 class="text-4xl font-bold mb-4 italic">You're in!</h2>
+        <div id="p-waiting-nick" class="text-2xl font-black"></div>
     </div>
-
-    <!-- ==================== PLAYER: GET READY ==================== -->
-    <div id="view-p-getready" class="view-section justify-center items-center bg-[#46178f] text-white text-center">
-        <h2 class="text-5xl font-black shadow-text mb-8">Get Ready!</h2>
+    <div id="view-p-getready" class="view-section justify-center items-center bg-[#46178f] text-white">
+        <h2 class="text-5xl font-black mb-8 italic">Get Ready!</h2>
         <div class="spinner"></div>
     </div>
-
-    <!-- ==================== PLAYER: BUTTONS (NO TEXT) ==================== -->
     <div id="view-p-buttons" class="view-section bg-white p-2">
         <div class="grid grid-cols-2 grid-rows-2 gap-2 w-full h-full" id="p-btn-grid">
             <button onclick="submitAnswer(0)" class="bg-[var(--k-red)] rounded flex justify-center items-center btn-k"><div class="p-triangle"></div></button>
@@ -112,249 +144,90 @@
             <button onclick="submitAnswer(3)" id="p-btn-3" class="bg-[var(--k-green)] rounded flex justify-center items-center btn-k"><div class="p-square"></div></button>
         </div>
     </div>
-
-    <!-- ==================== PLAYER: WAITING FOR OTHERS ==================== -->
-    <div id="view-p-wait-result" class="view-section justify-center items-center bg-gray-200 text-gray-700 text-center">
-        <div class="spinner border-gray-400 border-top-gray-700 mb-6"></div>
+    <div id="view-p-wait-result" class="view-section justify-center items-center bg-gray-200 text-gray-700">
+        <div class="spinner border-gray-400 border-top-gray-700 mb-4"></div>
         <h2 class="text-3xl font-bold">Waiting for others...</h2>
     </div>
-
-    <!-- ==================== PLAYER: RESULT ==================== -->
     <div id="view-p-result" class="view-section justify-center items-center text-white text-center">
-        <h2 id="p-res-title" class="text-5xl font-black mb-4 shadow-text">Correct</h2>
-        <div class="bg-black/20 px-8 py-3 rounded text-3xl font-bold mb-12 shadow-text">
-            <span id="p-res-points">+0</span>
-        </div>
+        <h2 id="p-res-title" class="text-5xl font-black mb-4 shadow-text italic">Correct</h2>
+        <div class="bg-black/20 px-8 py-3 rounded text-3xl font-bold mb-12 shadow-text"><span id="p-res-points">+0</span></div>
         <div class="bg-black/30 w-full p-4 absolute bottom-0 flex justify-between px-6 text-xl font-bold">
-            <span id="p-res-name">Nick</span>
-            <span><span id="p-res-total">0</span></span>
+            <span id="p-res-name">Nick</span><span id="p-res-total">0</span>
         </div>
     </div>
-
-    <!-- ==================== ADMIN: LOGIN ==================== -->
-    <div id="view-admin-login" class="view-section bg-gray-100 justify-center items-center">
-        <div class="bg-white p-8 rounded shadow-lg w-full max-w-sm text-center border-t-8 border-[#46178f]">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800">פאנל ניהול</h2>
-            <input type="password" id="admin-pass" placeholder="סיסמה (2160)" class="w-full border rounded p-3 mb-4 text-center text-xl" onkeypress="if(event.key==='Enter') loginAdmin()">
-            <div id="admin-error" class="text-red-500 font-bold mb-4 hidden">סיסמה שגויה, נסה שוב.</div>
-            <button onclick="loginAdmin()" class="w-full bg-[#46178f] text-white font-bold py-3 rounded btn-k">היכנס</button>
-            <button onclick="nav('view-home')" class="mt-4 text-gray-500 underline text-sm cursor-pointer p-2">חזרה למשחק</button>
-        </div>
-    </div>
-
-    <!-- ==================== ADMIN: DASHBOARD ==================== -->
-    <div id="view-admin-dash" class="view-section bg-gray-100">
-        <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
-            <h1 class="text-3xl font-black text-[#46178f] italic">Kahoot!</h1>
-            <button onclick="nav('view-home')" class="text-gray-600 font-bold hover:text-black">יציאה מניהול</button>
-        </header>
-        <div class="p-6 max-w-6xl mx-auto w-full flex-grow overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">החידונים שלי</h2>
-                <button onclick="openEditor(null)" class="bg-[var(--k-blue)] text-white font-bold py-2 px-6 rounded btn-k">צור חדש</button>
-            </div>
-            <div id="quiz-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-        </div>
-    </div>
-
-    <!-- ==================== ADMIN: CREATOR ==================== -->
-    <div id="view-admin-creator" class="view-section bg-gray-100">
-        <header class="bg-white shadow px-4 py-3 flex justify-between items-center z-10">
-            <input type="text" id="quiz-title" placeholder="הכנס שם לחידון..." class="text-xl font-bold border-b-2 border-transparent focus:border-gray-400 outline-none w-1/3">
-            <div class="flex gap-2">
-                <button onclick="nav('view-admin-dash')" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded btn-k">ביטול</button>
-                <button onclick="saveQuiz()" class="bg-[var(--k-green)] text-white font-bold py-2 px-6 rounded btn-k" id="btn-save-quiz">שמור</button>
-            </div>
-        </header>
-        <div class="flex flex-grow overflow-hidden">
-            <!-- Sidebar -->
-            <div class="w-48 bg-white border-l border-gray-200 p-2 overflow-y-auto flex flex-col gap-2" id="creator-sidebar"></div>
-            <!-- Main Editor -->
-            <div class="flex-grow p-4 flex flex-col items-center overflow-y-auto">
-                <div class="w-full max-w-4xl bg-white p-6 rounded shadow flex flex-col relative">
-                    <button onclick="deleteCurrentQ()" class="absolute top-4 left-4 text-red-500 font-bold hover:bg-red-50 p-2 rounded">🗑️ מחק שאלה</button>
-                    
-                    <div class="flex gap-4 mb-4 justify-center">
-                        <select id="q-time" class="border rounded p-2 font-bold" onchange="updateQData()">
-                            <option value="10">10 שניות</option><option value="20" selected>20 שניות</option><option value="30">30 שניות</option><option value="60">60 שניות</option>
-                        </select>
-                        <select id="q-type" class="border rounded p-2 font-bold" onchange="changeQType()">
-                            <option value="regular">מרובע שאלות (4)</option><option value="boolean">אמת/שקר (2)</option>
-                        </select>
-                    </div>
-
-                    <input type="text" id="q-text" placeholder="הקלד את השאלה כאן" class="w-full text-center text-3xl font-bold py-4 outline-none border-b-2 focus:border-gray-300 mb-6" oninput="updateQData()">
-
-                    <div class="w-64 h-48 mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex justify-center items-center relative mb-8 rounded group cursor-pointer" onclick="document.getElementById('q-img-upload').click()">
-                        <span class="text-gray-500 font-bold group-hover:text-black" id="q-img-upload-text">➕ הוסף תמונה</span>
-                        <img id="q-img-preview" class="absolute inset-0 w-full h-full object-cover hidden rounded">
-                        <input type="file" id="q-img-upload" accept="image/*" class="hidden" onchange="uploadImage(event)">
-                        <button onclick="removeImage(event)" id="q-img-remove" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 hidden z-10">X</button>
-                    </div>
-
-                    <!-- Answers Editor -->
-                    <div class="grid grid-cols-2 gap-2" id="q-answers-container">
-                        <!-- Created dynamically -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ==================== HOST: LOBBY ==================== -->
-    <div id="view-h-lobby" class="view-section bg-[#f2f2f2]">
+    <!-- HOST VIEWS -->
+    <div id="view-h-lobby" class="view-section bg-animated">
         <div class="w-full bg-white flex justify-between items-center px-8 py-4 shadow z-10">
-            <div class="text-2xl font-black text-gray-800">Join at <span class="text-[#46178f]">www.kahoot.it</span><br>or with the Kahoot! app</div>
+            <div class="text-2xl font-black text-gray-800">Join at <span class="text-[#46178f]">Kahoot!</span></div>
             <div class="text-center">
                 <div class="text-sm font-bold text-gray-500 uppercase tracking-widest">Game PIN:</div>
-                <div class="text-7xl font-black text-gray-900 tracking-widest cursor-pointer hover:opacity-70 transition duration-150" id="h-pin-display" onclick="copyPin()" title="לחץ כאן כדי להעתיק את הקוד!"></div>
+                <div class="text-7xl font-black text-gray-900 tracking-widest" id="h-pin-display"></div>
             </div>
             <button onclick="hostStartGame()" id="h-start-btn" class="bg-[var(--k-blue)] text-white font-bold text-2xl py-3 px-8 rounded btn-k opacity-50 pointer-events-none">Start</button>
         </div>
-        <div class="flex-grow relative w-full h-full overflow-hidden bg-animated">
-            <div class="absolute inset-0 flex flex-wrap content-start p-8 gap-4 overflow-y-auto" id="h-players-list"></div>
-            <div class="absolute bottom-6 left-6 bg-white/20 rounded px-6 py-2 text-white font-bold text-2xl shadow-text"><span id="h-player-count">0</span> Players</div>
-            <button onclick="hostEndGame()" class="absolute bottom-6 right-6 bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded btn-k">סגור חדר</button>
+        <div class="flex-grow relative p-8">
+            <div class="flex flex-wrap gap-4" id="h-players-list"></div>
+            <div class="absolute bottom-6 left-6 text-white font-bold text-2xl"><span id="h-player-count">0</span> Players</div>
         </div>
     </div>
-
-    <!-- ==================== HOST: GET READY ==================== -->
-    <div id="view-h-getready" class="view-section justify-center items-center bg-white text-gray-800 text-center">
-        <h2 class="text-6xl font-black mb-6">Are you ready?</h2>
-        <h3 class="text-4xl font-bold text-gray-600" id="h-getready-title">Title</h3>
-        <div class="mt-8 spinner border-gray-300 border-top-[var(--k-blue)]"></div>
-    </div>
-
-    <!-- ==================== HOST: QUESTION ==================== -->
-    <div id="view-h-question" class="view-section bg-[#f2f2f2] flex-col relative">
-        <button onclick="hostSkipQ()" class="absolute top-4 left-4 bg-gray-300 font-bold py-2 px-4 rounded btn-k z-20 hover:bg-gray-400">Skip</button>
-        <div class="text-center py-6 px-10 bg-white shadow z-10 flex justify-center items-center h-24">
-            <h2 class="text-4xl font-bold text-gray-800 w-full truncate" id="h-q-title"></h2>
+    <div id="view-h-question" class="view-section bg-[#f2f2f2]">
+        <div class="text-center py-6 px-10 bg-white shadow z-10 h-24 flex items-center justify-center">
+            <h2 id="h-q-title" class="text-4xl font-bold text-gray-800"></h2>
         </div>
         <div class="flex-grow flex justify-center items-center relative p-4">
-            <div class="absolute left-10 w-24 h-24 bg-[var(--k-purple)] rounded-full flex justify-center items-center text-white text-4xl font-black btn-k shadow-lg" id="h-timer">20</div>
+            <div class="absolute left-10 w-24 h-24 bg-[var(--k-purple)] rounded-full flex justify-center items-center text-white text-4xl font-black" id="h-timer">20</div>
             <img id="h-q-img" class="max-h-64 rounded shadow hidden">
-            <div class="absolute right-10 text-center">
-                <div class="text-4xl font-black text-gray-800" id="h-ans-count">0</div>
-                <div class="text-xl font-bold text-gray-500">Answers</div>
-            </div>
+            <div class="absolute right-10 text-center"><div class="text-4xl font-black" id="h-ans-count">0</div><div class="text-xl font-bold text-gray-500">Answers</div></div>
         </div>
         <div class="grid gap-2 p-2 mx-auto w-full max-w-7xl h-48" id="h-options-grid"></div>
     </div>
-
-    <!-- ==================== HOST: RESULTS GRAPH ==================== -->
-    <div id="view-h-results" class="view-section bg-[#f2f2f2] flex-col items-center">
-        <div class="w-full flex justify-end p-4">
-            <button onclick="hostNextStep()" class="bg-[var(--k-blue)] text-white font-bold py-3 px-8 rounded btn-k text-xl">Next</button>
-        </div>
-        <h2 class="text-4xl font-black text-gray-800 mt-10">Results</h2>
+    <div id="view-h-results" class="view-section bg-[#f2f2f2] items-center">
+        <div class="w-full flex justify-end p-4"><button onclick="hostNextStep()" class="bg-[var(--k-blue)] text-white font-bold py-3 px-8 rounded btn-k text-xl">Next</button></div>
         <div class="bar-chart" id="h-chart"></div>
-        <div class="grid grid-cols-4 gap-4 w-3/4 max-w-4xl mt-6" id="h-res-legend"></div>
     </div>
-
-    <!-- ==================== HOST: SCOREBOARD ==================== -->
-    <div id="view-h-scoreboard" class="view-section bg-[#f2f2f2] flex-col items-center">
-        <div class="w-full flex justify-end p-4">
-            <button onclick="hostNextStep()" class="bg-[var(--k-blue)] text-white font-bold py-3 px-8 rounded btn-k text-xl">Next</button>
-        </div>
-        <h2 class="text-5xl font-black text-gray-800 mt-4 mb-8">Scoreboard</h2>
+    <div id="view-h-scoreboard" class="view-section bg-[#f2f2f2] items-center">
+        <div class="w-full flex justify-end p-4"><button onclick="hostNextStep()" class="bg-[var(--k-blue)] text-white font-bold py-3 px-8 rounded btn-k text-xl">Next</button></div>
+        <h2 class="text-5xl font-black mb-8">Scoreboard</h2>
         <div class="w-full max-w-2xl flex flex-col gap-2" id="h-score-list"></div>
     </div>
-
-    <!-- ==================== HOST: PODIUM ==================== -->
-    <div id="view-h-podium" class="view-section bg-[var(--k-purple)] text-white flex-col items-center justify-end pb-10">
-        <button onclick="hostEndGame()" class="absolute top-4 left-4 bg-white/20 text-white font-bold py-2 px-4 rounded hover:bg-white/30 btn-k">חזרה לניהול</button>
-        <h2 class="text-6xl font-black mb-auto mt-20 shadow-text">Podium</h2>
-        
-        <div class="flex items-end justify-center gap-2 h-64 w-full max-w-3xl">
-            <!-- Place 2 -->
-            <div class="flex flex-col items-center w-1/3 z-10">
-                <div id="pod-name-2" class="text-2xl font-bold mb-2 shadow-text"></div>
-                <div id="pod-score-2" class="text-lg font-bold mb-2"></div>
-                <div class="w-full bg-[var(--k-blue)] h-32 rounded-t flex justify-center pt-4 text-5xl font-black text-white/50 border-t-8 border-white/20">2</div>
-            </div>
-            <!-- Place 1 -->
-            <div class="flex flex-col items-center w-1/3 z-20">
-                <div id="pod-name-1" class="text-3xl font-bold mb-2 shadow-text"></div>
-                <div id="pod-score-1" class="text-xl font-bold mb-2"></div>
-                <div class="w-full bg-[var(--k-yellow)] h-48 rounded-t flex justify-center pt-4 text-6xl font-black text-white/50 border-t-8 border-white/20">1</div>
-            </div>
-            <!-- Place 3 -->
-            <div class="flex flex-col items-center w-1/3 z-0">
-                <div id="pod-name-3" class="text-2xl font-bold mb-2 shadow-text"></div>
-                <div id="pod-score-3" class="text-lg font-bold mb-2"></div>
-                <div class="w-full bg-[var(--k-green)] h-24 rounded-t flex justify-center pt-4 text-4xl font-black text-white/50 border-t-8 border-white/20">3</div>
-            </div>
+    <div id="view-h-podium" class="view-section bg-[var(--k-purple)] text-white items-center justify-center">
+        <h2 class="text-6xl font-black mb-20 italic shadow-text">Podium</h2>
+        <div class="flex items-end justify-center gap-4 h-64 w-full max-w-2xl">
+            <div class="flex flex-col items-center w-1/3"><div id="pod-name-2" class="text-2xl font-bold"></div><div class="w-full bg-[var(--k-blue)] h-32 rounded-t flex justify-center items-center text-4xl font-bold">2</div></div>
+            <div class="flex flex-col items-center w-1/3"><div id="pod-name-1" class="text-3xl font-bold"></div><div class="w-full bg-[var(--k-yellow)] h-48 rounded-t flex justify-center items-center text-5xl font-bold">1</div></div>
+            <div class="flex flex-col items-center w-1/3"><div id="pod-name-3" class="text-2xl font-bold"></div><div class="w-full bg-[var(--k-green)] h-24 rounded-t flex justify-center items-center text-3xl font-bold">3</div></div>
         </div>
+        <button onclick="window.location.reload()" class="mt-20 bg-white text-black font-bold py-3 px-10 rounded btn-k">חזרה לדף הבית</button>
     </div>
 
-    <!-- Firebase Logic -->
+    <!-- FIREBASE & LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Initialization with Try-Catch protection
-        let app, auth, db;
-        try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "dummy" };
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (e) {
-            console.error("Firebase init failed:", e);
-        }
-        
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // Global Variables
-        const ADMIN_PASS = "2160";
-        let quizzes = [];
         let userId = null;
-        let myName = "";
-        let activePin = null;
-        let activeGameRef = null;
-        let unsubGame = null;
-        
-        let hostQuiz = null;
-        let hostQIdx = 0;
-        let hostTimer = 0;
-        let hostTimerInt = null;
-        let hostGameData = null;
-
+        let quizzes = [];
         let editingQuizId = null;
         let creatorQuiz = null;
         let creatorQIdx = 0;
+        
+        let hostQuiz = null;
+        let hostQIdx = 0;
+        let activePin = null;
+        let activeGameRef = null;
+        let hostGameData = null;
+        let hostTimerInt = null;
 
-        const shapes = ['triangle', 'diamond', 'circle', 'square'];
-
-        // Sounds (Lazy Load - Fixes Browser Blocks)
-        let ctx = null;
-        function beep(f, t) {
-            try {
-                if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (ctx.state === 'suspended') ctx.resume();
-                const o = ctx.createOscillator(); const g = ctx.createGain();
-                o.type = 'square'; o.frequency.value = f;
-                o.connect(g); g.connect(ctx.destination);
-                o.start(); g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + t); o.stop(ctx.currentTime + t);
-            } catch(e) { console.warn("Audio skipped"); }
-        }
-
-        // Auth
-        const initAuth = async () => {
-            if(!auth) return;
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch(e) { console.error("Auth init error:", e); }
-        };
-        initAuth();
-
-        if(auth) {
+        // Init Auth
+        const init = async () => {
+            await signInAnonymously(auth);
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     userId = user.uid;
@@ -362,179 +235,66 @@
                     onSnapshot(qRef, (snap) => {
                         quizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                         renderDash();
-                    }, (error) => console.error("Quizzes fetch error:", error));
+                    }, (err) => console.error(err));
                 }
             });
-        }
-
-        // ==================== PLAYER LOGIC ====================
-        window.checkPin = async function() {
-            if(!db) return;
-            const btn = document.getElementById('btn-enter');
-            const pinError = document.getElementById('pin-error');
-            btn.innerText = "Loading..."; btn.classList.add('opacity-50');
-            pinError.classList.add('hidden');
-            
-            const pinStr = document.getElementById('pin-input').value.toString().trim();
-            if(pinStr.length === 0) { btn.innerText = "Enter"; btn.classList.remove('opacity-50'); return; }
-
-            try {
-                if (!auth.currentUser) await signInAnonymously(auth);
-                const gRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', pinStr);
-                const snap = await getDoc(gRef);
-                if (snap.exists()) {
-                    activePin = pinStr;
-                    activeGameRef = gRef;
-                    document.getElementById('join-step-1').classList.add('hidden');
-                    document.getElementById('join-step-2').classList.remove('hidden');
-                } else {
-                    pinError.classList.remove('hidden'); 
-                }
-            } catch (e) { 
-                console.error(e);
-                pinError.innerText = "שגיאת תקשורת נסה שוב";
-                pinError.classList.remove('hidden');
-            }
-            btn.innerText = "Enter"; btn.classList.remove('opacity-50');
         };
+        init();
 
-        window.joinGame = async function() {
-            myName = document.getElementById('nick-input').value.trim();
-            if(!myName || !activeGameRef) return;
-            
-            try {
-                await updateDoc(activeGameRef, { 
-                    [`players.${userId}`]: { name: myName, score: 0, currAns: null, ansTime: null, lastCorrect: false, lastPts: 0 } 
-                });
-                
-                document.getElementById('p-waiting-nick').innerText = myName;
-                window.nav('view-p-waiting');
-
-                if(unsubGame) unsubGame();
-                unsubGame = onSnapshot(activeGameRef, (snap) => handlePlayerSync(snap), console.error);
-            } catch (e) { console.error("Join game error:", e); }
-        };
-
-        window.submitAnswer = async function(idx) {
-            if(!activeGameRef) return;
-            window.nav('view-p-wait-result');
-            try {
-                await updateDoc(activeGameRef, { 
-                    [`players.${userId}.currAns`]: idx,
-                    [`players.${userId}.ansTime`]: Date.now()
-                });
-            } catch (e) { console.error(e); }
-        };
-
-        function handlePlayerSync(snap) {
-            if(!snap.exists()) { window.location.reload(); return; }
-            const data = snap.data();
-            const me = data.players[userId];
-            if(!me) return;
-
-            if(data.state === 'GET_READY') window.nav('view-p-getready');
-            else if(data.state === 'QUESTION') {
-                const isReg = data.quiz.questions[data.currentQIdx].type === 'regular';
-                document.getElementById('p-btn-2').style.display = isReg ? 'flex' : 'none';
-                document.getElementById('p-btn-3').style.display = isReg ? 'flex' : 'none';
-                document.getElementById('p-btn-grid').className = `grid gap-2 w-full h-full ${isReg ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1 grid-rows-2'}`;
-                if(me.currAns === null) window.nav('view-p-buttons');
-            }
-            else if(data.state === 'RESULTS') {
-                document.getElementById('p-res-title').innerText = me.lastCorrect ? 'Correct' : 'Incorrect';
-                document.getElementById('p-res-points').innerText = `+${me.lastPts}`;
-                document.getElementById('p-res-total').innerText = me.score;
-                document.getElementById('p-res-name').innerText = myName;
-                const v = document.getElementById('view-p-result');
-                v.style.backgroundColor = me.lastCorrect ? 'var(--k-green)' : 'var(--k-red)';
-                window.nav('view-p-result');
-            }
-            else if(data.state === 'PODIUM') {
-                document.getElementById('p-res-title').innerText = "Game Over!";
-                document.getElementById('p-res-points').style.display = 'none';
-                document.getElementById('view-p-result').style.backgroundColor = 'var(--k-purple)';
-                window.nav('view-p-result');
-            }
-        }
-
-        // ==================== ADMIN LOGIC ====================
+        // ADMIN ACTIONS
         window.loginAdmin = function() {
-            const err = document.getElementById('admin-error');
-            err.classList.add('hidden');
-            if(document.getElementById('admin-pass').value === ADMIN_PASS) {
-                document.getElementById('admin-pass').value = '';
-                renderDash();
+            const pass = document.getElementById('admin-pass').value;
+            if(pass === "2160") {
+                document.getElementById('admin-error').classList.add('hidden');
                 window.nav('view-admin-dash');
-            } else { 
-                err.classList.remove('hidden');
+            } else {
+                document.getElementById('admin-error').classList.remove('hidden');
             }
         };
 
         function renderDash() {
-            const l = document.getElementById('quiz-list');
-            l.innerHTML = '';
-            quizzes.forEach((q) => {
-                l.innerHTML += `
-                    <div class="bg-white p-6 rounded shadow border-t-4 border-[var(--k-purple)]" id="quiz-card-${q.id}">
-                        <h3 class="text-xl font-bold mb-2 truncate text-gray-800">${q.title}</h3>
-                        <p class="text-gray-500 mb-4 font-semibold">${q.questions.length} Questions</p>
-                        <div class="flex gap-2 mb-4">
-                            <button onclick="openEditor('${q.id}')" class="flex-1 bg-gray-200 hover:bg-gray-300 font-bold py-2 rounded">ערוך</button>
-                            <button onclick="confirmDelete('${q.id}')" id="del-btn-${q.id}" class="flex-1 bg-red-100 text-red-600 hover:bg-red-200 font-bold py-2 rounded transition-colors">מחק</button>
-                        </div>
-                        <button onclick="hostInit('${q.id}')" class="w-full bg-[var(--k-green)] text-white font-bold py-3 rounded btn-k text-lg">Play</button>
-                    </div>`;
+            const list = document.getElementById('quiz-list');
+            list.innerHTML = '';
+            quizzes.forEach(q => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-6 rounded shadow-lg border-t-4 border-purple-600";
+                div.innerHTML = `
+                    <h3 class="text-xl font-bold mb-2 truncate">${q.title || 'ללא שם'}</h3>
+                    <p class="text-gray-500 mb-4">${q.questions.length} שאלות</p>
+                    <div class="flex gap-2">
+                        <button class="flex-1 bg-gray-200 py-2 rounded font-bold" onclick="openEditor('${q.id}')">ערוך</button>
+                        <button class="flex-1 bg-red-100 text-red-600 py-2 rounded font-bold" onclick="deleteQuiz('${q.id}')">מחק</button>
+                    </div>
+                    <button class="w-full bg-green-600 text-white mt-4 py-3 rounded btn-k font-bold text-lg" onclick="hostInit('${q.id}')">שחק עכשיו</button>
+                `;
+                list.appendChild(div);
             });
         }
 
-        window.confirmDelete = function(id) {
-            const btn = document.getElementById(`del-btn-${id}`);
-            if(btn.innerText === "מחק") {
-                btn.innerText = "בטוח?";
-                btn.classList.add('bg-red-500', 'text-white');
-                setTimeout(() => { 
-                    if(btn) { btn.innerText = "מחק"; btn.classList.remove('bg-red-500', 'text-white'); }
-                }, 3000);
-            } else {
-                deleteQuiz(id);
+        window.deleteQuiz = async (id) => {
+            if(confirm("בטוח שברצונך למחוק?")) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id));
             }
         };
 
-        window.deleteQuiz = async function(id) { 
-            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id)); } 
-            catch (e) { console.error(e); }
-        };
-
-        // ==================== CREATOR LOGIC ====================
-        window.getEmptyQ = function() { return { type: 'regular', time: 20, text: '', img: null, ans: ['','','',''], correct: 0 }; };
-        
-        window.openEditor = function(id) {
+        // CREATOR LOGIC (The Fixed Part)
+        window.openEditor = (id) => {
             editingQuizId = id;
-            if(!id) { creatorQuiz = { title: '', questions: [window.getEmptyQ()] }; } 
-            else { creatorQuiz = JSON.parse(JSON.stringify(quizzes.find(q=>q.id===id))); }
-            document.getElementById('quiz-title').value = creatorQuiz.title;
+            if(!id) {
+                creatorQuiz = { title: '', questions: [window.generateEmptyQuestion()] };
+            } else {
+                const source = quizzes.find(q => q.id === id);
+                creatorQuiz = JSON.parse(JSON.stringify(source));
+            }
             creatorQIdx = 0;
-            window.renderCreatorSide();
-            window.loadQ();
+            document.getElementById('quiz-title').value = creatorQuiz.title;
+            loadQ();
             window.nav('view-admin-creator');
         };
 
-        window.renderCreatorSide = function() {
-            const sb = document.getElementById('creator-sidebar'); sb.innerHTML = '';
-            creatorQuiz.questions.forEach((q, i) => {
-                const isSel = i === creatorQIdx;
-                sb.innerHTML += `
-                    <div class="p-2 rounded cursor-pointer border-2 ${isSel ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-100'}" onclick="creatorQIdx=${i}; window.loadQ();">
-                        <div class="text-xs font-bold text-gray-500">שאלה ${i+1}</div>
-                        <div class="text-sm font-bold truncate">${q.text || '...'}</div>
-                    </div>`;
-            });
-            sb.innerHTML += `<button onclick="creatorQuiz.questions.push(window.getEmptyQ()); creatorQIdx=creatorQuiz.questions.length-1; window.renderCreatorSide(); window.loadQ();" class="mt-2 bg-gray-200 font-bold py-2 rounded hover:bg-gray-300">➕ הוסף שאלה</button>`;
-        }
-
-        window.loadQ = function() {
+        function loadQ() {
             const q = creatorQuiz.questions[creatorQIdx];
-            document.getElementById('q-text').value = q.text;
+            document.getElementById('q-text').value = q.text || '';
             document.getElementById('q-time').value = q.time;
             document.getElementById('q-type').value = q.type;
             
@@ -543,322 +303,321 @@
             if(q.img) { imgP.src = q.img; imgP.classList.remove('hidden'); imgR.classList.remove('hidden'); }
             else { imgP.classList.add('hidden'); imgR.classList.add('hidden'); }
             
-            window.renderCreatorAns();
-            window.renderCreatorSide();
-        };
+            renderCreatorAns();
+            renderCreatorSide();
+        }
 
-        window.renderCreatorAns = function() {
+        function renderCreatorAns() {
             const q = creatorQuiz.questions[creatorQIdx];
-            const c = document.getElementById('q-answers-container'); c.innerHTML = '';
+            const container = document.getElementById('q-answers-container');
+            container.innerHTML = '';
             const count = q.type === 'regular' ? 4 : 2;
-            const bgc = ['bg-[#e21b3c]','bg-[#1368ce]','bg-[#d89e00]','bg-[#26890c]'];
-            
-            for(let i=0; i<count; i++) {
-                const isC = q.correct === i;
-                c.innerHTML += `
-                    <div class="relative flex items-center bg-white rounded shadow-sm border ${isC ? 'border-green-500 border-4' : 'border-gray-200'} h-24 overflow-hidden">
-                        <div class="${bgc[i]} w-12 h-full flex justify-center items-center"><div class="shape-container"><div class="k-shape k-${shapes[i]} scale-50"></div></div></div>
-                        ${q.type === 'regular' 
-                            ? `<textarea class="flex-grow p-3 resize-none outline-none font-bold h-full" placeholder="הוסף תשובה" oninput="creatorQuiz.questions[creatorQIdx].ans[${i}]=this.value">${q.ans[i]}</textarea>` 
-                            : `<div class="flex-grow p-4 text-xl font-bold flex items-center">${i===0?'True':'False'}</div>`
-                        }
-                        <button class="absolute left-2 w-10 h-10 rounded-full border-4 ${isC?'bg-green-500 border-green-500 text-white':'border-gray-300'}" onclick="creatorQuiz.questions[creatorQIdx].correct=${i}; window.renderCreatorAns();">${isC?'✓':''}</button>
-                    </div>`;
-            }
-        };
+            const colors = ['bg-[#e21b3c]','bg-[#1368ce]','bg-[#d89e00]','bg-[#26890c]'];
+            const shapes = ['triangle','diamond','circle','square'];
 
-        window.updateQData = function() {
+            for(let i=0; i<count; i++) {
+                const isCorrect = q.correct === i;
+                const div = document.createElement('div');
+                div.className = `relative flex items-center bg-white rounded shadow-sm border-2 h-20 overflow-hidden ${isCorrect ? 'border-green-500 bg-green-50' : 'border-gray-200'}`;
+                div.innerHTML = `
+                    <div class="${colors[i]} w-10 h-full flex justify-center items-center"><div class="shape-container scale-50"><div class="k-shape k-${shapes[i]}"></div></div></div>
+                    <textarea class="flex-grow p-2 resize-none outline-none font-bold bg-transparent" placeholder="הוסף תשובה">${q.ans[i] || ''}</textarea>
+                    <button class="w-10 h-10 m-2 rounded-full border-2 ${isCorrect ? 'bg-green-500 text-white' : 'border-gray-300'}">${isCorrect ? '✓' : ''}</button>
+                `;
+                
+                div.querySelector('textarea').oninput = (e) => { creatorQuiz.questions[creatorQIdx].ans[i] = e.target.value; };
+                div.querySelector('button').onclick = () => { creatorQuiz.questions[creatorQIdx].correct = i; renderCreatorAns(); };
+                container.appendChild(div);
+            }
+        }
+
+        function renderCreatorSide() {
+            const sb = document.getElementById('creator-sidebar');
+            sb.innerHTML = '';
+            creatorQuiz.questions.forEach((q, i) => {
+                const div = document.createElement('div');
+                div.className = `p-3 rounded cursor-pointer border-2 transition ${i === creatorQIdx ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'}`;
+                div.innerHTML = `<div class="text-xs font-bold text-gray-400 uppercase">שאלה ${i+1}</div><div class="font-bold truncate">${q.text || '...'}</div>`;
+                div.onclick = () => { creatorQIdx = i; loadQ(); };
+                sb.appendChild(div);
+            });
+            const addBtn = document.createElement('button');
+            addBtn.className = "mt-4 bg-gray-200 font-bold py-3 rounded hover:bg-gray-300 w-full";
+            addBtn.innerText = "➕ הוסף שאלה";
+            addBtn.onclick = () => {
+                creatorQuiz.questions.push(window.generateEmptyQuestion());
+                creatorQIdx = creatorQuiz.questions.length - 1;
+                loadQ();
+            };
+            sb.appendChild(addBtn);
+        }
+
+        window.updateQData = () => {
             const q = creatorQuiz.questions[creatorQIdx];
             q.text = document.getElementById('q-text').value;
             q.time = parseInt(document.getElementById('q-time').value);
-            window.renderCreatorSide();
+            renderCreatorSide();
         };
 
-        window.changeQType = function() {
+        window.changeQType = () => {
             const q = creatorQuiz.questions[creatorQIdx];
             q.type = document.getElementById('q-type').value;
-            if(q.type === 'boolean') { q.ans = ['True','False']; q.correct = Math.min(q.correct, 1); }
-            window.renderCreatorAns();
+            if(q.type === 'boolean') { q.ans = ['נכון', 'לא נכון']; q.correct = Math.min(q.correct, 1); }
+            else { q.ans = ['', '', '', '']; }
+            loadQ();
         };
 
-        window.deleteCurrentQ = function() {
+        window.deleteCurrentQ = () => {
             if(creatorQuiz.questions.length > 1) {
                 creatorQuiz.questions.splice(creatorQIdx, 1);
-                creatorQIdx = 0; window.renderCreatorSide(); window.loadQ();
+                creatorQIdx = 0;
+                loadQ();
             }
         };
 
-        window.uploadImage = function(e) {
-            const btnText = document.getElementById('q-img-upload-text');
+        // IMAGE UPLOAD
+        window.uploadImage = (e) => {
             const file = e.target.files[0];
             if(!file) return;
-            btnText.innerText = "טוען ומכווץ...";
-            
             const reader = new FileReader();
-            reader.onload = ev => { 
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    let w = img.width;
-                    let h = img.height;
-                    const MAX_SIZE = 800;
-                    if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; }
-                    if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; }
-                    
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctxCanvas = canvas.getContext('2d');
-                    ctxCanvas.drawImage(img, 0, 0, w, h);
-                    
-                    creatorQuiz.questions[creatorQIdx].img = canvas.toDataURL('image/jpeg', 0.7); 
-                    btnText.innerText = "➕ הוסף תמונה";
-                    window.loadQ(); 
-                };
-                img.src = ev.target.result;
+            reader.onload = (ev) => {
+                creatorQuiz.questions[creatorQIdx].img = ev.target.result;
+                loadQ();
             };
             reader.readAsDataURL(file);
         };
-        window.removeImage = function(e) { e.stopPropagation(); creatorQuiz.questions[creatorQIdx].img = null; document.getElementById('q-img-upload').value=''; window.loadQ(); };
+        window.removeImage = (e) => { e.stopPropagation(); creatorQuiz.questions[creatorQIdx].img = null; loadQ(); };
 
-        window.saveQuiz = async function() {
+        // SAVE QUIZ (Fixed: JSON cleaning)
+        window.saveQuiz = async () => {
             const btn = document.getElementById('btn-save-quiz');
             btn.innerText = "שומר...";
-            creatorQuiz.title = document.getElementById('quiz-title').value || 'Untitled Kahoot';
+            btn.disabled = true;
             
             try {
-                const cleanData = JSON.parse(JSON.stringify({ 
-                    title: creatorQuiz.title, 
-                    questions: creatorQuiz.questions 
-                }));
-                
+                // Ensure the data is clean POJO (Plain Old JavaScript Object)
+                const dataToSave = {
+                    title: document.getElementById('quiz-title').value || 'חידון ללא שם',
+                    questions: creatorQuiz.questions.map(q => ({
+                        text: q.text || '',
+                        time: parseInt(q.time) || 20,
+                        type: q.type || 'regular',
+                        ans: q.ans.map(a => a || ''),
+                        correct: parseInt(q.correct) || 0,
+                        img: q.img || null
+                    }))
+                };
+
+                const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
                 if(editingQuizId) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', editingQuizId), cleanData);
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', editingQuizId), dataToSave);
                 } else {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'quizzes'), cleanData);
+                    await addDoc(collRef, dataToSave);
                 }
-                btn.innerText = "שמור";
                 window.nav('view-admin-dash');
-            } catch (e) {
-                console.error("Save Error:", e);
-                btn.innerText = "שגיאה! נסה שוב";
-                setTimeout(() => btn.innerText = "שמור", 3000);
+            } catch (err) {
+                console.error(err);
+                alert("שגיאה בשמירה. נסה שוב.");
+            } finally {
+                btn.innerText = "שמור חידון";
+                btn.disabled = false;
             }
         };
 
-        // ==================== HOST GAME LOGIC ====================
-        window.hostInit = async function(id) {
-            try {
-                hostQuiz = quizzes.find(q=>q.id===id);
-                activePin = Math.floor(100000 + Math.random() * 900000).toString();
-                activeGameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', activePin);
-                
-                const cleanQuiz = JSON.parse(JSON.stringify(hostQuiz));
-
-                await setDoc(activeGameRef, {
-                    pin: activePin,
-                    hostId: userId,
-                    quiz: cleanQuiz,
-                    state: 'LOBBY',
-                    players: {},
-                    currentQIdx: 0,
-                    qStartTime: 0
-                });
-
-                document.getElementById('h-pin-display').innerText = activePin;
-                window.nav('view-h-lobby');
-
-                if(unsubGame) unsubGame();
-                unsubGame = onSnapshot(activeGameRef, (snap) => handleHostSync(snap), console.error);
-            } catch (e) {
-                console.error("Host Error:", e);
-            }
-        };
-
-        window.copyPin = function() {
-            if(!activePin) return;
-            const el = document.createElement('textarea');
-            el.value = activePin;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
+        // HOSTING LOGIC
+        window.hostInit = async (id) => {
+            hostQuiz = quizzes.find(q => q.id === id);
+            activePin = Math.floor(100000 + Math.random() * 899999).toString();
+            activeGameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', activePin);
             
-            const disp = document.getElementById('h-pin-display');
-            disp.innerText = "COPIED";
-            disp.classList.add('text-[var(--k-green)]');
-            setTimeout(() => { 
-                disp.innerText = activePin; 
-                disp.classList.remove('text-[var(--k-green)]');
-            }, 1000);
+            await setDoc(activeGameRef, {
+                pin: activePin, state: 'LOBBY', players: {}, currentQIdx: 0, qStartTime: 0,
+                quiz: { title: hostQuiz.title, questions: hostQuiz.questions.map(q => ({...q, img: q.img || null})) }
+            });
+            
+            document.getElementById('h-pin-display').innerText = activePin;
+            window.nav('view-h-lobby');
+            onSnapshot(activeGameRef, snap => handleHostSync(snap));
         };
 
         function handleHostSync(snap) {
             if(!snap.exists()) return;
             hostGameData = snap.data();
-            const playersArr = Object.values(hostGameData.players || {});
+            const players = Object.values(hostGameData.players || {});
+            document.getElementById('h-player-count').innerText = players.length;
             
-            if(hostGameData.state === 'LOBBY') {
-                document.getElementById('h-player-count').innerText = playersArr.length;
-                const list = document.getElementById('h-players-list'); list.innerHTML = '';
-                Object.entries(hostGameData.players || {}).forEach(([pId, p]) => {
-                    list.innerHTML += `<div class="bg-white text-gray-800 font-bold px-4 py-2 rounded shadow text-xl cursor-pointer hover:line-through" onclick="kick('${pId}')">${p.name}</div>`;
-                });
-                const btn = document.getElementById('h-start-btn');
-                if(playersArr.length > 0) { btn.classList.remove('opacity-50','pointer-events-none'); btn.classList.add('hover:bg-blue-700'); }
-                else { btn.classList.add('opacity-50','pointer-events-none'); }
-            }
+            const list = document.getElementById('h-players-list');
+            list.innerHTML = '';
+            players.forEach(p => {
+                list.innerHTML += `<div class="bg-white px-4 py-2 rounded font-bold shadow text-xl">${p.name}</div>`;
+            });
             
+            const btn = document.getElementById('h-start-btn');
+            if(players.length > 0) btn.classList.remove('opacity-50', 'pointer-events-none');
+
             if(hostGameData.state === 'QUESTION') {
-                const ansCount = playersArr.filter(p => p.currAns !== null).length;
-                document.getElementById('h-ans-count').innerText = ansCount;
-                if(ansCount > 0 && ansCount === playersArr.length) window.hostSkipQ();
+                const answered = players.filter(p => p.currAns !== null).length;
+                document.getElementById('h-ans-count').innerText = answered;
+                if(answered > 0 && answered === players.length) hostEndTimer();
             }
         }
 
-        window.kick = async function(pId) {
-            try {
-                const newPlayers = { ...hostGameData.players };
-                delete newPlayers[pId];
-                await updateDoc(activeGameRef, { players: newPlayers });
-            } catch(e) { console.error(e); }
+        window.hostStartGame = async () => {
+            hostQIdx = 0;
+            await updateDoc(activeGameRef, { state: 'GET_READY' });
+            window.nav('view-p-getready'); // Host also sees get ready
+            setTimeout(showHostQ, 4000);
         };
 
-        window.hostEndGame = async function() { 
-            try {
-                if(activeGameRef) await deleteDoc(activeGameRef);
-                if(unsubGame) unsubGame();
-                window.nav('view-admin-dash'); 
-            } catch(e) { console.error(e); }
-        };
-
-        window.hostStartGame = async function() {
-            try {
-                await updateDoc(activeGameRef, { state: 'GET_READY' });
-                document.getElementById('h-getready-title').innerText = hostQuiz.title;
-                window.nav('view-h-getready');
-                setTimeout(window.showQ, 5000);
-            } catch(e) { console.error(e); }
-        };
-
-        window.showQ = async function() {
+        async function showHostQ() {
             const q = hostQuiz.questions[hostQIdx];
             document.getElementById('h-q-title').innerText = q.text;
             const img = document.getElementById('h-q-img');
             if(q.img) { img.src = q.img; img.classList.remove('hidden'); } else img.classList.add('hidden');
             
-            document.getElementById('h-ans-count').innerText = '0';
-            
-            const og = document.getElementById('h-options-grid'); og.innerHTML = '';
+            const grid = document.getElementById('h-options-grid');
+            grid.innerHTML = '';
             const count = q.type === 'regular' ? 4 : 2;
-            og.className = `grid gap-2 p-2 mx-auto w-full max-w-7xl h-48 ${count===4 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-2 grid-rows-1'}`;
             const bgc = ['bg-[var(--k-red)]','bg-[var(--k-blue)]','bg-[var(--k-yellow)]','bg-[var(--k-green)]'];
+            const shapes = ['triangle','diamond','circle','square'];
             
             for(let i=0; i<count; i++) {
-                og.innerHTML += `
-                    <div class="${bgc[i]} rounded text-white flex items-center px-4 btn-k shadow-sm">
-                        <div class="shape-container w-12 h-12 mr-4"><div class="k-shape k-${shapes[i]} scale-75"></div></div>
-                        <span class="text-2xl font-bold shadow-text flex-grow">${q.ans[i]}</span>
-                    </div>`;
+                grid.innerHTML += `
+                    <div class="${bgc[i]} rounded text-white flex items-center px-4 font-bold text-2xl shadow">
+                        <div class="shape-container w-10 mr-4"><div class="k-shape k-${shapes[i]}"></div></div>
+                        ${q.ans[i]}
+                    </div>
+                `;
             }
-
+            
             window.nav('view-h-question');
-            hostTimer = q.time;
-            document.getElementById('h-timer').innerText = hostTimer;
+            let timeLeft = q.time;
+            document.getElementById('h-timer').innerText = timeLeft;
             
-            const newPlayers = { ...hostGameData.players };
-            Object.keys(newPlayers).forEach(k => newPlayers[k].currAns = null);
+            await updateDoc(activeGameRef, { state: 'QUESTION', currentQIdx: hostQIdx, qStartTime: Date.now() });
             
-            try {
-                await updateDoc(activeGameRef, { state: 'QUESTION', currentQIdx: hostQIdx, qStartTime: Date.now(), players: newPlayers });
-            } catch(e) { console.error(e); }
-            
-            clearInterval(hostTimerInt);
             hostTimerInt = setInterval(() => {
-                hostTimer--;
-                document.getElementById('h-timer').innerText = hostTimer;
-                if(hostTimer%2===0) beep(400, 0.1); else beep(600, 0.1);
-                if(hostTimer <= 0) window.hostSkipQ();
+                timeLeft--;
+                document.getElementById('h-timer').innerText = timeLeft;
+                if(timeLeft <= 0) hostEndTimer();
             }, 1000);
-        };
+        }
 
-        window.hostSkipQ = async function() {
+        async function hostEndTimer() {
             clearInterval(hostTimerInt);
-            if(hostGameData.state === 'RESULTS') return;
+            if(hostGameData.state !== 'QUESTION') return;
             
             const q = hostQuiz.questions[hostQIdx];
-            const maxPts = 1000;
+            const players = { ...hostGameData.players };
             let counts = [0,0,0,0];
-            const newPlayers = { ...hostGameData.players };
 
-            Object.values(newPlayers).forEach(p => {
-                let pts = 0; let correct = false;
-                if(p.currAns !== null) {
-                    counts[p.currAns]++;
-                    if(p.currAns === q.correct) {
-                        const timeTaken = (p.ansTime - hostGameData.qStartTime) / 1000;
-                        pts = Math.round((1 - ((timeTaken/q.time)/2)) * maxPts);
-                        pts = Math.max(pts, 0); 
-                        correct = true;
-                    }
+            Object.keys(players).forEach(uid => {
+                const p = players[uid];
+                let pts = 0;
+                if(p.currAns === q.correct) {
+                    const timeTaken = (p.ansTime - hostGameData.qStartTime) / 1000;
+                    pts = Math.round(1000 * (1 - (timeTaken / q.time / 2)));
+                    p.lastCorrect = true;
+                    p.lastPts = pts;
+                    p.score += pts;
+                } else {
+                    p.lastCorrect = false; p.lastPts = 0;
                 }
-                p.score += pts;
-                p.lastCorrect = correct;
-                p.lastPts = pts;
+                if(p.currAns !== null) counts[p.currAns]++;
+                p.currAns = null; // reset for next
             });
 
-            try {
-                await updateDoc(activeGameRef, { state: 'RESULTS', players: newPlayers });
-            } catch(e) { console.error(e); }
-
-            const chart = document.getElementById('h-chart'); chart.innerHTML = '';
-            const legend = document.getElementById('h-res-legend'); legend.innerHTML = '';
-            const count = q.type === 'regular' ? 4 : 2;
+            await updateDoc(activeGameRef, { state: 'RESULTS', players });
+            
+            const chart = document.getElementById('h-chart');
+            chart.innerHTML = '';
             const max = Math.max(...counts, 1);
-            const bgc = ['var(--k-red)','var(--k-blue)','var(--k-yellow)','var(--k-green)'];
-
-            for(let i=0; i<count; i++) {
-                const h = (counts[i]/max)*100;
-                const isC = i === q.correct;
+            counts.forEach((c, i) => {
+                if(i >= (q.type === 'regular' ? 4 : 2)) return;
+                const h = (c / max) * 100;
                 chart.innerHTML += `
-                    <div class="flex flex-col items-center gap-2">
-                        <div class="text-xl font-bold text-gray-800">${counts[i]}</div>
-                        <div class="w-16 flex flex-col justify-end h-full">
-                            <div style="height: ${Math.max(h,5)}%; background-color: ${isC ? 'var(--k-green)' : bgc[i]}; transition: height 1s" class="rounded-t border-b-4 border-black/20"></div>
-                        </div>
-                        <div class="bg-gray-300 w-12 h-6 flex justify-center items-center rounded mt-2"><div class="shape-container scale-50"><div class="k-shape k-${shapes[i]}" style="background-color: ${bgc[i]}"></div></div></div>
-                    </div>`;
-            }
+                    <div class="flex flex-col items-center">
+                        <div class="font-bold mb-1">${c}</div>
+                        <div style="height:${h}%; min-height:10px" class="w-16 ${i===q.correct?'bg-green-500':'bg-gray-400'} rounded-t"></div>
+                    </div>
+                `;
+            });
             window.nav('view-h-results');
+        }
+
+        window.hostNextStep = async () => {
+            if(document.getElementById('view-h-results').classList.contains('active')) {
+                const list = document.getElementById('h-score-list');
+                list.innerHTML = '';
+                const sorted = Object.values(hostGameData.players).sort((a,b) => b.score - a.score);
+                sorted.slice(0, 5).forEach(p => {
+                    list.innerHTML += `<div class="bg-white p-4 flex justify-between font-bold text-2xl shadow rounded border-l-8 border-purple-600"><span>${p.name}</span><span>${p.score}</span></div>`;
+                });
+                await updateDoc(activeGameRef, { state: 'SCOREBOARD' });
+                window.nav('view-h-scoreboard');
+            } else {
+                hostQIdx++;
+                if(hostQIdx < hostQuiz.questions.length) {
+                    await updateDoc(activeGameRef, { state: 'GET_READY' });
+                    window.nav('view-p-getready');
+                    setTimeout(showHostQ, 4000);
+                } else {
+                    const sorted = Object.values(hostGameData.players).sort((a,b) => b.score - a.score);
+                    document.getElementById('pod-name-1').innerText = sorted[0]?.name || '';
+                    document.getElementById('pod-name-2').innerText = sorted[1]?.name || '';
+                    document.getElementById('pod-name-3').innerText = sorted[2]?.name || '';
+                    await updateDoc(activeGameRef, { state: 'PODIUM' });
+                    window.nav('view-h-podium');
+                }
+            }
         };
 
-        window.hostNextStep = async function() {
-            try {
-                if(document.getElementById('view-h-results').classList.contains('active')) {
-                    const l = document.getElementById('h-score-list'); l.innerHTML = '';
-                    const sortedPlayers = Object.values(hostGameData.players).sort((a,b)=>b.score-a.score);
-                    sortedPlayers.slice(0,5).forEach(p => {
-                        l.innerHTML += `<div class="bg-white p-4 text-2xl font-bold flex justify-between shadow rounded border-l-8 border-[var(--k-purple)]"><span>${p.name}</span><span>${p.score}</span></div>`;
-                    });
-                    await updateDoc(activeGameRef, { state: 'SCOREBOARD' });
-                    window.nav('view-h-scoreboard');
-                } else if (document.getElementById('view-h-scoreboard').classList.contains('active')) {
-                    hostQIdx++;
-                    if(hostQIdx < hostQuiz.questions.length) {
-                        await updateDoc(activeGameRef, { state: 'GET_READY' });
-                        document.getElementById('h-getready-title').innerText = hostQuiz.questions[hostQIdx].text;
-                        window.nav('view-h-getready');
-                        setTimeout(window.showQ, 5000);
-                    } else {
-                        const s = Object.values(hostGameData.players).sort((a,b)=>b.score-a.score);
-                        for(let i=1; i<=3; i++) {
-                            document.getElementById(`pod-name-${i}`).innerText = s[i-1] ? s[i-1].name : '';
-                            document.getElementById(`pod-score-${i}`).innerText = s[i-1] ? s[i-1].score : '';
-                        }
-                        await updateDoc(activeGameRef, { state: 'PODIUM' });
-                        window.nav('view-h-podium');
-                    }
-                }
-            } catch(e) { console.error(e); }
+        // PLAYER GAMEPLAY
+        window.checkPin = async () => {
+            const pin = document.getElementById('pin-input').value.trim();
+            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', pin));
+            if(snap.exists()) {
+                activePin = pin; activeGameRef = snap.ref;
+                document.getElementById('join-step-1').classList.add('hidden');
+                document.getElementById('join-step-2').classList.remove('hidden');
+            } else { document.getElementById('pin-error').classList.remove('hidden'); }
+        };
+
+        window.joinGame = async () => {
+            const nick = document.getElementById('nick-input').value.trim();
+            if(!nick) return;
+            await updateDoc(activeGameRef, { [`players.${userId}`]: { name: nick, score: 0, currAns: null, ansTime: 0, lastCorrect: false, lastPts: 0 } });
+            document.getElementById('p-waiting-nick').innerText = nick;
+            window.nav('view-p-waiting');
+            onSnapshot(activeGameRef, snap => handlePlayerSync(snap));
+        };
+
+        function handlePlayerSync(snap) {
+            const data = snap.data();
+            const me = data.players[userId];
+            if(data.state === 'GET_READY') window.nav('view-p-getready');
+            if(data.state === 'QUESTION' && me.currAns === null) {
+                const isReg = data.quiz.questions[data.currentQIdx].type === 'regular';
+                document.getElementById('p-btn-2').style.display = isReg ? 'flex' : 'none';
+                document.getElementById('p-btn-3').style.display = isReg ? 'flex' : 'none';
+                window.nav('view-p-buttons');
+            }
+            if(data.state === 'RESULTS') {
+                document.getElementById('p-res-title').innerText = me.lastCorrect ? 'Correct' : 'Incorrect';
+                document.getElementById('p-res-points').innerText = `+${me.lastPts}`;
+                document.getElementById('p-res-total').innerText = me.score;
+                document.getElementById('view-p-result').style.backgroundColor = me.lastCorrect ? 'var(--k-green)' : 'var(--k-red)';
+                window.nav('view-p-result');
+            }
+            if(data.state === 'PODIUM') {
+                document.getElementById('p-res-title').innerText = "Game Over!";
+                window.nav('view-p-result');
+            }
+        }
+
+        window.submitAnswer = async (idx) => {
+            window.nav('view-p-wait-result');
+            await updateDoc(activeGameRef, { [`players.${userId}.currAns`]: idx, [`players.${userId}.ansTime`]: Date.now() });
         };
 
     </script>
