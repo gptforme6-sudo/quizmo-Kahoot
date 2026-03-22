@@ -61,9 +61,17 @@
 </head>
 <body>
 
+    <!-- UI Navigation Script (מוגן מפני קריסות פיירבייס/סאונד) -->
+    <script>
+        window.nav = function(id) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        };
+    </script>
+
     <!-- ==================== HOME / PLAYER LOGIN ==================== -->
     <div id="view-home" class="view-section active bg-animated justify-center items-center">
-        <div class="bg-white p-8 rounded shadow-2xl w-11/12 max-w-sm text-center">
+        <div class="bg-white p-8 rounded shadow-2xl w-11/12 max-w-sm text-center z-10">
             <h1 class="text-5xl font-black text-[#46178f] mb-8 italic tracking-tighter">Kahoot!</h1>
             
             <div id="join-step-1">
@@ -78,7 +86,8 @@
             </div>
         </div>
         
-        <button onclick="nav('view-admin-login')" class="absolute bottom-4 text-white/50 hover:text-white text-sm underline">כניסת מנהל משחק</button>
+        <!-- הכפתור שסודר - מוגן עם z-index ומרווח לחיצה גדול יותר -->
+        <button onclick="nav('view-admin-login')" class="absolute bottom-4 text-white/50 hover:text-white text-sm underline z-50 p-4 cursor-pointer font-bold">כניסת מנהל משחק</button>
     </div>
 
     <!-- ==================== PLAYER: WAITING LOBBY ==================== -->
@@ -129,7 +138,7 @@
             <input type="password" id="admin-pass" placeholder="סיסמה (2160)" class="w-full border rounded p-3 mb-4 text-center text-xl" onkeypress="if(event.key==='Enter') loginAdmin()">
             <div id="admin-error" class="text-red-500 font-bold mb-4 hidden">סיסמה שגויה, נסה שוב.</div>
             <button onclick="loginAdmin()" class="w-full bg-[#46178f] text-white font-bold py-3 rounded btn-k">היכנס</button>
-            <button onclick="nav('view-home')" class="mt-4 text-gray-500 underline text-sm">חזרה למשחק</button>
+            <button onclick="nav('view-home')" class="mt-4 text-gray-500 underline text-sm cursor-pointer p-2">חזרה למשחק</button>
         </div>
     </div>
 
@@ -285,11 +294,17 @@
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Setup
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // Firebase Initialization with Try-Catch protection
+        let app, auth, db;
+        try {
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "dummy" };
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Firebase init failed:", e);
+        }
+        
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // Global Variables
@@ -313,17 +328,22 @@
 
         const shapes = ['triangle', 'diamond', 'circle', 'square'];
 
-        // Sounds
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Sounds (Lazy Load - Fixes Browser Blocks)
+        let ctx = null;
         function beep(f, t) {
-            const o = ctx.createOscillator(); const g = ctx.createGain();
-            o.type = 'square'; o.frequency.value = f;
-            o.connect(g); g.connect(ctx.destination);
-            o.start(); g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + t); o.stop(ctx.currentTime + t);
+            try {
+                if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') ctx.resume();
+                const o = ctx.createOscillator(); const g = ctx.createGain();
+                o.type = 'square'; o.frequency.value = f;
+                o.connect(g); g.connect(ctx.destination);
+                o.start(); g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + t); o.stop(ctx.currentTime + t);
+            } catch(e) { console.warn("Audio skipped"); }
         }
 
         // Auth
         const initAuth = async () => {
+            if(!auth) return;
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
@@ -334,25 +354,22 @@
         };
         initAuth();
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userId = user.uid;
-                const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
-                onSnapshot(qRef, (snap) => {
-                    quizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    renderDash();
-                }, (error) => console.error("Quizzes fetch error:", error));
-            }
-        });
-
-        // Navigation
-        window.nav = function(id) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        };
+        if(auth) {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+                    onSnapshot(qRef, (snap) => {
+                        quizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        renderDash();
+                    }, (error) => console.error("Quizzes fetch error:", error));
+                }
+            });
+        }
 
         // ==================== PLAYER LOGIC ====================
         window.checkPin = async function() {
+            if(!db) return;
             const btn = document.getElementById('btn-enter');
             const pinError = document.getElementById('pin-error');
             btn.innerText = "Loading..."; btn.classList.add('opacity-50');
@@ -362,9 +379,7 @@
             if(pinStr.length === 0) { btn.innerText = "Enter"; btn.classList.remove('opacity-50'); return; }
 
             try {
-                // הבטחה שקיימת התחברות לפני שמושכים מהמסד
                 if (!auth.currentUser) await signInAnonymously(auth);
-
                 const gRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', pinStr);
                 const snap = await getDoc(gRef);
                 if (snap.exists()) {
@@ -393,7 +408,7 @@
                 });
                 
                 document.getElementById('p-waiting-nick').innerText = myName;
-                nav('view-p-waiting');
+                window.nav('view-p-waiting');
 
                 if(unsubGame) unsubGame();
                 unsubGame = onSnapshot(activeGameRef, (snap) => handlePlayerSync(snap), console.error);
@@ -402,7 +417,7 @@
 
         window.submitAnswer = async function(idx) {
             if(!activeGameRef) return;
-            nav('view-p-wait-result');
+            window.nav('view-p-wait-result');
             try {
                 await updateDoc(activeGameRef, { 
                     [`players.${userId}.currAns`]: idx,
@@ -417,13 +432,13 @@
             const me = data.players[userId];
             if(!me) return;
 
-            if(data.state === 'GET_READY') nav('view-p-getready');
+            if(data.state === 'GET_READY') window.nav('view-p-getready');
             else if(data.state === 'QUESTION') {
                 const isReg = data.quiz.questions[data.currentQIdx].type === 'regular';
                 document.getElementById('p-btn-2').style.display = isReg ? 'flex' : 'none';
                 document.getElementById('p-btn-3').style.display = isReg ? 'flex' : 'none';
                 document.getElementById('p-btn-grid').className = `grid gap-2 w-full h-full ${isReg ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1 grid-rows-2'}`;
-                if(me.currAns === null) nav('view-p-buttons');
+                if(me.currAns === null) window.nav('view-p-buttons');
             }
             else if(data.state === 'RESULTS') {
                 document.getElementById('p-res-title').innerText = me.lastCorrect ? 'Correct' : 'Incorrect';
@@ -432,13 +447,13 @@
                 document.getElementById('p-res-name').innerText = myName;
                 const v = document.getElementById('view-p-result');
                 v.style.backgroundColor = me.lastCorrect ? 'var(--k-green)' : 'var(--k-red)';
-                nav('view-p-result');
+                window.nav('view-p-result');
             }
             else if(data.state === 'PODIUM') {
                 document.getElementById('p-res-title').innerText = "Game Over!";
                 document.getElementById('p-res-points').style.display = 'none';
                 document.getElementById('view-p-result').style.backgroundColor = 'var(--k-purple)';
-                nav('view-p-result');
+                window.nav('view-p-result');
             }
         }
 
@@ -449,7 +464,7 @@
             if(document.getElementById('admin-pass').value === ADMIN_PASS) {
                 document.getElementById('admin-pass').value = '';
                 renderDash();
-                nav('view-admin-dash');
+                window.nav('view-admin-dash');
             } else { 
                 err.classList.remove('hidden');
             }
@@ -472,7 +487,6 @@
             });
         }
 
-        // מניעת שימוש ב-confirm() שעלול להיחסם
         window.confirmDelete = function(id) {
             const btn = document.getElementById(`del-btn-${id}`);
             if(btn.innerText === "מחק") {
@@ -500,9 +514,9 @@
             else { creatorQuiz = JSON.parse(JSON.stringify(quizzes.find(q=>q.id===id))); }
             document.getElementById('quiz-title').value = creatorQuiz.title;
             creatorQIdx = 0;
-            renderCreatorSide();
-            loadQ();
-            nav('view-admin-creator');
+            window.renderCreatorSide();
+            window.loadQ();
+            window.nav('view-admin-creator');
         };
 
         window.renderCreatorSide = function() {
@@ -510,7 +524,7 @@
             creatorQuiz.questions.forEach((q, i) => {
                 const isSel = i === creatorQIdx;
                 sb.innerHTML += `
-                    <div class="p-2 rounded cursor-pointer border-2 ${isSel ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-100'}" onclick="creatorQIdx=${i}; loadQ();">
+                    <div class="p-2 rounded cursor-pointer border-2 ${isSel ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-100'}" onclick="creatorQIdx=${i}; window.loadQ();">
                         <div class="text-xs font-bold text-gray-500">שאלה ${i+1}</div>
                         <div class="text-sm font-bold truncate">${q.text || '...'}</div>
                     </div>`;
@@ -574,7 +588,6 @@
             }
         };
 
-        // מנגנון כיווץ תמונות - מונע מהתמונה לפוצץ את מגבלת הגודל של פיירבייס (1MB)
         window.uploadImage = function(e) {
             const btnText = document.getElementById('q-img-upload-text');
             const file = e.target.files[0];
@@ -588,16 +601,15 @@
                     const canvas = document.createElement('canvas');
                     let w = img.width;
                     let h = img.height;
-                    const MAX_SIZE = 800; // מקסימום רוחב או גובה לתמונה
+                    const MAX_SIZE = 800;
                     if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; }
                     if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; }
                     
                     canvas.width = w;
                     canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, w, h);
+                    const ctxCanvas = canvas.getContext('2d');
+                    ctxCanvas.drawImage(img, 0, 0, w, h);
                     
-                    // כיווץ לאיכות 70% JPEG
                     creatorQuiz.questions[creatorQIdx].img = canvas.toDataURL('image/jpeg', 0.7); 
                     btnText.innerText = "➕ הוסף תמונה";
                     window.loadQ(); 
@@ -614,7 +626,6 @@
             creatorQuiz.title = document.getElementById('quiz-title').value || 'Untitled Kahoot';
             
             try {
-                // מנקה נתונים פגומים / ריקים לחלוטין לפני השליחה כדי לא להקריס את ה-Firebase
                 const cleanData = JSON.parse(JSON.stringify({ 
                     title: creatorQuiz.title, 
                     questions: creatorQuiz.questions 
@@ -626,7 +637,7 @@
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'quizzes'), cleanData);
                 }
                 btn.innerText = "שמור";
-                nav('view-admin-dash');
+                window.nav('view-admin-dash');
             } catch (e) {
                 console.error("Save Error:", e);
                 btn.innerText = "שגיאה! נסה שוב";
@@ -641,7 +652,6 @@
                 activePin = Math.floor(100000 + Math.random() * 900000).toString();
                 activeGameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', activePin);
                 
-                // ניקוי נוסף למניעת שגיאות בפתיחת החדר
                 const cleanQuiz = JSON.parse(JSON.stringify(hostQuiz));
 
                 await setDoc(activeGameRef, {
@@ -655,7 +665,7 @@
                 });
 
                 document.getElementById('h-pin-display').innerText = activePin;
-                nav('view-h-lobby');
+                window.nav('view-h-lobby');
 
                 if(unsubGame) unsubGame();
                 unsubGame = onSnapshot(activeGameRef, (snap) => handleHostSync(snap), console.error);
@@ -717,7 +727,7 @@
             try {
                 if(activeGameRef) await deleteDoc(activeGameRef);
                 if(unsubGame) unsubGame();
-                nav('view-admin-dash'); 
+                window.nav('view-admin-dash'); 
             } catch(e) { console.error(e); }
         };
 
@@ -725,7 +735,7 @@
             try {
                 await updateDoc(activeGameRef, { state: 'GET_READY' });
                 document.getElementById('h-getready-title').innerText = hostQuiz.title;
-                nav('view-h-getready');
+                window.nav('view-h-getready');
                 setTimeout(window.showQ, 5000);
             } catch(e) { console.error(e); }
         };
@@ -751,7 +761,7 @@
                     </div>`;
             }
 
-            nav('view-h-question');
+            window.nav('view-h-question');
             hostTimer = q.time;
             document.getElementById('h-timer').innerText = hostTimer;
             
@@ -818,7 +828,7 @@
                         <div class="bg-gray-300 w-12 h-6 flex justify-center items-center rounded mt-2"><div class="shape-container scale-50"><div class="k-shape k-${shapes[i]}" style="background-color: ${bgc[i]}"></div></div></div>
                     </div>`;
             }
-            nav('view-h-results');
+            window.nav('view-h-results');
         };
 
         window.hostNextStep = async function() {
@@ -830,13 +840,13 @@
                         l.innerHTML += `<div class="bg-white p-4 text-2xl font-bold flex justify-between shadow rounded border-l-8 border-[var(--k-purple)]"><span>${p.name}</span><span>${p.score}</span></div>`;
                     });
                     await updateDoc(activeGameRef, { state: 'SCOREBOARD' });
-                    nav('view-h-scoreboard');
+                    window.nav('view-h-scoreboard');
                 } else if (document.getElementById('view-h-scoreboard').classList.contains('active')) {
                     hostQIdx++;
                     if(hostQIdx < hostQuiz.questions.length) {
                         await updateDoc(activeGameRef, { state: 'GET_READY' });
                         document.getElementById('h-getready-title').innerText = hostQuiz.questions[hostQIdx].text;
-                        nav('view-h-getready');
+                        window.nav('view-h-getready');
                         setTimeout(window.showQ, 5000);
                     } else {
                         const s = Object.values(hostGameData.players).sort((a,b)=>b.score-a.score);
@@ -845,7 +855,7 @@
                             document.getElementById(`pod-score-${i}`).innerText = s[i-1] ? s[i-1].score : '';
                         }
                         await updateDoc(activeGameRef, { state: 'PODIUM' });
-                        nav('view-h-podium');
+                        window.nav('view-h-podium');
                     }
                 }
             } catch(e) { console.error(e); }
