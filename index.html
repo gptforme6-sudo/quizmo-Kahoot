@@ -3,857 +3,436 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kahoot! - Full Version</title>
+    <title>Kahoot! Ultimate Fixed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --k-red: #e21b3c; --k-blue: #1368ce; --k-yellow: #d89e00; --k-green: #26890c; --k-purple: #46178f; --k-bg: #f2f2f2;
         }
-        body { font-family: 'Montserrat', sans-serif; background-color: var(--k-bg); margin: 0; overflow-x: hidden; user-select: none; }
-        .btn-k { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); transition: transform 0.1s, box-shadow 0.1s; cursor: pointer; }
+        body { font-family: 'Montserrat', sans-serif; background-color: var(--k-bg); margin: 0; overflow-x: hidden; }
+        .btn-k { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2); transition: all 0.1s; cursor: pointer; }
         .btn-k:active { box-shadow: 0 0px 0 rgba(0, 0, 0, 0.2); transform: translateY(4px); }
-        .btn-k:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
-        
-        .shape-container { display: flex; justify-content: center; align-items: center; pointer-events: none; }
-        .k-triangle { width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-bottom: 52px solid white; }
-        .k-diamond { width: 45px; height: 45px; transform: rotate(45deg); background-color: white; }
-        .k-circle { width: 55px; height: 55px; border-radius: 50%; background-color: white; }
-        .k-square { width: 50px; height: 50px; background-color: white; }
-        
-        @keyframes pulse-bg { 0% { background-color: #46178f; } 50% { background-color: #25076b; } 100% { background-color: #46178f; } }
-        .bg-animated { animation: pulse-bg 10s infinite alternate; }
-        
-        .view-section { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+        .bg-animated { background: linear-gradient(45deg, #46178f, #25076b); background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+        .view-section { display: none; width: 100%; height: 100vh; flex-direction: column; overflow-y: auto; }
         .view-section.active { display: flex; }
-        
-        .timer-ring { transition: stroke-dashoffset 1s linear; }
+        .k-shape { width: 40px; height: 40px; background: white; display: inline-block; }
+        .k-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+        .k-diamond { transform: rotate(45deg); width: 30px; height: 30px; }
+        .k-circle { border-radius: 50%; }
+        .k-square { }
     </style>
 </head>
 <body>
 
-    <!-- ========================================== -->
-    <!--                HTML VIEWS                  -->
-    <!-- ========================================== -->
-
-    <!-- 1. HOME (Player Login) -->
-    <div id="view-home" class="view-section active bg-animated justify-center items-center">
-        <div class="bg-white p-8 rounded shadow-2xl w-11/12 max-w-sm text-center z-10">
-            <h1 class="text-5xl font-black text-[#46178f] mb-8 italic tracking-tighter">Kahoot!</h1>
-            
+    <!-- 1. HOME / PLAYER JOIN -->
+    <div id="view-home" class="view-section active bg-animated justify-center items-center p-4">
+        <div class="bg-white p-8 rounded shadow-2xl w-full max-w-sm text-center">
+            <h1 class="text-5xl font-black text-[#46178f] mb-8 italic italic">Kahoot!</h1>
             <div id="join-step-1">
-                <input type="text" inputmode="numeric" id="pin-input" placeholder="Game PIN" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
+                <input type="text" id="pin-input" placeholder="Game PIN" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 outline-none focus:border-purple-600">
                 <button onclick="window.checkPin()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k">Enter</button>
-                <div id="pin-error" class="text-red-500 font-bold mt-2 hidden">PIN לא תקין או שהחדר לא קיים.</div>
             </div>
-
             <div id="join-step-2" class="hidden">
-                <input type="text" id="nick-input" placeholder="Nickname" maxlength="15" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
+                <input type="text" id="nick-input" placeholder="Nickname" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 outline-none focus:border-purple-600">
                 <button onclick="window.joinGame()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k">OK, go!</button>
-                <div id="nick-error" class="text-red-500 font-bold mt-2 hidden">אנא הזן כינוי.</div>
             </div>
+            <p id="home-error" class="text-red-500 font-bold mt-4 hidden"></p>
         </div>
-        <button onclick="window.nav('view-admin-login')" class="absolute bottom-4 text-white/50 hover:text-white text-sm underline z-50 p-4 font-bold">כניסת מנהל משחק</button>
+        <!-- כפתור כניסת מנהל - תוקן -->
+        <button onclick="window.goToAdminLogin()" class="absolute bottom-8 text-white/60 hover:text-white font-bold underline">כניסת מנהל משחק</button>
     </div>
 
-    <!-- 2. PLAYER LOBBY -->
-    <div id="view-p-lobby" class="view-section bg-animated justify-center items-center">
-        <div class="text-center text-white z-10">
-            <h2 class="text-5xl font-bold mb-4">You're in!</h2>
-            <h3 class="text-3xl font-black shadow-text" id="p-lobby-nick"></h3>
-            <div class="mt-8 text-xl font-bold">See your nickname on screen</div>
-        </div>
-    </div>
-
-    <!-- 3. PLAYER GAME (Answer Buttons) -->
-    <div id="view-p-game" class="view-section bg-gray-100 p-2">
-        <div class="flex-grow flex flex-col justify-center gap-2" id="p-game-buttons">
-            <!-- Buttons injected via JS -->
-        </div>
-        <div class="text-center p-4 font-bold text-xl" id="p-game-status"></div>
-    </div>
-
-    <!-- 4. PLAYER RESULT -->
-    <div id="view-p-result" class="view-section justify-center items-center text-white transition-colors duration-500">
-        <h1 class="text-6xl font-black mb-4" id="p-result-title"></h1>
-        <div class="bg-black/20 px-6 py-3 rounded text-2xl font-bold">Score: <span id="p-result-score">0</span></div>
-        <div class="mt-8 text-xl font-bold" id="p-result-msg"></div>
-    </div>
-
-    <!-- 5. ADMIN LOGIN -->
-    <div id="view-admin-login" class="view-section bg-gray-100 justify-center items-center">
-        <div class="bg-white p-8 rounded shadow-lg w-full max-w-sm text-center border-t-8 border-[#46178f]">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800">פאנל ניהול</h2>
-            <input type="password" id="admin-pass" placeholder="סיסמה (2160)" class="w-full border rounded p-3 mb-4 text-center text-xl">
-            <div id="admin-error" class="text-red-500 font-bold mb-4 hidden">סיסמה שגויה.</div>
-            <button onclick="window.tryLoginAdmin()" class="w-full bg-[#46178f] text-white font-bold py-3 rounded btn-k">היכנס</button>
-            <button onclick="window.nav('view-home')" class="mt-4 text-gray-500 underline text-sm p-2">חזרה לשחקן</button>
+    <!-- 2. ADMIN LOGIN -->
+    <div id="view-admin-login" class="view-section bg-gray-100 justify-center items-center p-4">
+        <div class="bg-white p-8 rounded shadow-xl w-full max-w-sm text-center border-t-8 border-purple-800">
+            <h2 class="text-2xl font-bold mb-6">פאנל ניהול</h2>
+            <input type="password" id="admin-pass" placeholder="הזן סיסמה (2160)" class="w-full border rounded p-3 mb-4 text-center text-xl">
+            <button onclick="window.tryLoginAdmin()" class="w-full bg-purple-800 text-white font-bold py-3 rounded btn-k">היכנס</button>
+            <button onclick="window.nav('view-home')" class="mt-4 text-gray-500 text-sm">ביטול</button>
         </div>
     </div>
 
-    <!-- 6. ADMIN DASHBOARD -->
-    <div id="view-admin-dash" class="view-section bg-gray-100">
-        <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
-            <h1 class="text-3xl font-black text-[#46178f] italic">Kahoot!</h1>
-            <button onclick="window.nav('view-home')" class="text-gray-600 font-bold">יציאה</button>
-        </header>
-        <div class="p-6 max-w-6xl mx-auto w-full">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">החידונים שלי</h2>
-                <button onclick="window.openEditor(null)" class="bg-[var(--k-blue)] text-white font-bold py-2 px-6 rounded btn-k">צור חידון חדש</button>
+    <!-- 3. ADMIN DASHBOARD -->
+    <div id="view-admin-dash" class="view-section bg-gray-50">
+        <nav class="bg-white shadow p-4 flex justify-between items-center">
+            <h1 class="text-2xl font-black text-purple-800 italic">Kahoot! Admin</h1>
+            <button onclick="window.nav('view-home')" class="text-gray-600 font-bold">התנתק</button>
+        </nav>
+        <div class="p-6 max-w-5xl mx-auto w-full">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800">החידונים שלי</h2>
+                <button onclick="window.createNewQuiz()" class="bg-blue-600 text-white font-bold py-3 px-8 rounded btn-k">צור חידון חדש</button>
             </div>
-            <div id="quiz-list" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Quizzes injected here -->
+            <div id="quiz-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Quizzes will be rendered here -->
             </div>
         </div>
     </div>
 
-    <!-- 7. ADMIN CREATOR -->
-    <div id="view-admin-creator" class="view-section bg-gray-100">
-        <header class="bg-white shadow px-4 py-3 flex justify-between items-center z-10 shrink-0">
-            <input type="text" id="quiz-title" placeholder="שם החידון..." class="text-xl font-bold border-b-2 border-transparent focus:border-gray-400 outline-none w-1/3">
+    <!-- 4. QUIZ EDITOR -->
+    <div id="view-admin-editor" class="view-section bg-gray-100">
+        <header class="bg-white p-4 shadow flex justify-between items-center">
+            <input type="text" id="edit-quiz-title" placeholder="שם החידון..." class="text-xl font-bold border-b-2 outline-none w-1/2">
             <div class="flex gap-2">
-                <button onclick="window.nav('view-admin-dash')" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded btn-k">ביטול</button>
-                <button onclick="window.saveQuiz()" id="btn-save-quiz" class="bg-[var(--k-green)] text-white font-bold py-2 px-6 rounded btn-k">שמור חידון</button>
+                <button onclick="window.nav('view-admin-dash')" class="bg-gray-400 text-white px-4 py-2 rounded">ביטול</button>
+                <button onclick="window.saveQuizToDB()" class="bg-green-600 text-white px-6 py-2 rounded font-bold btn-k">שמור חידון</button>
             </div>
         </header>
-        <div class="flex flex-grow overflow-hidden relative">
-            <!-- Sidebar -->
-            <div class="w-56 bg-white border-l border-gray-200 p-2 overflow-y-auto flex flex-col gap-2 shrink-0" id="creator-sidebar"></div>
-            <!-- Main Editor -->
-            <div class="flex-grow p-4 flex flex-col items-center overflow-y-auto bg-gray-50">
-                <div class="w-full max-w-4xl bg-white p-6 rounded shadow relative">
-                    <button onclick="window.deleteCurrentQ()" class="absolute top-4 left-4 text-red-500 font-bold p-2 hover:bg-red-50 rounded">🗑️ מחק שאלה</button>
+        <div class="flex flex-grow overflow-hidden">
+            <!-- Sidebar Questions -->
+            <div id="editor-sidebar" class="w-64 bg-white border-l p-2 overflow-y-auto flex flex-col gap-2"></div>
+            <!-- Question Edit Area -->
+            <div class="flex-grow p-8 flex flex-col items-center overflow-y-auto">
+                <div id="question-editor-card" class="bg-white p-8 rounded shadow-lg w-full max-w-3xl relative">
+                    <button onclick="window.removeCurrentQuestion()" class="absolute top-4 left-4 text-red-500 font-bold">🗑️ מחק שאלה</button>
+                    <input type="text" id="edit-q-text" placeholder="הקלד את השאלה כאן" class="w-full text-center text-3xl font-bold py-4 border-b-2 mb-8 outline-none" oninput="window.syncQData()">
                     
-                    <div class="flex gap-4 mb-4 justify-center">
-                        <select id="q-time" class="border rounded p-2 font-bold bg-white" onchange="window.updateQData()">
-                            <option value="10">10 שניות</option><option value="20" selected>20 שניות</option><option value="30">30 שניות</option><option value="60">60 שניות</option>
-                        </select>
-                        <select id="q-type" class="border rounded p-2 font-bold bg-white" onchange="window.changeQType()">
-                            <option value="regular">4 תשובות</option><option value="boolean">נכון/לא נכון</option>
-                        </select>
-                    </div>
-                    
-                    <input type="text" id="q-text" placeholder="הקלד את השאלה כאן" class="w-full text-center text-3xl font-bold py-4 border-b-2 mb-6 outline-none" oninput="window.updateQData()">
-                    
-                    <div class="w-72 h-48 mx-auto bg-gray-100 border-2 border-dashed border-gray-300 flex justify-center items-center relative mb-8 rounded cursor-pointer hover:bg-gray-200 transition" onclick="document.getElementById('q-img-upload').click()">
-                        <span id="q-img-upload-text" class="text-gray-500 font-bold">➕ הוסף תמונה (אופציונלי)</span>
-                        <img id="q-img-preview" class="absolute inset-0 w-full h-full object-contain hidden rounded">
-                        <input type="file" id="q-img-upload" accept="image/*" class="hidden" onchange="window.uploadImage(event)">
-                        <button onclick="window.removeImage(event)" id="q-img-remove" class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 hidden z-10 font-bold shadow">X</button>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4" id="q-answers-container"></div>
+                    <div class="grid grid-cols-2 gap-4" id="edit-answers-grid"></div>
                 </div>
+                <button onclick="window.addNewQuestion()" class="mt-6 bg-purple-600 text-white font-bold py-3 px-12 rounded btn-k">➕ הוסף שאלה</button>
             </div>
         </div>
     </div>
 
-    <!-- 8. HOST LOBBY -->
-    <div id="view-h-lobby" class="view-section bg-animated">
-        <div class="w-full bg-white flex justify-between items-center px-8 py-4 shadow z-10 shrink-0">
-            <div class="text-2xl font-black text-gray-800">Join at <span class="text-[#46178f]">Kahoot!</span></div>
+    <!-- 5. HOST LOBBY -->
+    <div id="view-host-lobby" class="view-section bg-animated">
+        <div class="bg-white w-full p-6 flex justify-between items-center shadow-xl">
+            <div class="text-3xl font-black">Join at <span class="text-purple-700">Kahoot!</span></div>
             <div class="text-center">
-                <div class="text-sm font-bold text-gray-500 uppercase tracking-widest">Game PIN:</div>
-                <div class="text-7xl font-black text-gray-900 tracking-widest" id="h-pin-display"></div>
+                <p class="text-gray-500 font-bold uppercase text-xs">Game PIN:</p>
+                <p class="text-7xl font-black tracking-tighter" id="display-pin">000000</p>
             </div>
-            <button onclick="window.hostStartGame()" id="h-start-btn" class="bg-[var(--k-blue)] text-white font-bold text-2xl py-3 px-8 rounded btn-k opacity-50 pointer-events-none transition-opacity">Start</button>
+            <button id="start-game-btn" onclick="window.startGame()" class="bg-blue-600 text-white px-10 py-4 rounded text-2xl font-bold btn-k opacity-50 pointer-events-none">Start</button>
         </div>
-        <div class="flex-grow relative p-8 overflow-y-auto">
-            <div class="flex flex-wrap gap-4 justify-center" id="h-players-list"></div>
-            <div class="fixed bottom-6 left-6 text-white font-bold text-2xl bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm"><span id="h-player-count">0</span> Players</div>
-        </div>
+        <div class="flex-grow p-10 flex flex-wrap gap-4 justify-center" id="lobby-players-list"></div>
     </div>
 
-    <!-- 9. HOST GAME (Question Display) -->
-    <div id="view-h-game" class="view-section bg-gray-100">
-        <div class="flex flex-col h-full relative">
-            <div class="bg-white text-center py-6 px-4 shadow text-4xl font-bold z-10" id="h-game-q-text"></div>
-            
-            <div class="flex-grow flex justify-center items-center relative p-4">
-                <div class="absolute left-8 flex flex-col items-center">
-                    <svg class="w-24 h-24 transform -rotate-90">
-                        <circle cx="48" cy="48" r="40" stroke="#e5e7eb" stroke-width="8" fill="none"></circle>
-                        <circle id="h-game-timer-ring" cx="48" cy="48" r="40" stroke="#8b5cf6" stroke-width="8" fill="none" stroke-dasharray="251" stroke-dashoffset="0" class="timer-ring"></circle>
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center text-3xl font-black" id="h-game-timer-text"></div>
-                </div>
-                <img id="h-game-img" class="max-h-[40vh] max-w-2xl rounded shadow-lg hidden">
-                <div class="absolute right-8 text-2xl font-bold bg-white px-4 py-2 rounded shadow">
-                    Answers: <span id="h-game-answer-count">0</span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 p-4" id="h-game-answers-container"></div>
-            
-            <div id="h-game-next-btn-container" class="absolute bottom-4 right-4 hidden z-20">
-                <button onclick="window.hostNextState()" class="bg-[var(--k-blue)] text-white font-bold text-xl py-3 px-8 rounded btn-k shadow-xl">Next</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 10. HOST SCORES (Leaderboard) -->
-    <div id="view-h-scores" class="view-section bg-[#46178f] text-white">
+    <!-- 6. HOST GAME -->
+    <div id="view-host-game" class="view-section bg-gray-100 p-8">
         <div class="flex flex-col h-full">
-            <div class="flex justify-between items-center p-6">
-                <h1 class="text-4xl font-bold">Top Scores</h1>
-                <button onclick="window.hostNextState()" class="bg-white text-[#46178f] font-bold py-2 px-6 rounded btn-k">Next</button>
-            </div>
-            <div class="flex-grow flex justify-center items-center p-4">
-                <div class="w-full max-w-2xl flex flex-col gap-4" id="h-scores-list"></div>
+            <div id="host-q-text" class="bg-white p-10 rounded shadow text-center text-4xl font-bold mb-8"></div>
+            <div class="flex-grow grid grid-cols-2 gap-4" id="host-answers-display"></div>
+            <div class="mt-8 flex justify-between items-center bg-white p-4 rounded shadow">
+                <div class="text-2xl font-bold">Answers: <span id="ans-count">0</span></div>
+                <div class="text-4xl font-black text-purple-700" id="host-timer">20</div>
+                <button onclick="window.nextStep()" id="host-next-btn" class="bg-blue-600 text-white px-8 py-3 rounded font-bold hidden">Next</button>
             </div>
         </div>
     </div>
 
+    <!-- 7. PLAYER GAME -->
+    <div id="view-player-game" class="view-section p-2 bg-gray-200">
+        <div id="player-buttons" class="flex flex-col h-full gap-2"></div>
+    </div>
 
-    <!-- ========================================== -->
-    <!--            JAVASCRIPT & FIREBASE           -->
-    <!-- ========================================== -->
+    <!-- 8. PLAYER RESULT -->
+    <div id="view-player-result" class="view-section justify-center items-center text-white">
+        <h2 id="p-res-title" class="text-6xl font-black mb-4"></h2>
+        <p id="p-res-score" class="text-2xl font-bold bg-black/20 px-4 py-2 rounded"></p>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Setup
+        // Firebase Config
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // Global State Variables
-        let quizzes = [];
-        let editingQuizId = null;
-        let activePin = null;
-        let activeGameRef = null;
+        // App State
+        let allQuizzes = [];
+        let currentQuiz = null;
+        let activeQuestionIndex = 0;
+        let gamePin = null;
         let isHost = false;
-        let isPlayer = false;
-        let playerUnsubscribe = null;
-        let hostUnsubscribe = null;
-        
-        // Expose functions globally for HTML buttons
-        window.creatorQuiz = null;
-        window.creatorQIdx = 0;
-        
-        // Utility: Navigation
-        window.nav = function(id) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            const target = document.getElementById(id);
-            if (target) target.classList.add('active');
+        let userId = null;
+
+        // --- Navigation ---
+        window.nav = (id) => {
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
         };
 
-        // Utility: Empty Question Generator
-        window.generateEmptyQuestion = function() {
-            return { type: 'regular', time: 20, text: '', img: null, ans: ['', '', '', ''], correct: 0 };
+        window.goToAdminLogin = () => {
+            document.getElementById('admin-pass').value = '';
+            window.nav('view-admin-login');
         };
 
-        // Init App & Auth
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                await signInAnonymously(auth);
-            } else {
-                // Listen to Quizzes globally
-                const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
-                onSnapshot(qRef, (snap) => {
-                    quizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    renderDash();
-                });
-            }
-        });
-
-        // ==========================================
-        //               ADMIN / CREATOR
-        // ==========================================
-
-        window.tryLoginAdmin = function() {
-            const pass = document.getElementById('admin-pass').value;
-            if(pass === "2160") {
-                document.getElementById('admin-error').classList.add('hidden');
-                document.getElementById('admin-pass').value = '';
+        // --- Admin Management ---
+        window.tryLoginAdmin = () => {
+            if(document.getElementById('admin-pass').value === "2160") {
                 window.nav('view-admin-dash');
+                loadQuizzes();
             } else {
-                document.getElementById('admin-error').classList.remove('hidden');
+                alert("סיסמה שגויה");
             }
         };
 
-        function renderDash() {
+        async function loadQuizzes() {
+            if (!userId) return;
+            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+            onSnapshot(qRef, (snap) => {
+                allQuizzes = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                renderQuizList();
+            });
+        }
+
+        function renderQuizList() {
             const list = document.getElementById('quiz-list');
-            if(!list) return;
             list.innerHTML = '';
-            if(quizzes.length === 0) {
-                list.innerHTML = `<div class="col-span-full text-center text-gray-500 py-8 font-bold">אין חידונים עדיין. צור אחד!</div>`;
-                return;
-            }
-            quizzes.forEach(q => {
+            allQuizzes.forEach(q => {
                 const div = document.createElement('div');
-                div.className = "bg-white p-6 rounded shadow-lg border-t-4 border-purple-600 flex flex-col";
+                div.className = "bg-white p-6 rounded-lg shadow-md border-b-4 border-purple-600";
                 div.innerHTML = `
-                    <h3 class="text-xl font-bold mb-2 truncate">${q.title || 'ללא שם'}</h3>
-                    <p class="text-gray-500 mb-4 flex-grow">${(q.questions || []).length} שאלות</p>
-                    <div class="flex gap-2 mb-2">
-                        <button class="flex-1 bg-gray-200 py-2 rounded font-bold hover:bg-gray-300 transition" onclick="window.openEditor('${q.id}')">ערוך</button>
-                        <button class="flex-1 bg-red-100 text-red-600 py-2 rounded font-bold hover:bg-red-200 transition" onclick="window.deleteQuiz('${q.id}')">מחק</button>
+                    <h3 class="text-xl font-bold mb-2">${q.title}</h3>
+                    <p class="text-gray-500 mb-4">${q.questions.length} שאלות</p>
+                    <div class="flex gap-2">
+                        <button onclick="window.editQuiz('${q.id}')" class="flex-1 bg-gray-100 py-2 rounded font-bold">ערוך</button>
+                        <button onclick="window.startHost('${q.id}')" class="flex-1 bg-green-600 text-white py-2 rounded font-bold">שחק</button>
+                        <button onclick="window.deleteQuiz('${q.id}')" class="p-2 text-red-500">🗑️</button>
                     </div>
-                    <button class="w-full bg-[#26890c] text-white py-3 rounded btn-k font-bold text-lg" onclick="window.hostInit('${q.id}')">שחק עכשיו</button>
                 `;
                 list.appendChild(div);
             });
         }
 
-        window.deleteQuiz = async (id) => {
-            if(confirm("בטוח שברצונך למחוק חידון זה?")) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id));
-                } catch(e) { console.error("Delete Error", e); }
-            }
+        // --- Editor Logic (THE "FIX") ---
+        window.createNewQuiz = () => {
+            currentQuiz = {
+                title: "חידון חדש",
+                questions: [{ text: "", answers: ["", "", "", ""], correct: 0, time: 20 }]
+            };
+            activeQuestionIndex = 0;
+            openEditor();
         };
 
-        window.openEditor = (id) => {
-            editingQuizId = id;
-            if(!id) {
-                window.creatorQuiz = { title: '', questions: [window.generateEmptyQuestion()] };
-            } else {
-                const source = quizzes.find(q => q.id === id);
-                // Deep copy to prevent live DB editing without saving
-                window.creatorQuiz = JSON.parse(JSON.stringify(source));
-                if(!window.creatorQuiz.questions || window.creatorQuiz.questions.length === 0) {
-                    window.creatorQuiz.questions = [window.generateEmptyQuestion()];
-                }
-            }
-            window.creatorQIdx = 0;
-            document.getElementById('quiz-title').value = window.creatorQuiz.title || '';
-            
-            // Ensure UI is clean before nav
-            document.getElementById('q-text').value = '';
-            
-            loadQ();
-            window.nav('view-admin-creator');
+        window.editQuiz = (id) => {
+            const found = allQuizzes.find(q => q.id === id);
+            currentQuiz = JSON.parse(JSON.stringify(found)); // Deep copy
+            activeQuestionIndex = 0;
+            openEditor();
         };
 
-        function loadQ() {
-            if(!window.creatorQuiz || !window.creatorQuiz.questions) return;
-            const q = window.creatorQuiz.questions[window.creatorQIdx];
-            
-            document.getElementById('q-text').value = q.text || '';
-            document.getElementById('q-time').value = q.time || 20;
-            document.getElementById('q-type').value = q.type || 'regular';
-            
-            const imgP = document.getElementById('q-img-preview');
-            const imgR = document.getElementById('q-img-remove');
-            const imgT = document.getElementById('q-img-upload-text');
-            
-            if(q.img) { 
-                imgP.src = q.img; 
-                imgP.classList.remove('hidden'); 
-                imgR.classList.remove('hidden'); 
-                imgT.classList.add('hidden');
-            } else { 
-                imgP.src = '';
-                imgP.classList.add('hidden'); 
-                imgR.classList.add('hidden'); 
-                imgT.classList.remove('hidden');
-            }
-            
-            renderCreatorAns();
-            renderCreatorSide();
+        function openEditor() {
+            document.getElementById('edit-quiz-title').value = currentQuiz.title;
+            renderEditorSidebar();
+            renderQuestionForm();
+            window.nav('view-admin-editor');
         }
 
-        function renderCreatorAns() {
-            const q = window.creatorQuiz.questions[window.creatorQIdx];
-            const container = document.getElementById('q-answers-container');
-            container.innerHTML = '';
-            
-            const count = q.type === 'regular' ? 4 : 2;
-            const colors = ['bg-[#e21b3c]','bg-[#1368ce]','bg-[#d89e00]','bg-[#26890c]'];
-            const shapes = ['triangle','diamond','circle','square'];
-            const typeClass = q.type === 'regular' ? 'h-24' : 'h-32';
-
-            for(let i=0; i<count; i++) {
-                const isCorrect = q.correct === i;
-                const div = document.createElement('div');
-                div.className = `relative flex items-center bg-white rounded shadow-sm border-b-4 overflow-hidden ${typeClass} ${isCorrect ? 'border-green-500 bg-green-50 ring-2 ring-green-400' : 'border-gray-200'}`;
-                
-                div.innerHTML = `
-                    <div class="${colors[i]} w-12 h-full flex justify-center items-center shrink-0">
-                        <div class="shape-container scale-50">
-                            <div class="k-shape k-${shapes[i]}"></div>
-                        </div>
-                    </div>
-                    <textarea class="flex-grow p-3 resize-none outline-none font-bold text-lg bg-transparent h-full placeholder-gray-400" placeholder="הוסף תשובה ${i+1}">${q.ans[i] || ''}</textarea>
-                    <button class="w-10 h-10 m-2 rounded-full border-2 flex justify-center items-center shrink-0 transition-colors ${isCorrect ? 'bg-green-500 text-white border-green-600' : 'border-gray-300 hover:bg-gray-100'}">
-                        ${isCorrect ? '✓' : ''}
-                    </button>
-                `;
-                
-                div.querySelector('textarea').oninput = (e) => { window.creatorQuiz.questions[window.creatorQIdx].ans[i] = e.target.value; };
-                div.querySelector('button').onclick = () => { window.creatorQuiz.questions[window.creatorQIdx].correct = i; renderCreatorAns(); };
-                container.appendChild(div);
-            }
-        }
-
-        function renderCreatorSide() {
-            const sb = document.getElementById('creator-sidebar');
+        function renderEditorSidebar() {
+            const sb = document.getElementById('editor-sidebar');
             sb.innerHTML = '';
-            window.creatorQuiz.questions.forEach((q, i) => {
+            currentQuiz.questions.forEach((q, i) => {
+                const btn = document.createElement('button');
+                btn.className = `p-3 text-right rounded border ${i === activeQuestionIndex ? 'bg-purple-100 border-purple-500 font-bold' : 'bg-gray-50'}`;
+                btn.innerText = `שאלה ${i+1}: ${q.text.substring(0, 15)}...`;
+                btn.onclick = () => { activeQuestionIndex = i; renderQuestionForm(); renderEditorSidebar(); };
+                sb.appendChild(btn);
+            });
+        }
+
+        function renderQuestionForm() {
+            const q = currentQuiz.questions[activeQuestionIndex];
+            document.getElementById('edit-q-text').value = q.text;
+            const grid = document.getElementById('edit-answers-grid');
+            grid.innerHTML = '';
+            
+            const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
+            q.answers.forEach((ans, i) => {
                 const div = document.createElement('div');
-                div.className = `p-3 rounded cursor-pointer border-2 transition relative ${i === window.creatorQIdx ? 'border-[#1368ce] bg-blue-50 shadow' : 'border-gray-100 hover:bg-gray-50'}`;
+                div.className = `${colors[i]} p-4 rounded flex items-center gap-2`;
                 div.innerHTML = `
-                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">שאלה ${i+1}</div>
-                    <div class="font-bold text-sm truncate w-full pr-1">${q.text || '...'}</div>
-                    ${q.img ? `<div class="absolute top-2 left-2 w-2 h-2 bg-green-500 rounded-full"></div>` : ''}
+                    <input type="radio" name="correct" ${i === q.correct ? 'checked' : ''} onchange="window.setCorrect(${i})">
+                    <input type="text" value="${ans}" class="w-full p-2 rounded text-black font-bold outline-none" placeholder="תשובה ${i+1}" oninput="window.syncAns(${i}, this.value)">
                 `;
-                div.onclick = () => { window.creatorQIdx = i; loadQ(); };
-                sb.appendChild(div);
+                grid.appendChild(div);
             });
-            
-            const addBtn = document.createElement('button');
-            addBtn.className = "mt-2 bg-gray-100 font-bold py-3 border-2 border-dashed border-gray-300 rounded hover:bg-gray-200 w-full text-gray-600 transition";
-            addBtn.innerText = "➕ הוסף שאלה";
-            addBtn.onclick = () => {
-                window.creatorQuiz.questions.push(window.generateEmptyQuestion());
-                window.creatorQIdx = window.creatorQuiz.questions.length - 1;
-                loadQ();
-                sb.scrollTop = sb.scrollHeight; // scroll to bottom
-            };
-            sb.appendChild(addBtn);
         }
 
-        window.updateQData = () => {
-            const q = window.creatorQuiz.questions[window.creatorQIdx];
-            q.text = document.getElementById('q-text').value;
-            q.time = parseInt(document.getElementById('q-time').value) || 20;
-            renderCreatorSide(); // update sidebar title
-        }
+        window.syncQData = () => { currentQuiz.questions[activeQuestionIndex].text = document.getElementById('edit-q-text').value; renderEditorSidebar(); };
+        window.syncAns = (i, val) => { currentQuiz.questions[activeQuestionIndex].answers[i] = val; };
+        window.setCorrect = (i) => { currentQuiz.questions[activeQuestionIndex].correct = i; };
+        window.addNewQuestion = () => { currentQuiz.questions.push({ text: "", answers: ["", "", "", ""], correct: 0, time: 20 }); activeQuestionIndex = currentQuiz.questions.length-1; openEditor(); };
+        window.removeCurrentQuestion = () => { if(currentQuiz.questions.length > 1) { currentQuiz.questions.splice(activeQuestionIndex, 1); activeQuestionIndex = 0; openEditor(); } };
 
-        window.changeQType = () => {
-            const q = window.creatorQuiz.questions[window.creatorQIdx];
-            q.type = document.getElementById('q-type').value;
-            if(q.type === 'boolean') { 
-                q.ans = ['נכון', 'לא נכון']; 
-                q.correct = Math.min(q.correct, 1); 
-            } else { 
-                // Restore empty array if switching back from boolean
-                if(q.ans.length === 2 && q.ans[0] === 'נכון') {
-                    q.ans = ['', '', '', ''];
-                } else {
-                    while(q.ans.length < 4) q.ans.push('');
-                }
-            }
-            loadQ();
-        }
-
-        window.deleteCurrentQ = () => {
-            if(window.creatorQuiz.questions.length > 1) {
-                if(confirm("למחק שאלה זו?")) {
-                    window.creatorQuiz.questions.splice(window.creatorQIdx, 1);
-                    window.creatorQIdx = Math.max(0, window.creatorQIdx - 1);
-                    loadQ();
-                }
+        window.saveQuizToDB = async () => {
+            currentQuiz.title = document.getElementById('edit-quiz-title').value;
+            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+            if(currentQuiz.id) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', currentQuiz.id), currentQuiz);
             } else {
-                alert("חייבת להיות לפחות שאלה אחת בחידון.");
+                await addDoc(qRef, currentQuiz);
+            }
+            window.nav('view-admin-dash');
+        };
+
+        window.deleteQuiz = async (id) => {
+            if(confirm("למחוק חידון זה?")) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id));
             }
         };
 
-        window.uploadImage = (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                window.creatorQuiz.questions[window.creatorQIdx].img = ev.target.result;
-                loadQ();
-            };
-            reader.readAsDataURL(file);
-        };
-        
-        window.removeImage = (e) => { 
-            e.stopPropagation(); 
-            window.creatorQuiz.questions[window.creatorQIdx].img = null; 
-            document.getElementById('q-img-upload').value = ''; // clear input
-            loadQ(); 
-        };
-
-        window.saveQuiz = async () => {
-            const btn = document.getElementById('btn-save-quiz');
-            btn.innerText = "שומר...";
-            btn.disabled = true;
-            
-            try {
-                const quizTitle = document.getElementById('quiz-title').value.trim() || 'חידון ללא שם';
-                // Clean data before saving
-                const cleanQuestions = window.creatorQuiz.questions.map(q => ({
-                    text: q.text || '',
-                    time: parseInt(q.time) || 20,
-                    type: q.type || 'regular',
-                    ans: (q.ans || []).map(a => a || ''),
-                    correct: parseInt(q.correct) || 0,
-                    img: q.img || null
-                }));
-
-                const dataToSave = { title: quizTitle, questions: cleanQuestions };
-
-                if(editingQuizId) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', editingQuizId), dataToSave);
-                } else {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'quizzes'), dataToSave);
-                }
-                
-                window.nav('view-admin-dash');
-            } catch (err) {
-                console.error("Save Error:", err);
-                alert("שגיאה בשמירה, נסה שוב.");
-            } finally {
-                btn.innerText = "שמור חידון";
-                btn.disabled = false;
-            }
-        };
-
-        // ==========================================
-        //             HOST LOGIC
-        // ==========================================
-
-        window.hostInit = async (quizId) => {
-            const hostQuiz = quizzes.find(q => q.id === quizId);
-            if(!hostQuiz) return;
-            
-            activePin = Math.floor(100000 + Math.random() * 899999).toString();
-            activeGameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', activePin);
-            
-            await setDoc(activeGameRef, {
-                pin: activePin, 
-                state: 'LOBBY', 
-                players: {}, 
-                currentQIdx: -1,
-                quiz: { title: hostQuiz.title, questions: hostQuiz.questions }
-            });
-            
+        // --- Hosting ---
+        window.startHost = async (quizId) => {
+            const quiz = allQuizzes.find(q => q.id === quizId);
+            gamePin = Math.floor(100000 + Math.random() * 899999).toString();
             isHost = true;
-            document.getElementById('h-pin-display').innerText = activePin;
-            document.getElementById('h-players-list').innerHTML = '';
-            document.getElementById('h-player-count').innerText = '0';
-            window.nav('view-h-lobby');
             
-            if(hostUnsubscribe) hostUnsubscribe();
-            hostUnsubscribe = onSnapshot(activeGameRef, (snap) => {
-                if(!snap.exists()) return;
+            const gameData = {
+                pin: gamePin,
+                quiz: quiz,
+                state: "LOBBY",
+                currentQ: -1,
+                players: {},
+                timer: 0
+            };
+            
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin), gameData);
+            document.getElementById('display-pin').innerText = gamePin;
+            window.nav('view-host-lobby');
+            
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin), (snap) => {
                 const data = snap.data();
-                handleHostGameTick(data);
+                if(!data) return;
+                
+                // Lobby update
+                const players = Object.values(data.players || {});
+                document.getElementById('lobby-players-list').innerHTML = players.map(p => `<div class="bg-white p-3 rounded font-bold shadow">${p.name}</div>`).join('');
+                const sBtn = document.getElementById('start-game-btn');
+                if(players.length > 0) { sBtn.classList.remove('opacity-50', 'pointer-events-none'); }
+                
+                // Game updates
+                if(data.state === "QUESTION") {
+                    renderHostQuestion(data);
+                }
+                
+                const ansCount = players.filter(p => p.lastAns !== null && p.lastAns !== undefined).length;
+                const countEl = document.getElementById('ans-count');
+                if(countEl) countEl.innerText = ansCount;
             });
         };
 
-        function handleHostGameTick(data) {
-            const playersList = Object.values(data.players || {});
-            
-            // In LOBBY: update players count
-            if(data.state === 'LOBBY') {
-                document.getElementById('h-player-count').innerText = playersList.length;
-                const listEl = document.getElementById('h-players-list');
-                listEl.innerHTML = playersList.map(p => `<div class="bg-white px-5 py-2 rounded font-bold shadow text-xl animate-fade-in">${p.name}</div>`).join('');
-                
-                const sBtn = document.getElementById('h-start-btn');
-                if(playersList.length > 0) {
-                    sBtn.classList.remove('opacity-50', 'pointer-events-none');
-                } else {
-                    sBtn.classList.add('opacity-50', 'pointer-events-none');
-                }
-            }
-            
-            // In Q_ACTIVE: update answered count
-            if(data.state === 'Q_ACTIVE') {
-                const answered = playersList.filter(p => p.currentAnswer !== undefined && p.currentAnswer !== null).length;
-                document.getElementById('h-game-answer-count').innerText = answered;
-                
-                // Auto next if all answered
-                if(answered > 0 && answered === playersList.length && !window.timerCleared) {
-                    clearTimeout(window.qTimeout);
-                    clearInterval(window.qInterval);
-                    window.hostNextState(); // move to SCORES
-                }
-            }
-        }
-
-        window.hostStartGame = async () => {
-            await updateDoc(activeGameRef, { state: 'Q_ACTIVE', currentQIdx: 0 });
-            hostRenderQuestion(0);
+        window.startGame = async () => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin), { state: "QUESTION", currentQ: 0 });
+            window.nav('view-host-game');
         };
 
-        window.hostNextState = async () => {
-            const snap = await getDoc(activeGameRef);
-            if(!snap.exists()) return;
+        function renderHostQuestion(data) {
+            const q = data.quiz.questions[data.currentQ];
+            document.getElementById('host-q-text').innerText = q.text;
+            const container = document.getElementById('host-answers-display');
+            container.innerHTML = '';
+            const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
+            q.answers.forEach((ans, i) => {
+                container.innerHTML += `<div class="${colors[i]} p-8 rounded text-white text-2xl font-bold shadow-lg">${ans}</div>`;
+            });
+            document.getElementById('host-next-btn').classList.remove('hidden');
+        }
+
+        window.nextStep = async () => {
+            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin));
             const data = snap.data();
-            
-            if(data.state === 'Q_ACTIVE') {
-                // Time's up or all answered -> Move to Scores for this question
-                await updateDoc(activeGameRef, { state: 'SCORES' });
-                hostRenderScores(data);
-            } else if (data.state === 'SCORES') {
-                // From scores, move to NEXT question or END
-                const nextIdx = data.currentQIdx + 1;
-                if(nextIdx >= data.quiz.questions.length) {
-                    await updateDoc(activeGameRef, { state: 'END' });
-                    hostRenderFinalPodium(data);
-                } else {
-                    // Reset players answers for next question
-                    const updates = { state: 'Q_ACTIVE', currentQIdx: nextIdx };
-                    const pKeys = Object.keys(data.players || {});
-                    pKeys.forEach(uid => { updates[`players.${uid}.currentAnswer`] = null; });
-                    
-                    await updateDoc(activeGameRef, updates);
-                    hostRenderQuestion(nextIdx);
-                }
+            if(data.currentQ < data.quiz.questions.length - 1) {
+                // Reset player answers for next round
+                const updates = { currentQ: data.currentQ + 1 };
+                Object.keys(data.players).forEach(pId => {
+                    updates[`players.${pId}.lastAns`] = null;
+                });
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin), updates);
+            } else {
+                alert("Game Over!");
+                window.nav('view-admin-dash');
             }
         };
 
-        async function hostRenderQuestion(qIdx) {
-            window.timerCleared = false;
-            window.nav('view-h-game');
-            const snap = await getDoc(activeGameRef);
-            const data = snap.data();
-            const q = data.quiz.questions[qIdx];
-            
-            document.getElementById('h-game-q-text').innerText = q.text || '';
-            document.getElementById('h-game-answer-count').innerText = '0';
-            document.getElementById('h-game-next-btn-container').classList.add('hidden');
-            
-            const imgEl = document.getElementById('h-game-img');
-            if(q.img) { imgEl.src = q.img; imgEl.classList.remove('hidden'); }
-            else { imgEl.classList.add('hidden'); }
-            
-            const container = document.getElementById('h-game-answers-container');
-            const colors = ['bg-[#e21b3c]','bg-[#1368ce]','bg-[#d89e00]','bg-[#26890c]'];
-            const shapes = ['triangle','diamond','circle','square'];
-            const count = q.type === 'regular' ? 4 : 2;
-            
-            let html = '';
-            for(let i=0; i<count; i++) {
-                html += `
-                    <div class="${colors[i]} rounded shadow flex items-center p-4 min-h-[100px] text-white font-bold text-2xl relative">
-                        <div class="shape-container scale-75 mr-4"><div class="k-shape k-${shapes[i]}"></div></div>
-                        <span class="z-10">${q.ans[i]}</span>
-                        <div id="h-ans-result-${i}" class="absolute inset-0 bg-black/50 hidden items-center justify-end pr-8 text-4xl"></div>
-                    </div>
-                `;
-            }
-            container.innerHTML = html;
-            
-            // Timer Logic
-            let timeL = q.time;
-            const timerTxt = document.getElementById('h-game-timer-text');
-            const ring = document.getElementById('h-game-timer-ring');
-            timerTxt.innerText = timeL;
-            ring.style.strokeDashoffset = 0;
-            
-            clearInterval(window.qInterval);
-            window.qInterval = setInterval(() => {
-                timeL--;
-                if(timeL >= 0) {
-                    timerTxt.innerText = timeL;
-                    const pct = ((q.time - timeL) / q.time) * 251;
-                    ring.style.strokeDashoffset = pct;
-                }
-            }, 1000);
-            
-            clearTimeout(window.qTimeout);
-            window.qTimeout = setTimeout(() => {
-                clearInterval(window.qInterval);
-                window.timerCleared = true;
-                window.hostNextState(); // Auto advance when time is up
-            }, q.time * 1000);
-        }
-
-        function hostRenderScores(data) {
-            window.nav('view-h-scores');
-            
-            // Show correct answer visually on previous screen briefly? 
-            // Simplified: Just show the leaderboard.
-            
-            const players = Object.values(data.players || {});
-            players.sort((a,b) => b.score - a.score); // Descending
-            
-            const list = document.getElementById('h-scores-list');
-            list.innerHTML = players.slice(0, 5).map((p, idx) => `
-                <div class="bg-white text-black rounded p-4 flex justify-between items-center text-2xl font-bold shadow-lg">
-                    <span>${idx+1}. ${p.name}</span>
-                    <span class="text-[#46178f]">${p.score}</span>
-                </div>
-            `).join('');
-        }
-        
-        function hostRenderFinalPodium(data) {
-            window.nav('view-h-scores');
-            document.querySelector('#view-h-scores h1').innerText = "Podium";
-            document.querySelector('#view-h-scores button').innerText = "Finish";
-            document.querySelector('#view-h-scores button').onclick = () => window.nav('view-admin-dash');
-            
-            const players = Object.values(data.players || {});
-            players.sort((a,b) => b.score - a.score);
-            
-            const list = document.getElementById('h-scores-list');
-            list.innerHTML = players.slice(0, 3).map((p, idx) => `
-                <div class="bg-white text-black rounded p-6 flex justify-between items-center text-3xl font-black shadow-2xl scale-${105 - idx*5}">
-                    <span>${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} ${p.name}</span>
-                    <span class="text-[#46178f]">${p.score}</span>
-                </div>
-            `).join('');
-        }
-
-        // ==========================================
-        //             PLAYER LOGIC
-        // ==========================================
-
+        // --- Player ---
         window.checkPin = async () => {
-            const pin = document.getElementById('pin-input').value.trim();
-            if (!pin) return;
-            try {
-                const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', pin));
-                if(snap.exists()) {
-                    activePin = pin;
-                    document.getElementById('join-step-1').classList.add('hidden');
-                    document.getElementById('join-step-2').classList.remove('hidden');
-                    document.getElementById('pin-error').classList.add('hidden');
-                    document.getElementById('nick-input').focus();
-                } else {
-                    document.getElementById('pin-error').classList.remove('hidden');
-                }
-            } catch (err) {
-                console.error("Check PIN error", err);
-                document.getElementById('pin-error').classList.remove('hidden');
+            const pin = document.getElementById('pin-input').value;
+            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', pin));
+            if(snap.exists()) {
+                gamePin = pin;
+                document.getElementById('join-step-1').classList.add('hidden');
+                document.getElementById('join-step-2').classList.remove('hidden');
+            } else {
+                alert("PIN לא תקין");
             }
         };
 
         window.joinGame = async () => {
-            const nick = document.getElementById('nick-input').value.trim();
-            const user = auth.currentUser;
+            const name = document.getElementById('nick-input').value;
+            if(!name) return;
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin), {
+                [`players.${auth.currentUser.uid}`]: { name, score: 0, lastAns: null }
+            });
+            window.nav('view-player-game');
+            document.getElementById('player-buttons').innerHTML = `<div class="h-full flex items-center justify-center text-2xl font-bold">ממתין להתחלת המשחק...</div>`;
             
-            if (!nick) {
-                document.getElementById('nick-error').classList.remove('hidden');
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin), (snap) => {
+                const data = snap.data();
+                if(data.state === "QUESTION") {
+                    renderPlayerButtons(data);
+                }
+            });
+        };
+
+        function renderPlayerButtons(data) {
+            window.nav('view-player-game');
+            const me = data.players[auth.currentUser.uid];
+            if(me.lastAns !== null && me.lastAns !== undefined) {
+                document.getElementById('player-buttons').innerHTML = `<div class="h-full flex items-center justify-center text-2xl font-bold text-purple-800">תשובה נשלחה! ממתין...</div>`;
                 return;
             }
-            if (!activePin || !user) return;
-
-            try {
-                const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', activePin);
-                // Join in DB
-                await updateDoc(gameRef, {
-                    [`players.${user.uid}`]: { name: nick, score: 0, currentAnswer: null }
-                });
-                
-                isPlayer = true;
-                document.getElementById('p-lobby-nick').innerText = nick;
-                window.nav('view-p-lobby');
-                
-                // Start listening to game state
-                if(playerUnsubscribe) playerUnsubscribe();
-                playerUnsubscribe = onSnapshot(gameRef, (snap) => {
-                    if(!snap.exists()) return;
-                    handlePlayerGameTick(snap.data(), user.uid);
-                });
-                
-            } catch (err) {
-                console.error("Join Game error", err);
-            }
-        };
-
-        function handlePlayerGameTick(data, uid) {
-            const me = data.players[uid];
-            if(!me) return; // Kicked?
             
-            if(data.state === 'Q_ACTIVE') {
-                const q = data.quiz.questions[data.currentQIdx];
-                if(me.currentAnswer === null) {
-                    renderPlayerButtons(q);
-                } else {
-                    // Waiting for others
-                    document.getElementById('p-game-buttons').innerHTML = '';
-                    document.getElementById('p-game-status').innerText = 'Waiting for others...';
-                }
-            } else if (data.state === 'SCORES') {
-                const q = data.quiz.questions[data.currentQIdx];
-                const isCorrect = me.currentAnswer === q.correct;
-                
-                window.nav('view-p-result');
-                const v = document.getElementById('view-p-result');
-                
-                if(me.currentAnswer === null || me.currentAnswer === undefined) {
-                    v.className = 'view-section justify-center items-center text-white bg-gray-600 active';
-                    document.getElementById('p-result-title').innerText = 'Time is up!';
-                    document.getElementById('p-result-msg').innerText = 'You didn\'t answer.';
-                } else if(isCorrect) {
-                    v.className = 'view-section justify-center items-center text-white bg-green-500 active';
-                    document.getElementById('p-result-title').innerText = 'Correct!';
-                    document.getElementById('p-result-msg').innerText = '🔥 Answer Streak!';
-                } else {
-                    v.className = 'view-section justify-center items-center text-white bg-red-500 active';
-                    document.getElementById('p-result-title').innerText = 'Incorrect';
-                    document.getElementById('p-result-msg').innerText = 'Dust yourself off!';
-                }
-                document.getElementById('p-result-score').innerText = me.score;
-                
-            } else if (data.state === 'END') {
-                window.nav('view-p-result');
-                document.getElementById('view-p-result').className = 'view-section justify-center items-center text-white bg-purple-600 active';
-                document.getElementById('p-result-title').innerText = 'Game Over';
-                document.getElementById('p-result-msg').innerText = 'Check the big screen!';
-                document.getElementById('p-result-score').innerText = me.score;
-            }
+            const q = data.quiz.questions[data.currentQ];
+            const container = document.getElementById('player-buttons');
+            container.innerHTML = '';
+            const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
+            const shapes = ['triangle', 'diamond', 'circle', 'square'];
+            
+            q.answers.forEach((ans, i) => {
+                const btn = document.createElement('button');
+                btn.className = `${colors[i]} flex-grow rounded flex items-center justify-center btn-k`;
+                btn.innerHTML = `<div class="k-shape k-${shapes[i]} scale-150"></div>`;
+                btn.onclick = () => window.submitAnswer(i);
+                container.appendChild(btn);
+            });
         }
 
-        function renderPlayerButtons(q) {
-            window.nav('view-p-game');
-            document.getElementById('p-game-status').innerText = '';
-            const container = document.getElementById('p-game-buttons');
+        window.submitAnswer = async (idx) => {
+            const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', gamePin);
+            const snap = await getDoc(gameRef);
+            const data = snap.data();
+            const q = data.quiz.questions[data.currentQ];
+            const isCorrect = idx === q.correct;
+            const currentScore = data.players[auth.currentUser.uid].score;
             
-            const colors = ['bg-[#e21b3c]','bg-[#1368ce]','bg-[#d89e00]','bg-[#26890c]'];
-            const shapes = ['triangle','diamond','circle','square'];
-            const count = q.type === 'regular' ? 4 : 2;
+            await updateDoc(gameRef, {
+                [`players.${auth.currentUser.uid}.lastAns`]: idx,
+                [`players.${auth.currentUser.uid}.score`]: isCorrect ? currentScore + 1000 : currentScore
+            });
             
-            let html = '';
-            if(count === 4) {
-                html += `<div class="grid grid-cols-2 gap-2 flex-grow">`;
-                for(let i=0; i<4; i++) {
-                    html += `<button onclick="window.submitAnswer(${i})" class="${colors[i]} rounded shadow btn-k flex justify-center items-center h-full min-h-[150px]"><div class="shape-container"><div class="k-shape k-${shapes[i]}"></div></div></button>`;
-                }
-                html += `</div>`;
+            window.nav('view-player-result');
+            document.getElementById('view-player-result').className = `view-section active justify-center items-center text-white ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`;
+            document.getElementById('p-res-title').innerText = isCorrect ? "Correct!" : "Wrong";
+            document.getElementById('p-res-score').innerText = `Score: ${isCorrect ? currentScore + 1000 : currentScore}`;
+        };
+
+        // Initial Auth
+        onAuthStateChanged(auth, async (user) => {
+            if(!user) {
+                await signInAnonymously(auth);
             } else {
-                html += `<div class="flex flex-col gap-2 flex-grow">`;
-                for(let i=0; i<2; i++) {
-                    html += `<button onclick="window.submitAnswer(${i})" class="${colors[i]} rounded shadow btn-k flex justify-center items-center flex-1 min-h-[150px]"><div class="shape-container"><div class="k-shape k-${shapes[i]}"></div></div></button>`;
-                }
-                html += `</div>`;
+                userId = user.uid;
+                loadQuizzes();
             }
-            container.innerHTML = html;
-        }
-
-        window.submitAnswer = async (ansIdx) => {
-            const user = auth.currentUser;
-            if(!user || !activePin) return;
-            
-            // Immediately show waiting
-            document.getElementById('p-game-buttons').innerHTML = '';
-            document.getElementById('p-game-status').innerText = 'Waiting for others...';
-            
-            try {
-                const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', activePin);
-                const snap = await getDoc(gameRef);
-                const data = snap.data();
-                
-                const q = data.quiz.questions[data.currentQIdx];
-                const isCorrect = (ansIdx === q.correct);
-                
-                let pointsEarned = 0;
-                if(isCorrect) {
-                    // Simple scoring: 1000 points per correct answer (can add time bonus later)
-                    pointsEarned = 1000; 
-                }
-                
-                const currentScore = data.players[user.uid].score || 0;
-                
-                await updateDoc(gameRef, {
-                    [`players.${user.uid}.currentAnswer`]: ansIdx,
-                    [`players.${user.uid}.score`]: currentScore + pointsEarned
-                });
-                
-            } catch(e) { console.error("Submit Answer Error", e); }
-        };
+        });
 
     </script>
 </body>
