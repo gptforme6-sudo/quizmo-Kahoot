@@ -20,11 +20,10 @@
             font-family: 'Montserrat', sans-serif;
             background-color: var(--k-bg);
             margin: 0;
-            overflow: hidden; /* מניעת גלילה במסכי משחק */
+            overflow: hidden; 
             user-select: none;
         }
 
-        /* כפתורי קהוט תלת מימדיים */
         .btn-k {
             box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
             transition: transform 0.1s, box-shadow 0.1s;
@@ -34,7 +33,6 @@
             transform: translateY(4px);
         }
 
-        /* צורות קהוט אמיתיות */
         .shape-container { display: flex; justify-content: center; align-items: center; }
         .k-shape { background-color: white; }
         .k-triangle { width: 0; height: 0; border-left: 3vw solid transparent; border-right: 3vw solid transparent; border-bottom: 5.2vw solid white; background-color: transparent; }
@@ -42,23 +40,19 @@
         .k-circle { width: 5.5vw; height: 5.5vw; border-radius: 50%; }
         .k-square { width: 5vw; height: 5vw; }
 
-        /* צורות קהוט אמיתיות למסך השחקן (גדולות יותר) */
         .p-triangle { width: 0; height: 0; border-left: 40px solid transparent; border-right: 40px solid transparent; border-bottom: 70px solid white; background-color: transparent; }
         .p-diamond { width: 60px; height: 60px; transform: rotate(45deg); background-color: white; }
         .p-circle { width: 70px; height: 70px; border-radius: 50%; background-color: white; }
         .p-square { width: 65px; height: 65px; background-color: white; }
 
-        /* אנימציות */
         @keyframes pulse-bg { 0% { background-color: #46178f; } 50% { background-color: #25076b; } 100% { background-color: #46178f; } }
         .bg-animated { animation: pulse-bg 10s infinite alternate; }
         @keyframes spinner { to { transform: rotate(360deg); } }
         .spinner { border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; width: 40px; height: 40px; animation: spinner 1s linear infinite; }
         
-        /* ניהול מסכים */
         .view-section { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; overflow-y: auto; }
         .view-section.active { display: flex; }
 
-        /* גרף תוצאות */
         .bar-chart { display: flex; align-items: flex-end; justify-content: center; gap: 2vw; height: 30vh; margin-top: 20px; border-bottom: 4px solid #ccc; width: 80%; }
         .bar { width: 10vw; transition: height 1s ease-out; display: flex; justify-content: center; color: transparent; }
         
@@ -73,9 +67,8 @@
             <h1 class="text-5xl font-black text-[#46178f] mb-8 italic tracking-tighter">Kahoot!</h1>
             
             <div id="join-step-1">
-                <!-- שינוי ל-text עם inputmode כדי למנוע באגים של דפדפן בקריאת מספרים -->
                 <input type="text" inputmode="numeric" id="pin-input" placeholder="Game PIN" class="w-full border-2 border-gray-300 rounded font-bold text-center text-2xl py-3 mb-4 focus:border-purple-600 outline-none">
-                <button onclick="checkPin()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k">Enter</button>
+                <button onclick="checkPin()" class="w-full bg-black text-white font-bold text-xl py-3 rounded btn-k" id="btn-enter">Enter</button>
                 <div id="pin-error" class="text-red-500 font-bold mt-2 hidden">We didn't recognize that PIN.</div>
             </div>
 
@@ -133,7 +126,7 @@
     <div id="view-admin-login" class="view-section bg-gray-100 justify-center items-center">
         <div class="bg-white p-8 rounded shadow-lg w-full max-w-sm text-center border-t-8 border-[#46178f]">
             <h2 class="text-2xl font-bold mb-6 text-gray-800">פאנל ניהול</h2>
-            <input type="password" id="admin-pass" placeholder="סיסמה:" class="w-full border rounded p-3 mb-4 text-center text-xl" onkeypress="if(event.key==='Enter') loginAdmin()">
+            <input type="password" id="admin-pass" placeholder="סיסמה (2160)" class="w-full border rounded p-3 mb-4 text-center text-xl" onkeypress="if(event.key==='Enter') loginAdmin()">
             <button onclick="loginAdmin()" class="w-full bg-[#46178f] text-white font-bold py-3 rounded btn-k">היכנס</button>
             <button onclick="nav('view-home')" class="mt-4 text-gray-500 underline text-sm">חזרה למשחק</button>
         </div>
@@ -148,7 +141,7 @@
         <div class="p-6 max-w-6xl mx-auto w-full flex-grow overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold">החידונים שלי</h2>
-                <button onclick="openEditor(-1)" class="bg-[var(--k-blue)] text-white font-bold py-2 px-6 rounded btn-k">צור חדש</button>
+                <button onclick="openEditor(null)" class="bg-[var(--k-blue)] text-white font-bold py-2 px-6 rounded btn-k">צור חדש</button>
             </div>
             <div id="quiz-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
         </div>
@@ -160,7 +153,7 @@
             <input type="text" id="quiz-title" placeholder="הכנס שם לחידון..." class="text-xl font-bold border-b-2 border-transparent focus:border-gray-400 outline-none w-1/3">
             <div class="flex gap-2">
                 <button onclick="nav('view-admin-dash')" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded btn-k">ביטול</button>
-                <button onclick="saveQuiz()" class="bg-[var(--k-green)] text-white font-bold py-2 px-6 rounded btn-k">שמור</button>
+                <button onclick="saveQuiz()" class="bg-[var(--k-green)] text-white font-bold py-2 px-6 rounded btn-k" id="btn-save-quiz">שמור</button>
             </div>
         </header>
         <div class="flex flex-grow overflow-hidden">
@@ -201,10 +194,9 @@
     <!-- ==================== HOST: LOBBY ==================== -->
     <div id="view-h-lobby" class="view-section bg-[#f2f2f2]">
         <div class="w-full bg-white flex justify-between items-center px-8 py-4 shadow z-10">
-            <div class="text-2xl font-black text-gray-800">Join at Dvir's <span class="text-[#46178f]">kahoot</span><br> </div>
+            <div class="text-2xl font-black text-gray-800">Join at <span class="text-[#46178f]">www.kahoot.it</span><br>or with the Kahoot! app</div>
             <div class="text-center">
                 <div class="text-sm font-bold text-gray-500 uppercase tracking-widest">Game PIN:</div>
-                <!-- הוספת פונקציית העתקה בלחיצה -->
                 <div class="text-7xl font-black text-gray-900 tracking-widest cursor-pointer hover:opacity-70 transition duration-150" id="h-pin-display" onclick="copyPin()" title="לחץ כאן כדי להעתיק את הקוד!"></div>
             </div>
             <button onclick="hostStartGame()" id="h-start-btn" class="bg-[var(--k-blue)] text-white font-bold text-2xl py-3 px-8 rounded btn-k opacity-50 pointer-events-none">Start</button>
@@ -261,7 +253,7 @@
 
     <!-- ==================== HOST: PODIUM ==================== -->
     <div id="view-h-podium" class="view-section bg-[var(--k-purple)] text-white flex-col items-center justify-end pb-10">
-        <button onclick="nav('view-admin-dash')" class="absolute top-4 left-4 bg-white/20 text-white font-bold py-2 px-4 rounded hover:bg-white/30 btn-k">חזרה לניהול</button>
+        <button onclick="hostEndGame()" class="absolute top-4 left-4 bg-white/20 text-white font-bold py-2 px-4 rounded hover:bg-white/30 btn-k">חזרה לניהול</button>
         <h2 class="text-6xl font-black mb-auto mt-20 shadow-text">Podium</h2>
         
         <div class="flex items-end justify-center gap-2 h-64 w-full max-w-3xl">
@@ -286,33 +278,41 @@
         </div>
     </div>
 
-    <script>
-        const ADMIN_PASS = "2160";
-        const bc = new BroadcastChannel('kahoot_1to1');
-        
-        // Data Structures
-        let quizzes = JSON.parse(localStorage.getItem('k_quizzes')) || [];
-        
-        // Global States
-        let myId = Math.random().toString(36).substr(2, 9);
-        let myName = "";
-        let myScore = 0;
-        let activePin = null;
+    <!-- Firebase Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Firebase Setup - עובד מול שרת אמיתי
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Global Variables
+        const ADMIN_PASS = "2160";
+        let quizzes = [];
+        let userId = null;
+        let myName = "";
+        let activePin = null;
+        let activeGameRef = null;
+        let unsubGame = null;
+        
         let hostQuiz = null;
-        let hostPlayers = [];
         let hostQIdx = 0;
         let hostTimer = 0;
         let hostTimerInt = null;
+        let hostGameData = null; // Track full game document state for Host
 
-        let editingQuizIndex = -1;
+        let editingQuizId = null;
         let creatorQuiz = null;
         let creatorQIdx = 0;
 
-        const colors = ['var(--k-red)', 'var(--k-blue)', 'var(--k-yellow)', 'var(--k-green)'];
         const shapes = ['triangle', 'diamond', 'circle', 'square'];
 
-        // Sounds (Beeps)
+        // Sounds
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         function beep(f, t) {
             const o = ctx.createOscillator(); const g = ctx.createGain();
@@ -321,95 +321,163 @@
             o.start(); g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + t); o.stop(ctx.currentTime + t);
         }
 
-        // Navigation
-        function nav(id) {
+        // Auth
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                // Fetch quizzes automatically when authed
+                const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+                onSnapshot(qRef, (snap) => {
+                    quizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    renderDash();
+                }, (error) => console.error("Quizzes fetch error:", error));
+            }
+        });
+
+        // Make functions global so HTML onclick attributes work
+        window.nav = function(id) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-        }
+        };
 
-        // ==================== PLAYER LOGIC ====================
-        function checkPin() {
-            // טיפול מקדים מחמיר בטקסט
+        // ==================== PLAYER LOGIC (Firebase) ====================
+        window.checkPin = async function() {
+            const btn = document.getElementById('btn-enter');
+            btn.innerText = "Loading..."; btn.classList.add('opacity-50');
             const pinStr = document.getElementById('pin-input').value.toString().trim();
             document.getElementById('pin-error').classList.add('hidden');
-            if(pinStr.length === 0) return;
-
-            // בדיקה מקומית (עובדת מצוין עבור טאבים שונים באותו דפדפן בדיוק)
-            if (localStorage.getItem('k_active_pin') === pinStr) {
-                activePin = pinStr;
-                document.getElementById('join-step-1').classList.add('hidden');
-                document.getElementById('join-step-2').classList.remove('hidden');
-                return;
-            }
-
-            // גיבוי רשתי (למקרה שהלוקאל סטורג' מוגבל)
-            bc.postMessage({ type: 'REQ_JOIN', pin: pinStr, id: myId });
             
-            // הגדלתי את זמן ההמתנה כדי לוודא שאין עיכוב בגלל הדפדפן
-            setTimeout(() => { 
-                if(!activePin) {
+            if(pinStr.length === 0) { btn.innerText = "Enter"; btn.classList.remove('opacity-50'); return; }
+
+            // חיפוש ב-Firebase בזמן אמת
+            const gRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', pinStr);
+            try {
+                const snap = await getDoc(gRef);
+                if (snap.exists()) {
+                    activePin = pinStr;
+                    activeGameRef = gRef;
+                    document.getElementById('join-step-1').classList.add('hidden');
+                    document.getElementById('join-step-2').classList.remove('hidden');
+                } else {
                     document.getElementById('pin-error').classList.remove('hidden'); 
                 }
-            }, 1000);
-        }
+            } catch (e) { console.error(e); }
+            btn.innerText = "Enter"; btn.classList.remove('opacity-50');
+        };
 
-        function joinGame() {
+        window.joinGame = async function() {
             myName = document.getElementById('nick-input').value.trim();
-            if(!myName) return;
-            bc.postMessage({ type: 'PLAYER_ENTER', pin: activePin, player: { id: myId, name: myName, score: 0 } });
+            if(!myName || !activeGameRef) return;
+            
+            // Add player to the map in Firebase
+            await updateDoc(activeGameRef, { 
+                [`players.${userId}`]: { name: myName, score: 0, currAns: null, ansTime: null, lastCorrect: false, lastPts: 0 } 
+            });
+            
             document.getElementById('p-waiting-nick').innerText = myName;
             nav('view-p-waiting');
-        }
 
-        function submitAnswer(idx) {
+            // Listen to game updates
+            if(unsubGame) unsubGame();
+            unsubGame = onSnapshot(activeGameRef, (snap) => handlePlayerSync(snap), console.error);
+        };
+
+        window.submitAnswer = async function(idx) {
+            if(!activeGameRef) return;
             nav('view-p-wait-result');
-            bc.postMessage({ type: 'PLAYER_ANS', pin: activePin, id: myId, ans: idx });
+            await updateDoc(activeGameRef, { 
+                [`players.${userId}.currAns`]: idx,
+                [`players.${userId}.ansTime`]: Date.now()
+            });
+        };
+
+        function handlePlayerSync(snap) {
+            if(!snap.exists()) { window.location.reload(); return; } // Game ended/deleted
+            const data = snap.data();
+            const me = data.players[userId];
+            if(!me) return; // Kicked
+
+            if(data.state === 'GET_READY') nav('view-p-getready');
+            else if(data.state === 'QUESTION') {
+                const isReg = data.quiz.questions[data.currentQIdx].type === 'regular';
+                document.getElementById('p-btn-2').style.display = isReg ? 'flex' : 'none';
+                document.getElementById('p-btn-3').style.display = isReg ? 'flex' : 'none';
+                document.getElementById('p-btn-grid').className = `grid gap-2 w-full h-full ${isReg ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1 grid-rows-2'}`;
+                if(me.currAns === null) nav('view-p-buttons');
+            }
+            else if(data.state === 'RESULTS') {
+                document.getElementById('p-res-title').innerText = me.lastCorrect ? 'Correct' : 'Incorrect';
+                document.getElementById('p-res-points').innerText = `+${me.lastPts}`;
+                document.getElementById('p-res-total').innerText = me.score;
+                document.getElementById('p-res-name').innerText = myName;
+                const v = document.getElementById('view-p-result');
+                v.style.backgroundColor = me.lastCorrect ? 'var(--k-green)' : 'var(--k-red)';
+                nav('view-p-result');
+            }
+            else if(data.state === 'PODIUM') {
+                document.getElementById('p-res-title').innerText = "Game Over!";
+                document.getElementById('p-res-points').style.display = 'none';
+                document.getElementById('view-p-result').style.backgroundColor = 'var(--k-purple)';
+                nav('view-p-result');
+            }
         }
 
         // ==================== ADMIN LOGIC ====================
-        function loginAdmin() {
+        window.loginAdmin = function() {
             if(document.getElementById('admin-pass').value === ADMIN_PASS) {
                 document.getElementById('admin-pass').value = '';
                 renderDash();
                 nav('view-admin-dash');
             } else { alert('סיסמה שגויה'); }
-        }
+        };
 
         function renderDash() {
             const l = document.getElementById('quiz-list');
             l.innerHTML = '';
-            quizzes.forEach((q, i) => {
+            quizzes.forEach((q) => {
                 l.innerHTML += `
                     <div class="bg-white p-6 rounded shadow border-t-4 border-[var(--k-purple)]">
                         <h3 class="text-xl font-bold mb-2 truncate text-gray-800">${q.title}</h3>
                         <p class="text-gray-500 mb-4 font-semibold">${q.questions.length} Questions</p>
                         <div class="flex gap-2 mb-4">
-                            <button onclick="openEditor(${i})" class="flex-1 bg-gray-200 hover:bg-gray-300 font-bold py-2 rounded">ערוך</button>
-                            <button onclick="deleteQuiz(${i})" class="flex-1 bg-red-100 text-red-600 hover:bg-red-200 font-bold py-2 rounded">מחק</button>
+                            <button onclick="openEditor('${q.id}')" class="flex-1 bg-gray-200 hover:bg-gray-300 font-bold py-2 rounded">ערוך</button>
+                            <button onclick="deleteQuiz('${q.id}')" class="flex-1 bg-red-100 text-red-600 hover:bg-red-200 font-bold py-2 rounded">מחק</button>
                         </div>
-                        <button onclick="hostInit(${i})" class="w-full bg-[var(--k-green)] text-white font-bold py-3 rounded btn-k text-lg">Play</button>
+                        <button onclick="hostInit('${q.id}')" class="w-full bg-[var(--k-green)] text-white font-bold py-3 rounded btn-k text-lg">Play</button>
                     </div>`;
             });
         }
 
-        function deleteQuiz(i) { if(confirm('למחוק חידון זה?')) { quizzes.splice(i,1); saveQuizzes(); renderDash(); } }
-        function saveQuizzes() { localStorage.setItem('k_quizzes', JSON.stringify(quizzes)); }
+        window.deleteQuiz = async function(id) { 
+            if(confirm('למחוק חידון זה?')) { 
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', id));
+            } 
+        };
 
-        // ==================== CREATOR LOGIC ====================
-        function getEmptyQ() { return { type: 'regular', time: 20, text: '', img: null, ans: ['','','',''], correct: 0 }; }
+        // ==================== CREATOR LOGIC (Firebase) ====================
+        window.getEmptyQ = function() { return { type: 'regular', time: 20, text: '', img: null, ans: ['','','',''], correct: 0 }; };
         
-        function openEditor(index) {
-            editingQuizIndex = index;
-            if(index === -1) { creatorQuiz = { title: '', questions: [getEmptyQ()] }; } 
-            else { creatorQuiz = JSON.parse(JSON.stringify(quizzes[index])); }
+        window.openEditor = function(id) {
+            editingQuizId = id;
+            if(!id) { creatorQuiz = { title: '', questions: [window.getEmptyQ()] }; } 
+            else { creatorQuiz = JSON.parse(JSON.stringify(quizzes.find(q=>q.id===id))); }
             document.getElementById('quiz-title').value = creatorQuiz.title;
             creatorQIdx = 0;
             renderCreatorSide();
             loadQ();
             nav('view-admin-creator');
-        }
+        };
 
-        function renderCreatorSide() {
+        window.renderCreatorSide = function() {
             const sb = document.getElementById('creator-sidebar'); sb.innerHTML = '';
             creatorQuiz.questions.forEach((q, i) => {
                 const isSel = i === creatorQIdx;
@@ -419,10 +487,10 @@
                         <div class="text-sm font-bold truncate">${q.text || '...'}</div>
                     </div>`;
             });
-            sb.innerHTML += `<button onclick="creatorQuiz.questions.push(getEmptyQ()); creatorQIdx=creatorQuiz.questions.length-1; renderCreatorSide(); loadQ();" class="mt-2 bg-gray-200 font-bold py-2 rounded hover:bg-gray-300">➕ הוסף שאלה</button>`;
+            sb.innerHTML += `<button onclick="creatorQuiz.questions.push(window.getEmptyQ()); creatorQIdx=creatorQuiz.questions.length-1; window.renderCreatorSide(); window.loadQ();" class="mt-2 bg-gray-200 font-bold py-2 rounded hover:bg-gray-300">➕ הוסף שאלה</button>`;
         }
 
-        function loadQ() {
+        window.loadQ = function() {
             const q = creatorQuiz.questions[creatorQIdx];
             document.getElementById('q-text').value = q.text;
             document.getElementById('q-time').value = q.time;
@@ -433,11 +501,11 @@
             if(q.img) { imgP.src = q.img; imgP.classList.remove('hidden'); imgR.classList.remove('hidden'); }
             else { imgP.classList.add('hidden'); imgR.classList.add('hidden'); }
             
-            renderCreatorAns();
-            renderCreatorSide();
-        }
+            window.renderCreatorAns();
+            window.renderCreatorSide();
+        };
 
-        function renderCreatorAns() {
+        window.renderCreatorAns = function() {
             const q = creatorQuiz.questions[creatorQIdx];
             const c = document.getElementById('q-answers-container'); c.innerHTML = '';
             const count = q.type === 'regular' ? 4 : 2;
@@ -452,61 +520,82 @@
                             ? `<textarea class="flex-grow p-3 resize-none outline-none font-bold h-full" placeholder="הוסף תשובה" oninput="creatorQuiz.questions[creatorQIdx].ans[${i}]=this.value">${q.ans[i]}</textarea>` 
                             : `<div class="flex-grow p-4 text-xl font-bold flex items-center">${i===0?'True':'False'}</div>`
                         }
-                        <button class="absolute left-2 w-10 h-10 rounded-full border-4 ${isC?'bg-green-500 border-green-500 text-white':'border-gray-300'}" onclick="creatorQuiz.questions[creatorQIdx].correct=${i}; renderCreatorAns();">${isC?'✓':''}</button>
+                        <button class="absolute left-2 w-10 h-10 rounded-full border-4 ${isC?'bg-green-500 border-green-500 text-white':'border-gray-300'}" onclick="creatorQuiz.questions[creatorQIdx].correct=${i}; window.renderCreatorAns();">${isC?'✓':''}</button>
                     </div>`;
             }
-        }
+        };
 
-        function updateQData() {
+        window.updateQData = function() {
             const q = creatorQuiz.questions[creatorQIdx];
             q.text = document.getElementById('q-text').value;
             q.time = parseInt(document.getElementById('q-time').value);
-            renderCreatorSide();
-        }
+            window.renderCreatorSide();
+        };
 
-        function changeQType() {
+        window.changeQType = function() {
             const q = creatorQuiz.questions[creatorQIdx];
             q.type = document.getElementById('q-type').value;
             if(q.type === 'boolean') { q.ans = ['True','False']; q.correct = Math.min(q.correct, 1); }
-            renderCreatorAns();
-        }
+            window.renderCreatorAns();
+        };
 
-        function deleteCurrentQ() {
+        window.deleteCurrentQ = function() {
             if(creatorQuiz.questions.length > 1) {
                 creatorQuiz.questions.splice(creatorQIdx, 1);
-                creatorQIdx = 0; renderCreatorSide(); loadQ();
+                creatorQIdx = 0; window.renderCreatorSide(); window.loadQ();
             } else alert('חייבת להיות לפחות שאלה אחת');
-        }
+        };
 
-        function uploadImage(e) {
+        window.uploadImage = function(e) {
             const r = new FileReader();
-            r.onload = ev => { creatorQuiz.questions[creatorQIdx].img = ev.target.result; loadQ(); };
+            r.onload = ev => { creatorQuiz.questions[creatorQIdx].img = ev.target.result; window.loadQ(); };
             if(e.target.files[0]) r.readAsDataURL(e.target.files[0]);
-        }
-        function removeImage(e) { e.stopPropagation(); creatorQuiz.questions[creatorQIdx].img = null; document.getElementById('q-img-upload').value=''; loadQ(); }
+        };
+        window.removeImage = function(e) { e.stopPropagation(); creatorQuiz.questions[creatorQIdx].img = null; document.getElementById('q-img-upload').value=''; window.loadQ(); };
 
-        function saveQuiz() {
+        window.saveQuiz = async function() {
+            const btn = document.getElementById('btn-save-quiz');
+            btn.innerText = "שומר...";
             creatorQuiz.title = document.getElementById('quiz-title').value || 'Untitled Kahoot';
-            if(editingQuizIndex === -1) quizzes.push(creatorQuiz);
-            else quizzes[editingQuizIndex] = creatorQuiz;
-            saveQuizzes(); renderDash(); nav('view-admin-dash');
-        }
+            
+            // Clean up missing object properties for Firebase
+            const quizData = { title: creatorQuiz.title, questions: creatorQuiz.questions };
+            
+            if(editingQuizId) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', editingQuizId), quizData);
+            } else {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'quizzes'), quizData);
+            }
+            btn.innerText = "שמור";
+            nav('view-admin-dash');
+        };
 
-        // ==================== HOST GAME LOGIC ====================
-        function hostInit(idx) {
-            hostQuiz = quizzes[idx];
+        // ==================== HOST GAME LOGIC (Firebase) ====================
+        window.hostInit = async function(id) {
+            hostQuiz = quizzes.find(q=>q.id===id);
             activePin = Math.floor(100000 + Math.random() * 900000).toString();
-            localStorage.setItem('k_active_pin', activePin); 
-            hostPlayers = []; hostQIdx = 0;
-            document.getElementById('h-pin-display').innerText = activePin;
-            updateHostLobby();
-            nav('view-h-lobby');
-        }
+            activeGameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', activePin);
+            
+            // Create game document in Firebase
+            await setDoc(activeGameRef, {
+                pin: activePin,
+                hostId: userId,
+                quiz: hostQuiz,
+                state: 'LOBBY',
+                players: {},
+                currentQIdx: 0,
+                qStartTime: 0
+            });
 
-        // פונקציית העתקה ללוח
-        function copyPin() {
+            document.getElementById('h-pin-display').innerText = activePin;
+            nav('view-h-lobby');
+
+            if(unsubGame) unsubGame();
+            unsubGame = onSnapshot(activeGameRef, (snap) => handleHostSync(snap), console.error);
+        };
+
+        window.copyPin = function() {
             if(!activePin) return;
-            // יצירת אלמנט זמני להעתקה שעובד בכל הדפדפנים
             const el = document.createElement('textarea');
             el.value = activePin;
             document.body.appendChild(el);
@@ -514,7 +603,6 @@
             document.execCommand('copy');
             document.body.removeChild(el);
             
-            // חיווי למשתמש
             const disp = document.getElementById('h-pin-display');
             disp.innerText = "COPIED";
             disp.classList.add('text-[var(--k-green)]');
@@ -522,49 +610,59 @@
                 disp.innerText = activePin; 
                 disp.classList.remove('text-[var(--k-green)]');
             }, 1000);
+        };
+
+        function handleHostSync(snap) {
+            if(!snap.exists()) return;
+            hostGameData = snap.data();
+            const playersArr = Object.values(hostGameData.players || {});
+            
+            if(hostGameData.state === 'LOBBY') {
+                document.getElementById('h-player-count').innerText = playersArr.length;
+                const list = document.getElementById('h-players-list'); list.innerHTML = '';
+                Object.entries(hostGameData.players || {}).forEach(([pId, p]) => {
+                    list.innerHTML += `<div class="bg-white text-gray-800 font-bold px-4 py-2 rounded shadow text-xl cursor-pointer hover:line-through" onclick="kick('${pId}')">${p.name}</div>`;
+                });
+                const btn = document.getElementById('h-start-btn');
+                if(playersArr.length > 0) { btn.classList.remove('opacity-50','pointer-events-none'); btn.classList.add('hover:bg-blue-700'); }
+                else { btn.classList.add('opacity-50','pointer-events-none'); }
+            }
+            
+            if(hostGameData.state === 'QUESTION') {
+                const ansCount = playersArr.filter(p => p.currAns !== null).length;
+                document.getElementById('h-ans-count').innerText = ansCount;
+                if(ansCount > 0 && ansCount === playersArr.length) window.hostSkipQ();
+            }
         }
 
-        function updateHostLobby() {
-            document.getElementById('h-player-count').innerText = hostPlayers.length;
-            const list = document.getElementById('h-players-list'); list.innerHTML = '';
-            hostPlayers.forEach(p => {
-                list.innerHTML += `<div class="bg-white text-gray-800 font-bold px-4 py-2 rounded shadow text-xl cursor-pointer hover:line-through" onclick="kick('${p.id}')">${p.name}</div>`;
-            });
-            const btn = document.getElementById('h-start-btn');
-            if(hostPlayers.length > 0) { btn.classList.remove('opacity-50','pointer-events-none'); btn.classList.add('hover:bg-blue-700'); }
-            else { btn.classList.add('opacity-50','pointer-events-none'); }
-        }
+        window.kick = async function(pId) {
+            // Remove from map
+            const newPlayers = { ...hostGameData.players };
+            delete newPlayers[pId];
+            await updateDoc(activeGameRef, { players: newPlayers });
+        };
 
-        function kick(id) {
-            hostPlayers = hostPlayers.filter(p => p.id !== id);
-            bc.postMessage({ type: 'KICK', pin: activePin, id: id });
-            updateHostLobby();
-        }
-
-        function hostEndGame() { 
-            activePin = null; 
-            localStorage.removeItem('k_active_pin'); 
-            bc.postMessage({ type: 'END', pin: activePin }); 
+        window.hostEndGame = async function() { 
+            if(activeGameRef) await deleteDoc(activeGameRef);
+            if(unsubGame) unsubGame();
             nav('view-admin-dash'); 
-        }
+        };
 
-        function hostStartGame() {
-            bc.postMessage({ type: 'STATE', pin: activePin, state: 'GET_READY' });
+        window.hostStartGame = async function() {
+            await updateDoc(activeGameRef, { state: 'GET_READY' });
             document.getElementById('h-getready-title').innerText = hostQuiz.title;
             nav('view-h-getready');
-            setTimeout(showQ, 5000);
-        }
+            setTimeout(window.showQ, 5000);
+        };
 
-        function showQ() {
+        window.showQ = async function() {
             const q = hostQuiz.questions[hostQIdx];
             document.getElementById('h-q-title').innerText = q.text;
             const img = document.getElementById('h-q-img');
             if(q.img) { img.src = q.img; img.classList.remove('hidden'); } else img.classList.add('hidden');
             
-            hostPlayers.forEach(p => { p.currAns = null; p.ansTime = null; });
             document.getElementById('h-ans-count').innerText = '0';
             
-            // Render Options
             const og = document.getElementById('h-options-grid'); og.innerHTML = '';
             const count = q.type === 'regular' ? 4 : 2;
             og.className = `grid gap-2 p-2 mx-auto w-full max-w-7xl h-48 ${count===4 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-2 grid-rows-1'}`;
@@ -581,37 +679,48 @@
             nav('view-h-question');
             hostTimer = q.time;
             document.getElementById('h-timer').innerText = hostTimer;
-            const startTime = Date.now();
             
-            bc.postMessage({ type: 'STATE', pin: activePin, state: 'QUESTION', qType: q.type });
+            // Reset players answers
+            const newPlayers = { ...hostGameData.players };
+            Object.keys(newPlayers).forEach(k => newPlayers[k].currAns = null);
+            
+            await updateDoc(activeGameRef, { state: 'QUESTION', currentQIdx: hostQIdx, qStartTime: Date.now(), players: newPlayers });
             
             clearInterval(hostTimerInt);
             hostTimerInt = setInterval(() => {
                 hostTimer--;
                 document.getElementById('h-timer').innerText = hostTimer;
                 if(hostTimer%2===0) beep(400, 0.1); else beep(600, 0.1);
-                if(hostTimer <= 0) hostSkipQ();
+                if(hostTimer <= 0) window.hostSkipQ();
             }, 1000);
-        }
+        };
 
-        function hostSkipQ() {
+        window.hostSkipQ = async function() {
             clearInterval(hostTimerInt);
+            if(hostGameData.state === 'RESULTS') return; // Prevent double firing
+            
             const q = hostQuiz.questions[hostQIdx];
             const maxPts = 1000;
             let counts = [0,0,0,0];
+            const newPlayers = { ...hostGameData.players };
 
-            hostPlayers.forEach(p => {
+            Object.values(newPlayers).forEach(p => {
                 let pts = 0; let correct = false;
                 if(p.currAns !== null) {
                     counts[p.currAns]++;
                     if(p.currAns === q.correct) {
-                        pts = Math.round((1 - ((p.ansTime/q.time)/2)) * maxPts);
+                        const timeTaken = (p.ansTime - hostGameData.qStartTime) / 1000;
+                        pts = Math.round((1 - ((timeTaken/q.time)/2)) * maxPts);
+                        pts = Math.max(pts, 0); // floor at 0
                         correct = true;
                     }
                 }
                 p.score += pts;
-                bc.postMessage({ type: 'RESULT', pin: activePin, id: p.id, correct: correct, pts: pts, total: p.score, rank: 0 }); // rank simplified for 1to1 clone size
+                p.lastCorrect = correct;
+                p.lastPts = pts;
             });
+
+            await updateDoc(activeGameRef, { state: 'RESULTS', players: newPlayers });
 
             // Draw Chart
             const chart = document.getElementById('h-chart'); chart.innerHTML = '';
@@ -633,94 +742,36 @@
                     </div>`;
             }
             nav('view-h-results');
-        }
+        };
 
-        function hostNextStep() {
+        window.hostNextStep = async function() {
             if(document.getElementById('view-h-results').classList.contains('active')) {
-                // To Scoreboard
                 const l = document.getElementById('h-score-list'); l.innerHTML = '';
-                [...hostPlayers].sort((a,b)=>b.score-a.score).slice(0,5).forEach(p => {
+                const sortedPlayers = Object.values(hostGameData.players).sort((a,b)=>b.score-a.score);
+                sortedPlayers.slice(0,5).forEach(p => {
                     l.innerHTML += `<div class="bg-white p-4 text-2xl font-bold flex justify-between shadow rounded border-l-8 border-[var(--k-purple)]"><span>${p.name}</span><span>${p.score}</span></div>`;
                 });
+                await updateDoc(activeGameRef, { state: 'SCOREBOARD' });
                 nav('view-h-scoreboard');
             } else if (document.getElementById('view-h-scoreboard').classList.contains('active')) {
                 hostQIdx++;
                 if(hostQIdx < hostQuiz.questions.length) {
-                    bc.postMessage({ type: 'STATE', pin: activePin, state: 'GET_READY' });
+                    await updateDoc(activeGameRef, { state: 'GET_READY' });
                     document.getElementById('h-getready-title').innerText = hostQuiz.questions[hostQIdx].text;
                     nav('view-h-getready');
-                    setTimeout(showQ, 5000);
+                    setTimeout(window.showQ, 5000);
                 } else {
-                    // Podium
-                    const s = [...hostPlayers].sort((a,b)=>b.score-a.score);
+                    const s = Object.values(hostGameData.players).sort((a,b)=>b.score-a.score);
                     for(let i=1; i<=3; i++) {
                         document.getElementById(`pod-name-${i}`).innerText = s[i-1] ? s[i-1].name : '';
                         document.getElementById(`pod-score-${i}`).innerText = s[i-1] ? s[i-1].score : '';
                     }
-                    bc.postMessage({ type: 'STATE', pin: activePin, state: 'PODIUM' });
+                    await updateDoc(activeGameRef, { state: 'PODIUM' });
                     nav('view-h-podium');
-                }
-            }
-        }
-
-        // ==================== BROADCAST LISTENER ====================
-        bc.onmessage = (m) => {
-            const d = m.data;
-            
-            // HOST RECEIVING
-            if(activePin && hostQuiz && d.pin === activePin) {
-                if(d.type === 'REQ_JOIN') bc.postMessage({ type: 'ACK_JOIN', pin: activePin, id: d.id });
-                if(d.type === 'PLAYER_ENTER' && !hostPlayers.find(p=>p.id===d.player.id)) { hostPlayers.push(d.player); updateHostLobby(); }
-                if(d.type === 'PLAYER_ANS') {
-                    const p = hostPlayers.find(x=>x.id===d.id);
-                    if(p) { p.currAns = d.ans; p.ansTime = hostQuiz.questions[hostQIdx].time - hostTimer; }
-                    document.getElementById('h-ans-count').innerText = hostPlayers.filter(x=>x.currAns!==null).length;
-                    if(hostPlayers.every(x=>x.currAns!==null)) hostSkipQ();
-                }
-            }
-
-            // PLAYER RECEIVING
-            if(d.type === 'ACK_JOIN' && d.id === myId) {
-                activePin = d.pin;
-                document.getElementById('join-step-1').classList.add('hidden');
-                document.getElementById('join-step-2').classList.remove('hidden');
-            }
-            
-            if(activePin && d.pin === activePin) {
-                if(d.type === 'KICK' && d.id === myId) { window.location.reload(); }
-                if(d.type === 'END') { window.location.reload(); }
-                if(d.type === 'STATE') {
-                    if(d.state === 'GET_READY') nav('view-p-getready');
-                    if(d.state === 'QUESTION') {
-                        const isReg = d.qType === 'regular';
-                        document.getElementById('p-btn-2').style.display = isReg ? 'flex' : 'none';
-                        document.getElementById('p-btn-3').style.display = isReg ? 'flex' : 'none';
-                        document.getElementById('p-btn-grid').className = `grid gap-2 w-full h-full ${isReg ? 'grid-cols-2 grid-rows-2' : 'grid-cols-1 grid-rows-2'}`;
-                        nav('view-p-buttons');
-                    }
-                    if(d.state === 'PODIUM') {
-                        document.getElementById('p-res-title').innerText = "Game Over!";
-                        document.getElementById('p-res-points').style.display = 'none';
-                        nav('view-p-result');
-                    }
-                }
-                if(d.type === 'RESULT' && d.id === myId) {
-                    document.getElementById('p-res-title').innerText = d.correct ? 'Correct' : 'Incorrect';
-                    document.getElementById('p-res-points').innerText = `+${d.pts}`;
-                    document.getElementById('p-res-total').innerText = d.total;
-                    document.getElementById('p-res-name').innerText = myName;
-                    const v = document.getElementById('view-p-result');
-                    v.style.backgroundColor = d.correct ? 'var(--k-green)' : 'var(--k-red)';
-                    nav('view-p-result');
                 }
             }
         };
 
-        // Create sample if empty
-        if(quizzes.length === 0) {
-            quizzes.push({ title: 'Sample Kahoot', questions: [{ type: 'regular', time: 20, text: 'What color is the sky?', img: null, ans: ['Red', 'Blue', 'Green', 'Yellow'], correct: 1 }] });
-            saveQuizzes();
-        }
     </script>
 </body>
 </html>
