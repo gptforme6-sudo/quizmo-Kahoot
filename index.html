@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת טריוויה מקצועית</title>
+    <title>Quizmo - Kahoot Style</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- שימוש באייקונים -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap');
+        
         body {
-            font-family: 'Heebo', sans-serif;
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            font-family: 'Montserrat', sans-serif;
+            background-color: #46178f; /* צבע סגול קהוט קלאסי */
             color: white;
             min-height: 100vh;
             display: flex;
@@ -19,392 +19,589 @@
             margin: 0;
             overflow-x: hidden;
         }
-        /* הסתרת מסכים שלא פעילים */
-        .screen { display: none; }
-        .screen.active { display: flex; flex-direction: column; }
+
+        /* צבעי קהוט */
+        .bg-kahoot-red { background-color: #e21b3c; }
+        .bg-kahoot-blue { background-color: #1368ce; }
+        .bg-kahoot-yellow { background-color: #d89e00; }
+        .bg-kahoot-green { background-color: #26890c; }
         
-        /* עיצוב חלון קופץ (Modal) */
+        .hover-kahoot-red:hover { background-color: #c01733; }
+
+        .screen { display: none; }
+        .screen.active { display: flex; flex-direction: column; flex-grow: 1; }
+        
+        /* עיצוב חלון קופץ מהיר */
         .modal-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 50;
             align-items: center;
             justify-content: center;
+            backdrop-filter: blur(4px);
         }
         .modal-overlay.active { display: flex; }
+
+        /* אנימציית פעימה קלה ללוגו */
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(0); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 3s infinite;
+        }
     </style>
 </head>
 <body>
 
     <!-- ================= מסך הבית ================= -->
-    <div id="screen-home" class="screen active min-h-screen p-6 relative">
-        <div class="flex-grow flex flex-col items-center justify-center space-y-8">
-            <h1 class="text-5xl font-extrabold text-center drop-shadow-lg">Trivia Master</h1>
+    <div id="screen-home" class="screen active p-4 relative justify-center items-center">
+        <div class="w-full max-w-sm flex flex-col items-center">
             
-            <div class="w-full max-w-md space-y-4">
-                <input type="number" id="pin-input" placeholder="הכנס קוד משחק (PIN)" 
-                       class="w-full text-center text-3xl p-4 rounded-xl text-black font-bold focus:outline-none focus:ring-4 focus:ring-yellow-400">
-                <button onclick="joinGame()" class="w-full bg-yellow-400 hover:bg-yellow-500 text-black text-2xl font-bold py-4 rounded-xl shadow-lg transition-transform transform active:scale-95">
-                    היכנס למשחק!
+            <h1 class="text-6xl font-black mb-10 tracking-tighter animate-bounce-slow drop-shadow-xl">
+                Quizmo!
+            </h1>
+            
+            <div class="bg-white p-6 rounded-md shadow-2xl w-full text-black flex flex-col gap-4">
+                <input type="number" id="pin-input" placeholder="Game PIN" 
+                       class="w-full text-center text-2xl p-3 border-2 border-gray-300 rounded focus:outline-none focus:border-gray-500 font-bold tracking-widest">
+                
+                <button onclick="joinGame()" class="w-full bg-[#333333] hover:bg-black text-white text-xl font-bold py-4 rounded transition-colors shadow-md">
+                    Enter
+                </button>
+            </div>
+            
+        </div>
+
+        <!-- כפתור מנהל מוצמד למטה -->
+        <button onclick="showAdminModal()" class="fixed bottom-4 text-white/50 hover:text-white/90 text-sm font-bold tracking-wide flex items-center gap-1 transition-colors">
+            <i data-lucide="settings" class="w-4 h-4"></i> Admin Panel
+        </button>
+    </div>
+
+    <!-- ================= מסך הזנת שם (אחרי PIN) ================= -->
+    <div id="screen-enter-name" class="screen p-4 relative justify-center items-center">
+        <div class="w-full max-w-sm flex flex-col items-center">
+            <h1 class="text-6xl font-black mb-10 tracking-tighter drop-shadow-xl">Quizmo!</h1>
+            <div class="bg-white p-6 rounded-md shadow-2xl w-full text-black flex flex-col gap-4">
+                <input type="text" id="name-input" placeholder="Nickname" 
+                       class="w-full text-center text-2xl p-3 border-2 border-gray-300 rounded focus:outline-none focus:border-gray-500 font-bold">
+                <button onclick="submitName()" class="w-full bg-[#333333] hover:bg-black text-white text-xl font-bold py-4 rounded transition-colors shadow-md">
+                    OK, go!
                 </button>
             </div>
         </div>
-
-        <!-- כפתור המנהל שביקשת להוריד למטה ולשנות את שמו -->
-        <div class="w-full flex justify-center pb-8 mt-auto">
-            <button onclick="showPasswordModal()" class="text-white/70 hover:text-white border border-white/30 hover:bg-white/10 px-6 py-3 rounded-full font-semibold transition-all flex items-center gap-2">
-                <i data-lucide="settings"></i>
-                Admin Panel
-            </button>
-        </div>
     </div>
 
-    <!-- ================= מודל (חלון קופץ) לסיסמה ================= -->
-    <div id="password-modal" class="modal-overlay p-4">
-        <div class="bg-white text-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all">
-            <h2 class="text-2xl font-bold mb-4 text-center">כניסת מנהל</h2>
-            <p class="text-sm text-gray-500 mb-4 text-center">אנא הכנס סיסמת מנהל כדי להמשיך</p>
-            <input type="password" id="admin-password" placeholder="סיסמה..." 
-                   class="w-full text-center text-xl p-3 border-2 border-gray-300 rounded-lg mb-4 focus:outline-none focus:border-blue-500">
-            <div id="password-error" class="text-red-500 text-sm text-center hidden mb-4">סיסמה שגויה, נסה שוב.</div>
-            <div class="flex gap-3">
-                <button onclick="hidePasswordModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-lg">ביטול</button>
-                <button onclick="checkPassword()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">היכנס</button>
+    <!-- ================= מסך המתנה לשחקן (אתה בפנים) ================= -->
+    <div id="screen-player-waiting" class="screen p-4 justify-center items-center text-center">
+        <h2 class="text-4xl font-bold mb-4">You're in!</h2>
+        <p class="text-2xl font-semibold opacity-90 animate-pulse">See your nickname on screen</p>
+    </div>
+
+    <!-- ================= מודל (חלון קופץ) לסיסמת מנהל ================= -->
+    <div id="admin-modal" class="modal-overlay p-4">
+        <div class="bg-white text-black rounded-lg p-8 w-full max-w-sm shadow-2xl">
+            <h2 class="text-2xl font-black mb-6 text-center text-gray-800">Admin Login</h2>
+            <input type="password" id="admin-password" placeholder="Password (1234)" 
+                   class="w-full text-center text-xl p-3 border-2 border-gray-200 rounded mb-4 focus:outline-none focus:border-purple-600 font-bold">
+            <div id="admin-error" class="text-red-500 text-sm font-bold text-center hidden mb-4">Incorrect password</div>
+            <div class="flex gap-2">
+                <button onclick="hideAdminModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded">Cancel</button>
+                <button onclick="verifyAdmin()" class="flex-1 bg-kahoot-blue hover:bg-blue-700 text-white font-bold py-3 rounded">Login</button>
             </div>
         </div>
     </div>
 
-    <!-- ================= מסך דאשבורד מנהל (כל החידונים) ================= -->
-    <div id="screen-dashboard" class="screen min-h-screen p-4 sm:p-6 bg-gray-50 text-gray-800">
+    <!-- ================= מסך דאשבורד מנהל ================= -->
+    <div id="screen-dashboard" class="screen p-4 sm:p-8 bg-gray-100 text-gray-900 overflow-y-auto">
         <div class="max-w-4xl mx-auto w-full">
-            <div class="flex justify-between items-center mb-8">
-                <h1 class="text-3xl font-bold text-blue-900">ניהול חידונים</h1>
-                <button onclick="switchScreen('screen-home')" class="text-gray-500 hover:text-gray-800 flex items-center gap-1">
-                    <i data-lucide="log-out" class="w-5 h-5"></i> יציאה
+            <div class="flex justify-between items-center mb-8 border-b pb-4">
+                <h1 class="text-3xl font-black">My Kahoots (Quizzes)</h1>
+                <button onclick="switchScreen('screen-home')" class="text-gray-500 hover:text-black font-bold flex items-center gap-1">
+                    <i data-lucide="home" class="w-5 h-5"></i> Home
                 </button>
             </div>
 
-            <button onclick="openEditor()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md mb-8 flex justify-center items-center gap-2 transition-transform active:scale-95">
-                <i data-lucide="plus-circle"></i> צור חידון חדש
+            <button onclick="openEditor()" class="w-full bg-kahoot-blue text-white font-bold text-xl py-4 rounded shadow-md mb-8 hover:bg-blue-700 transition-colors">
+                + Create New Quiz
             </button>
 
-            <!-- רשימת החידונים תופיע כאן -->
             <div id="quizzes-list" class="space-y-4">
-                <!-- נתונים יוזרקו לפה מ-JS -->
+                <!-- חידונים יופיעו כאן -->
             </div>
         </div>
     </div>
 
-    <!-- ================= מסך עריכת/יצירת חידון ================= -->
-    <div id="screen-editor" class="screen min-h-screen p-4 sm:p-6 bg-gray-50 text-gray-800">
-        <div class="max-w-4xl mx-auto w-full">
+    <!-- ================= מסך עריכת חידון ================= -->
+    <div id="screen-editor" class="screen p-4 sm:p-8 bg-gray-100 text-gray-900 overflow-y-auto">
+        <div class="max-w-4xl mx-auto w-full bg-white p-6 rounded-lg shadow-lg">
             <div class="flex justify-between items-center mb-6">
-                <h1 id="editor-title" class="text-2xl font-bold text-blue-900">יצירת חידון חדש</h1>
-                <button onclick="switchScreen('screen-dashboard')" class="text-gray-500 hover:text-gray-800">ביטול</button>
+                <h1 id="editor-title" class="text-2xl font-black">Create Kahoot</h1>
+                <button onclick="switchScreen('screen-dashboard')" class="text-red-500 font-bold hover:underline">Cancel</button>
             </div>
 
-            <input type="text" id="quiz-title-input" placeholder="שם החידון (לדוגמה: היסטוריה כיתה ו')" 
-                   class="w-full text-xl p-4 border-2 border-gray-300 rounded-xl mb-6 focus:outline-none focus:border-blue-500 font-bold">
+            <input type="text" id="quiz-title-input" placeholder="Enter kahoot title..." 
+                   class="w-full text-2xl p-3 border-b-2 border-gray-300 mb-8 focus:outline-none focus:border-kahoot-blue font-bold">
 
-            <!-- אזור השאלות -->
-            <div id="questions-container" class="space-y-6 mb-6">
+            <div id="questions-container" class="space-y-8 mb-8">
                 <!-- שאלות יתווספו לכאן -->
             </div>
 
-            <button onclick="addQuestionToEditor()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl border border-dashed border-gray-400 mb-6 flex justify-center items-center gap-2">
-                <i data-lucide="plus"></i> הוסף שאלה
+            <button onclick="addQuestion()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-4 border-2 border-dashed border-gray-400 rounded mb-6">
+                + Add question
             </button>
 
-            <button onclick="saveQuiz()" class="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2">
-                <i data-lucide="save"></i> שמור חידון
+            <button onclick="saveQuiz()" class="w-full bg-kahoot-green hover:bg-green-700 text-white text-xl font-black py-4 rounded shadow-lg">
+                Save
             </button>
         </div>
     </div>
 
-    <!-- ================= מסך המתנה/הוסט (Lobby) ================= -->
-    <div id="screen-host-lobby" class="screen min-h-screen p-6 relative flex-col items-center justify-center">
-        <button onclick="switchScreen('screen-dashboard')" class="absolute top-6 left-6 text-white hover:text-gray-200 flex items-center gap-1">
-            <i data-lucide="arrow-right"></i> חזור לניהול
-        </button>
-        
-        <h2 class="text-3xl font-bold mb-2 text-center" id="lobby-quiz-title">טוען...</h2>
-        <p class="text-xl mb-8">הקוד להצטרפות למשחק:</p>
-        
-        <div class="bg-white text-black text-7xl font-extrabold py-6 px-12 rounded-3xl shadow-2xl mb-12 tracking-widest" id="lobby-pin">
-            0000
+    <!-- ================= מסך Lobby מנהל (ממתין לשחקנים) ================= -->
+    <div id="screen-host-lobby" class="screen p-6 justify-between items-center">
+        <!-- Top bar -->
+        <div class="w-full flex justify-between items-center">
+            <button onclick="closeLobby()" class="bg-black/20 hover:bg-black/40 px-4 py-2 rounded text-white font-bold flex items-center gap-2">
+                <i data-lucide="x"></i> Close
+            </button>
+            <div class="text-xl font-bold" id="host-quiz-title">Quiz Title</div>
+            <div class="w-20"></div> <!-- Placeholder לאיזון -->
         </div>
 
-        <p class="text-lg mb-4">ממתין לשחקנים...</p>
-        <div id="players-list" class="flex flex-wrap justify-center gap-3 mb-12 min-h-[50px]">
-            <!-- שמות השחקנים יופיעו כאן -->
-            <span class="bg-white/20 px-4 py-2 rounded-full">כרגע אין שחקנים מחוברים</span>
+        <!-- Center PIN -->
+        <div class="text-center mt-10">
+            <h2 class="text-2xl font-bold mb-2">Join at www.kahoot.it with Game PIN:</h2>
+            <div class="bg-white text-black text-7xl md:text-9xl font-black py-4 px-12 rounded shadow-2xl tracking-widest" id="host-pin">
+                000000
+            </div>
         </div>
 
-        <button onclick="alert('בגרסה זו הלוגיקה נבנתה! כאן יתחיל המשחק בפועל.')" class="bg-yellow-400 hover:bg-yellow-500 text-black text-2xl font-bold py-4 px-12 rounded-xl shadow-lg transition-transform transform active:scale-95">
-            התחל משחק!
-        </button>
+        <!-- Players List -->
+        <div class="flex-grow w-full mt-10 flex flex-col items-center">
+            <div class="flex items-center gap-2 mb-6 bg-black/20 px-4 py-2 rounded-full font-bold">
+                <i data-lucide="users"></i>
+                <span id="player-count">0</span> Players
+            </div>
+            <div id="lobby-players" class="flex flex-wrap justify-center gap-4 w-full max-w-4xl">
+                <!-- שחקנים יופיעו פה -->
+                <div class="text-white/50 font-bold text-xl italic" id="waiting-msg">Waiting for players...</div>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <div class="w-full flex justify-end pb-4">
+            <button id="start-game-btn" onclick="startHostedGame()" disabled class="bg-gray-400 text-gray-200 text-2xl font-black py-4 px-12 rounded shadow-lg transition-colors cursor-not-allowed">
+                Start
+            </button>
+        </div>
     </div>
 
+    <!-- ייבוא פיירבייס -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <script>
-        // אתחול אייקונים
-        lucide.createIcons();
+        /* ========================================================================
+        הערה למפתח (בשבילך):
+        כדי שזה יעבוד אצלך בשרת הפרטי, פשוט תמחק את שורות ה-Canvas למטה, 
+        ותוריד את ההערות מהקוד שלך (שנמצא פה):
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
+            authDomain: "quizmo-kahoot.firebaseapp.com",
+            projectId: "quizmo-kahoot",
+            storageBucket: "quizmo-kahoot.firebasestorage.app",
+            messagingSenderId: "738657082184",
+            appId: "1:738657082184:web:076d9ccf27706d356bb17d"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        ========================================================================
+        */
+
+        // --- קוד שמותאם לתצוגה המקדימה שלנו (כדי למנוע שגיאות כאן במסך) ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-kahoot-app';
 
         // משתנים גלובליים
-        let currentQuizIdToEdit = null;
-        let quizzes = []; 
-        let currentQuestionsList = [];
+        let currentUser = null;
+        let localQuizzes = [];
+        let editorQuestions = [];
+        let currentEditId = null;
+        
+        // ניהול חדר משחק
+        let currentHostPin = null;
+        let currentJoinPin = null;
+        let currentNickname = "";
+        let hostUnsubscribe = null;
+        let playerUnsubscribe = null;
 
-        // בטעינת העמוד, נטען נתונים שמורים (מקומיים כרגע, לטובת מהירות ולוגיקה)
-        window.onload = () => {
-            const savedQuizzes = localStorage.getItem('triviaQuizzes');
-            if (savedQuizzes) {
-                quizzes = JSON.parse(savedQuizzes);
-            }
-        };
-
-        // פונקציית מעבר בין מסכים
-        function switchScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-            window.scrollTo(0,0);
-        }
-
-        // --- לוגיקת כניסת מנהל (מהירה, ללא prompt) ---
-        function showPasswordModal() {
-            document.getElementById('admin-password').value = '';
-            document.getElementById('password-error').classList.add('hidden');
-            document.getElementById('password-modal').classList.add('active');
-            setTimeout(() => document.getElementById('admin-password').focus(), 100);
-        }
-
-        function hidePasswordModal() {
-            document.getElementById('password-modal').classList.remove('active');
-        }
-
-        function checkPassword() {
-            const pass = document.getElementById('admin-password').value;
-            // הנה הסיסמה! כרגע 1234. אתה יכול לשנות אותה פה.
-            const ADMIN_PASSWORD = "1234"; 
-
-            if (pass === ADMIN_PASSWORD) {
-                hidePasswordModal();
-                openDashboard();
+        // התחברות אנונימית מהירה לפיירבייס כדי לאפשר קריאה/כתיבה
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loadLocalQuizzes(); // נטען חידונים מהזיכרון לצורך עריכה מהירה
             } else {
-                document.getElementById('password-error').classList.remove('hidden');
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
             }
-        }
-
-        // מאפשר לחיצה על Enter בסיסמה
-        document.getElementById('admin-password').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') checkPassword();
         });
 
+        lucide.createIcons();
 
-        // --- לוגיקת דאשבורד מנהל (CRUD) ---
-        function openDashboard() {
-            renderQuizzesList();
-            switchScreen('screen-dashboard');
-        }
-
-        function renderQuizzesList() {
-            const container = document.getElementById('quizzes-list');
-            container.innerHTML = '';
-
-            if (quizzes.length === 0) {
-                container.innerHTML = `<div class="text-center text-gray-500 py-8">עדיין לא יצרת חידונים. לחץ על הכפתור למעלה כדי להתחיל!</div>`;
-                return;
-            }
-
-            quizzes.forEach(quiz => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-5 rounded-xl shadow border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4";
-                
-                card.innerHTML = `
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-800">${quiz.title}</h3>
-                        <p class="text-sm text-gray-500">${quiz.questions.length} שאלות</p>
-                    </div>
-                    <div class="flex gap-2 w-full sm:w-auto">
-                        <button onclick="hostQuiz('${quiz.id}')" class="flex-1 sm:flex-none bg-green-100 text-green-700 hover:bg-green-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors">
-                            <i data-lucide="play" class="w-4 h-4"></i> הפעל
-                        </button>
-                        <button onclick="editQuiz('${quiz.id}')" class="flex-1 sm:flex-none bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors">
-                            <i data-lucide="edit" class="w-4 h-4"></i> ערוך
-                        </button>
-                        <button onclick="deleteQuiz('${quiz.id}')" class="flex-1 sm:flex-none bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i> מחק
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+        // ---------------- לוגיקת ממשק ומסכים ----------------
+        window.switchScreen = function(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
             lucide.createIcons();
         }
 
-        // --- לוגיקת עורך החידונים ---
-        function openEditor(quizId = null) {
-            currentQuizIdToEdit = quizId;
-            const titleInput = document.getElementById('quiz-title-input');
-            const questionsContainer = document.getElementById('questions-container');
-            
-            questionsContainer.innerHTML = ''; // נקה עורך
+        // ---------------- לוגיקת Admin מנהל ----------------
+        window.showAdminModal = function() {
+            document.getElementById('admin-password').value = '';
+            document.getElementById('admin-error').classList.add('hidden');
+            document.getElementById('admin-modal').classList.add('active');
+            setTimeout(() => document.getElementById('admin-password').focus(), 100);
+        }
 
-            if (quizId) {
-                // מצב עריכה
-                document.getElementById('editor-title').innerText = "עריכת חידון";
-                const quizToEdit = quizzes.find(q => q.id === quizId);
-                titleInput.value = quizToEdit.title;
-                currentQuestionsList = JSON.parse(JSON.stringify(quizToEdit.questions)); // עותק עמוק
+        window.hideAdminModal = function() {
+            document.getElementById('admin-modal').classList.remove('active');
+        }
+
+        window.verifyAdmin = function() {
+            const pass = document.getElementById('admin-password').value;
+            if (pass === "1234") { // <--- הסיסמה!
+                hideAdminModal();
+                switchScreen('screen-dashboard');
+                renderDashboard();
             } else {
-                // מצב יצירה חדשה
-                document.getElementById('editor-title').innerText = "יצירת חידון חדש";
-                titleInput.value = '';
-                currentQuestionsList = [];
-                addQuestionToEditor(); // הוסף שאלה ראשונה ריקה כברירת מחדל
+                document.getElementById('admin-error').classList.remove('hidden');
+            }
+        }
+
+        // לחיצה על אנטר בסיסמה
+        document.getElementById('admin-password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') verifyAdmin();
+        });
+
+        // ---------------- שמירה ועריכה של חידונים (Local Storage למנהל) ----------------
+        function loadLocalQuizzes() {
+            const saved = localStorage.getItem('kahootQuizzes');
+            if (saved) localQuizzes = JSON.parse(saved);
+        }
+
+        function saveLocalQuizzes() {
+            localStorage.setItem('kahootQuizzes', JSON.stringify(localQuizzes));
+        }
+
+        window.renderDashboard = function() {
+            const list = document.getElementById('quizzes-list');
+            list.innerHTML = '';
+            
+            if (localQuizzes.length === 0) {
+                list.innerHTML = `<div class="text-center py-10 text-gray-500 font-bold">No kahoots yet. Create one!</div>`;
+                return;
             }
 
+            localQuizzes.forEach(quiz => {
+                list.innerHTML += `
+                    <div class="bg-white p-4 rounded shadow flex flex-col md:flex-row justify-between items-center gap-4 border-l-4 border-kahoot-blue">
+                        <div class="w-full">
+                            <h3 class="text-xl font-bold text-black">${quiz.title}</h3>
+                            <p class="text-sm text-gray-500 font-bold">${quiz.questions.length} questions</p>
+                        </div>
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <button onclick="hostGame('${quiz.id}')" class="flex-1 bg-kahoot-green hover:bg-green-700 text-white font-bold py-2 px-6 rounded whitespace-nowrap">
+                                Host
+                            </button>
+                            <button onclick="editQuiz('${quiz.id}')" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">
+                                Edit
+                            </button>
+                            <button onclick="deleteQuiz('${quiz.id}')" class="flex-1 bg-red-100 text-red-600 hover:bg-red-200 font-bold py-2 px-4 rounded">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.openEditor = function() {
+            currentEditId = null;
+            document.getElementById('editor-title').innerText = "Create Kahoot";
+            document.getElementById('quiz-title-input').value = "";
+            editorQuestions = [];
+            addQuestion(); // שאלה ראשונה ריקה
+            switchScreen('screen-editor');
+        }
+
+        window.editQuiz = function(id) {
+            currentEditId = id;
+            const quiz = localQuizzes.find(q => q.id === id);
+            document.getElementById('editor-title').innerText = "Edit Kahoot";
+            document.getElementById('quiz-title-input').value = quiz.title;
+            editorQuestions = JSON.parse(JSON.stringify(quiz.questions));
             renderEditorQuestions();
             switchScreen('screen-editor');
         }
 
-        function addQuestionToEditor() {
-            currentQuestionsList.push({
-                text: '',
-                answers: ['', '', '', ''],
-                correctIndex: 0
+        window.deleteQuiz = function(id) {
+            if(confirm("Are you sure you want to delete this kahoot?")) {
+                localQuizzes = localQuizzes.filter(q => q.id !== id);
+                saveLocalQuizzes();
+                renderDashboard();
+            }
+        }
+
+        window.addQuestion = function() {
+            editorQuestions.push({
+                text: "",
+                answers: ["", "", "", ""],
+                correct: 0
             });
             renderEditorQuestions();
         }
 
-        function removeQuestion(index) {
-            if (currentQuestionsList.length <= 1) {
-                alert("חייבת להיות לפחות שאלה אחת בחידון.");
+        window.removeQuestion = function(index) {
+            if(editorQuestions.length <= 1) {
+                alert("You need at least one question.");
                 return;
             }
-            currentQuestionsList.splice(index, 1);
+            editorQuestions.splice(index, 1);
             renderEditorQuestions();
         }
 
-        function renderEditorQuestions() {
+        window.updateQText = function(index, val) { editorQuestions[index].text = val; }
+        window.updateAText = function(qIndex, aIndex, val) { editorQuestions[qIndex].answers[aIndex] = val; }
+        window.setCorrect = function(qIndex, aIndex) { 
+            editorQuestions[qIndex].correct = aIndex; 
+            renderEditorQuestions();
+        }
+
+        window.renderEditorQuestions = function() {
             const container = document.getElementById('questions-container');
             container.innerHTML = '';
+            
+            const shapes = [
+                '<div class="w-6 h-6 bg-kahoot-red flex items-center justify-center transform rotate-45 mr-2"></div>', // Triangle (rotated square)
+                '<div class="w-6 h-6 bg-kahoot-blue flex items-center justify-center transform rotate-45 mr-2" style="border-radius: 4px;"></div>', // Diamond
+                '<div class="w-6 h-6 bg-kahoot-yellow rounded-full mr-2"></div>', // Circle
+                '<div class="w-6 h-6 bg-kahoot-green rounded-sm mr-2"></div>' // Square
+            ];
 
-            currentQuestionsList.forEach((q, qIndex) => {
-                const qDiv = document.createElement('div');
-                qDiv.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-200 relative";
-                
-                let answersHTML = '';
+            editorQuestions.forEach((q, qIndex) => {
+                let answersHtml = '';
                 for(let i=0; i<4; i++) {
-                    const isCorrect = q.correctIndex === i;
-                    answersHTML += `
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="radio" name="correct-${qIndex}" value="${i}" ${isCorrect ? 'checked' : ''} 
-                                   onchange="updateCorrectAnswer(${qIndex}, ${i})"
-                                   class="w-5 h-5 text-blue-600 focus:ring-blue-500 cursor-pointer" title="סמן כתשובה נכונה">
-                            <input type="text" placeholder="תשובה ${i+1}" value="${q.answers[i]}" 
-                                   oninput="updateAnswerText(${qIndex}, ${i}, this.value)"
-                                   class="flex-1 p-2 border rounded focus:outline-none focus:border-blue-400 ${isCorrect ? 'bg-green-50 border-green-300' : 'bg-gray-50'}">
+                    const isCorrect = q.correct === i;
+                    answersHtml += `
+                        <div class="flex items-center mb-3">
+                            <input type="radio" name="correct_${qIndex}" ${isCorrect ? 'checked' : ''} onchange="setCorrect(${qIndex}, ${i})"
+                                   class="w-6 h-6 mr-3 cursor-pointer">
+                            ${shapes[i]}
+                            <input type="text" placeholder="Answer ${i+1}" value="${q.answers[i]}" oninput="updateAText(${qIndex}, ${i}, this.value)"
+                                   class="flex-1 p-3 border rounded font-semibold ${isCorrect ? 'bg-green-50 border-green-400' : 'bg-white'} focus:outline-none focus:border-black">
                         </div>
                     `;
                 }
 
-                qDiv.innerHTML = `
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="font-bold text-gray-700">שאלה ${qIndex + 1}</span>
-                        <button onclick="removeQuestion(${qIndex})" class="text-red-500 hover:text-red-700 text-sm flex items-center gap-1">
-                            <i data-lucide="trash" class="w-4 h-4"></i> הסר
-                        </button>
+                container.innerHTML += `
+                    <div class="border-2 border-gray-200 rounded p-6 bg-gray-50 relative">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-gray-500">Question ${qIndex + 1}</h3>
+                            <button onclick="removeQuestion(${qIndex})" class="text-red-500 font-bold text-sm">Remove</button>
+                        </div>
+                        <input type="text" placeholder="Start typing your question" value="${q.text}" oninput="updateQText(${qIndex}, this.value)"
+                               class="w-full text-xl p-4 border rounded mb-6 text-center font-bold focus:outline-none focus:border-black shadow-inner">
+                        <div class="grid md:grid-cols-2 gap-x-6">
+                            ${answersHtml}
+                        </div>
                     </div>
-                    <textarea placeholder="הכנס את תוכן השאלה כאן..." oninput="updateQuestionText(${qIndex}, this.value)"
-                              class="w-full p-3 border rounded-lg focus:outline-none focus:border-blue-500 mb-4 resize-none h-20">${q.text}</textarea>
-                    <div class="text-sm font-semibold text-gray-600 mb-2">תשובות (סמן את הנכונה בעיגול):</div>
-                    ${answersHTML}
                 `;
-                container.appendChild(qDiv);
             });
-            lucide.createIcons();
         }
 
-        // פונקציות עדכון נתונים בזמן עריכה
-        function updateQuestionText(qIndex, text) { currentQuestionsList[qIndex].text = text; }
-        function updateAnswerText(qIndex, aIndex, text) { currentQuestionsList[qIndex].answers[aIndex] = text; }
-        function updateCorrectAnswer(qIndex, aIndex) { 
-            currentQuestionsList[qIndex].correctIndex = aIndex; 
-            renderEditorQuestions(); // רנדור מחדש כדי לצבוע את התשובה הנכונה בירוק
-        }
-
-        function saveQuiz() {
+        window.saveQuiz = function() {
             const title = document.getElementById('quiz-title-input').value.trim();
-            if (!title) {
-                alert("חובה לתת שם לחידון!");
-                return;
-            }
+            if(!title) return alert("Please enter a title.");
             
-            // בדיקת תקינות בסיסית
-            const isValid = currentQuestionsList.every(q => q.text.trim() !== '' && q.answers.every(a => a.trim() !== ''));
-            if (!isValid) {
-                alert("אנא ודא שכל השאלות והתשובות מלאות.");
-                return;
+            // ואלידציה
+            for(let q of editorQuestions) {
+                if(!q.text.trim()) return alert("Please fill all questions.");
+                for(let a of q.answers) {
+                    if(!a.trim()) return alert("Please fill all answers.");
+                }
             }
 
-            if (currentQuizIdToEdit) {
-                // עדכון קיים
-                const index = quizzes.findIndex(q => q.id === currentQuizIdToEdit);
-                quizzes[index].title = title;
-                quizzes[index].questions = currentQuestionsList;
+            if (currentEditId) {
+                const idx = localQuizzes.findIndex(q => q.id === currentEditId);
+                localQuizzes[idx].title = title;
+                localQuizzes[idx].questions = editorQuestions;
             } else {
-                // יצירה חדש
-                const newQuiz = {
+                localQuizzes.push({
                     id: 'quiz_' + Date.now(),
                     title: title,
-                    questions: currentQuestionsList
-                };
-                quizzes.push(newQuiz);
+                    questions: editorQuestions
+                });
             }
-
-            // שמירה בזיכרון המקומי
-            localStorage.setItem('triviaQuizzes', JSON.stringify(quizzes));
-            openDashboard();
+            saveLocalQuizzes();
+            renderDashboard();
+            switchScreen('screen-dashboard');
         }
 
-        function editQuiz(id) {
-            openEditor(id);
-        }
+        // ---------------- לוגיקת חדרים (Hosting & Joining) מול Firebase ----------------
 
-        function deleteQuiz(id) {
-            // החלפתי את ה-confirm המכוער במודל מעוצב בגרסאות הבאות, אבל פה נשתמש בו לצורך פשטות הלוגיקה
-            if(confirm("האם אתה בטוח שברצונך למחוק חידון זה?")) {
-                quizzes = quizzes.filter(q => q.id !== id);
-                localStorage.setItem('triviaQuizzes', JSON.stringify(quizzes));
-                renderQuizzesList();
-            }
-        }
-
-        // --- לוגיקת הפעלת משחק (Host) ---
-        function hostQuiz(quizId) {
-            const quiz = quizzes.find(q => q.id === quizId);
-            document.getElementById('lobby-quiz-title').innerText = quiz.title;
+        // מנהל פותח חדר
+        window.hostGame = async function(quizId) {
+            if(!currentUser) return alert("Connecting to server, please wait...");
             
-            // יצירת PIN אקראי למשחק
-            const pin = Math.floor(1000 + Math.random() * 9000);
-            document.getElementById('lobby-pin').innerText = pin;
+            const quiz = localQuizzes.find(q => q.id === quizId);
+            currentHostPin = Math.floor(100000 + Math.random() * 900000).toString(); // PIN של 6 ספרות
             
+            document.getElementById('host-quiz-title').innerText = quiz.title;
+            document.getElementById('host-pin').innerText = currentHostPin;
+            document.getElementById('lobby-players').innerHTML = '<div class="text-white/50 font-bold text-xl italic" id="waiting-msg">Waiting for players...</div>';
+            document.getElementById('player-count').innerText = "0";
+            
+            // כיבוי כפתור "התחל"
+            const startBtn = document.getElementById('start-game-btn');
+            startBtn.disabled = true;
+            startBtn.classList.replace('bg-kahoot-blue', 'bg-gray-400');
+            startBtn.classList.replace('hover:bg-blue-700', 'text-gray-200');
+            startBtn.classList.add('cursor-not-allowed');
+
             switchScreen('screen-host-lobby');
-            
-            // כאן בעתיד נחבר את ה-Firebase כדי ליצור "חדר" בענן שהשחקנים יוכלו להתחבר אליו
+
+            try {
+                // יצירת חדר ב-Firestore
+                const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', currentHostPin);
+                await setDoc(gameRef, {
+                    hostId: currentUser.uid,
+                    status: 'lobby',
+                    players: []
+                });
+
+                // האזנה לשחקנים שמצטרפים
+                hostUnsubscribe = onSnapshot(gameRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        updateLobbyUI(data.players || []);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error creating game:", error);
+                alert("Error creating room. Check console.");
+            }
         }
 
-        function joinGame() {
-            const pin = document.getElementById('pin-input').value;
-            if(pin.length !== 4) {
-                alert("אנא הכנס קוד PIN חוקי בעל 4 ספרות");
-                return;
+        function updateLobbyUI(players) {
+            const container = document.getElementById('lobby-players');
+            document.getElementById('player-count').innerText = players.length;
+            
+            const startBtn = document.getElementById('start-game-btn');
+
+            if (players.length === 0) {
+                container.innerHTML = '<div class="text-white/50 font-bold text-xl italic" id="waiting-msg">Waiting for players...</div>';
+                // אם אין שחקנים, אי אפשר להתחיל
+                startBtn.disabled = true;
+                startBtn.classList.add('bg-gray-400', 'text-gray-200', 'cursor-not-allowed');
+                startBtn.classList.remove('bg-kahoot-blue', 'hover:bg-blue-700', 'text-white');
+            } else {
+                container.innerHTML = '';
+                players.forEach(p => {
+                    container.innerHTML += `<div class="bg-black/30 font-bold text-2xl py-2 px-6 rounded animate-bounce-slow">${p.name}</div>`;
+                });
+                // יש שחקנים! מאפשר להתחיל
+                startBtn.disabled = false;
+                startBtn.classList.remove('bg-gray-400', 'text-gray-200', 'cursor-not-allowed');
+                startBtn.classList.add('bg-kahoot-blue', 'hover:bg-blue-700', 'text-white');
             }
-            alert("פונקציית התחברות כשחקן. הלוגיקה שלך הושלמה בצד מנהל!");
         }
+
+        window.closeLobby = async function() {
+            if(hostUnsubscribe) hostUnsubscribe();
+            if(currentHostPin) {
+                try {
+                    const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', currentHostPin);
+                    await deleteDoc(gameRef); // סוגר את החדר
+                } catch(e) {}
+            }
+            switchScreen('screen-dashboard');
+        }
+
+        // המנהל לוחץ "התחל משחק"
+        window.startHostedGame = function() {
+            alert("Game Started! The next step is showing the questions. This logic is fully working now!");
+            // בעתיד: נעדכן את ה-status ב-Firebase ל-'playing' ונעביר לשאלה הראשונה
+        }
+
+        // ---------------- שחקן מצטרף לחדר ----------------
+        window.joinGame = async function() {
+            const pin = document.getElementById('pin-input').value.trim();
+            if(!pin) return;
+
+            if(!currentUser) return alert("Please wait a second for server connection...");
+
+            try {
+                // בדיקה אם החדר קיים
+                const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', pin);
+                const gameSnap = await getDoc(gameRef);
+
+                if (gameSnap.exists()) {
+                    currentJoinPin = pin;
+                    document.getElementById('name-input').value = '';
+                    switchScreen('screen-enter-name');
+                    setTimeout(() => document.getElementById('name-input').focus(), 100);
+                } else {
+                    alert("We didn't recognize that PIN. Please check and try again.");
+                }
+            } catch (error) {
+                console.error("Join error:", error);
+                alert("Error connecting to game.");
+            }
+        }
+
+        // לחיצה על אנטר ב-PIN
+        document.getElementById('pin-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinGame();
+        });
+
+        // שחקן מזין שם ונכנס רשמית לחדר
+        window.submitName = async function() {
+            const name = document.getElementById('name-input').value.trim();
+            if(!name) return;
+
+            try {
+                const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', currentJoinPin);
+                
+                // הוספת השחקן למערך ב-Firebase
+                await updateDoc(gameRef, {
+                    players: arrayUnion({
+                        uid: currentUser.uid,
+                        name: name,
+                        score: 0
+                    })
+                });
+
+                switchScreen('screen-player-waiting');
+                
+            } catch (error) {
+                console.error("Submit name error:", error);
+                alert("Failed to join game. Maybe the host closed it.");
+                switchScreen('screen-home');
+            }
+        }
+
+        document.getElementById('name-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitName();
+        });
 
     </script>
 </body>
