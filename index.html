@@ -341,7 +341,7 @@
     <h1 class="final-title">🏆 המשחק הסתיים!</h1>
     <div class="podium-wrap" id="podium"></div>
     <div id="full-leaderboard" class="leaderboard" style="margin-top:2rem"></div>
-    <button class="btn btn-primary" onclick="showScreen('screen-admin-dashboard')" style="margin-top:1.5rem">חזרה לניהול</button>
+    <button class="btn btn-primary" onclick="Music.stop(); showScreen('screen-admin-dashboard')" style="margin-top:1.5rem">חזרה לניהול</button>
   </div>
 </div>
 
@@ -428,6 +428,147 @@ const db = getDatabase(app);
 const ADMIN_PASSWORD = "2160";
 const ANSWER_ICONS = ["▲", "◆", "●", "■"];
 const ANSWER_COLORS = ["#e21b3c","#1368ce","#d89e00","#26890c"];
+
+// ---- MUSIC ENGINE (host only, Web Audio API) ----
+const Music = (() => {
+  let ctx = null, nodes = [], masterGain = null, currentTrack = null;
+
+  function init() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.18, ctx.currentTime);
+    masterGain.connect(ctx.destination);
+  }
+
+  function stop() {
+    nodes.forEach(n => { try { n.stop(); } catch(e){} });
+    nodes = [];
+    currentTrack = null;
+  }
+
+  function osc(freq, type, gainVal, startDelay, duration, dest) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, ctx.currentTime + startDelay);
+    g.gain.setValueAtTime(0, ctx.currentTime + startDelay);
+    g.gain.linearRampToValueAtTime(gainVal, ctx.currentTime + startDelay + 0.02);
+    if (duration) g.gain.linearRampToValueAtTime(0, ctx.currentTime + startDelay + duration - 0.02);
+    o.connect(g); g.connect(dest || masterGain);
+    o.start(ctx.currentTime + startDelay);
+    if (duration) o.stop(ctx.currentTime + startDelay + duration);
+    nodes.push(o);
+    return o;
+  }
+
+  // ---- LOBBY: upbeat looping arpeggio ----
+  function playLobby() {
+    if (currentTrack === 'lobby') return;
+    stop(); init(); currentTrack = 'lobby';
+    const notes = [261.6, 329.6, 392, 523.3, 392, 329.6]; // C E G C G E
+    const bpm = 128, beat = 60/bpm;
+    function loop(t) {
+      if (currentTrack !== 'lobby') return;
+      notes.forEach((freq, i) => {
+        osc(freq, 'square', 0.3, t + i*beat*0.5, beat*0.45);
+        osc(freq/2, 'sine', 0.15, t + i*beat*0.5, beat*0.45);
+      });
+      // bass pulse every beat
+      for (let b=0; b<6; b++) {
+        osc(65.4, 'sawtooth', 0.2, t + b*beat*0.5, beat*0.3);
+      }
+      const loopLen = notes.length * beat * 0.5;
+      setTimeout(() => loop(0), loopLen * 1000 - 50);
+    }
+    loop(0.05);
+  }
+
+  // ---- QUESTION: tense countdown loop ----
+  function playQuestion(totalSeconds) {
+    if (currentTrack === 'question') return;
+    stop(); init(); currentTrack = 'question';
+    const bpm = 140, beat = 60/bpm;
+    // tense repeating motif
+    const motif = [440, 440, 493.9, 440, 392, 440];
+    function loop(t) {
+      if (currentTrack !== 'question') return;
+      motif.forEach((freq, i) => {
+        osc(freq, 'square', 0.25, t + i*beat*0.5, beat*0.4);
+      });
+      osc(110, 'sine', 0.2, t, beat*0.4);
+      osc(110, 'sine', 0.2, t + beat, beat*0.4);
+      const loopLen = motif.length * beat * 0.5;
+      setTimeout(() => loop(0), loopLen * 1000 - 40);
+    }
+    loop(0.05);
+    // last 5 seconds: add urgency pulses
+    const urgencyDelay = Math.max(0, (totalSeconds - 5) * 1000);
+    setTimeout(() => {
+      if (currentTrack !== 'question') return;
+      for (let i=0; i<5; i++) {
+        osc(880, 'square', 0.35, i*0.5, 0.25);
+        osc(440, 'sine', 0.2, i*0.5 + 0.25, 0.2);
+      }
+    }, urgencyDelay);
+  }
+
+  // ---- RESULTS: cheerful short fanfare ----
+  function playResults() {
+    stop(); init(); currentTrack = 'results';
+    // quick ascending fanfare
+    const seq = [261.6, 329.6, 392, 523.3, 659.3];
+    seq.forEach((freq, i) => {
+      osc(freq, 'square', 0.3, i*0.12, 0.18);
+      osc(freq, 'sine', 0.15, i*0.12, 0.25);
+    });
+    // then calm loop for leaderboard viewing
+    setTimeout(() => {
+      if (currentTrack !== 'results') return;
+      const loop = [523.3, 493.9, 440, 392];
+      function lp(t) {
+        if (currentTrack !== 'results') return;
+        loop.forEach((f,i) => osc(f, 'sine', 0.18, t + i*0.35, 0.3));
+        setTimeout(() => lp(0), loop.length * 350 - 30);
+      }
+      lp(0.1);
+    }, 800);
+  }
+
+  // ---- FINAL: victory fanfare + loop ----
+  function playVictory() {
+    stop(); init(); currentTrack = 'victory';
+    // big fanfare
+    const fanfare = [523.3, 523.3, 523.3, 659.3, 587.3, 523.3, 659.3];
+    const durs    = [0.15,  0.15,  0.15,  0.4,   0.15,  0.15,  0.6];
+    let t = 0;
+    fanfare.forEach((freq, i) => {
+      osc(freq,   'square', 0.3,  t, durs[i]);
+      osc(freq/2, 'sine',   0.2,  t, durs[i]);
+      osc(freq*2, 'sine',   0.1,  t, durs[i] * 0.5);
+      t += durs[i] + 0.05;
+    });
+    // happy loop after fanfare
+    setTimeout(() => {
+      if (currentTrack !== 'victory') return;
+      const happy = [523.3, 659.3, 783.9, 659.3, 523.3, 392, 440, 523.3];
+      function lp(ts) {
+        if (currentTrack !== 'victory') return;
+        happy.forEach((f,i) => {
+          osc(f,   'square', 0.22, ts + i*0.18, 0.15);
+          osc(f/2, 'sine',   0.12, ts + i*0.18, 0.15);
+        });
+        setTimeout(() => lp(0), happy.length * 180 - 30);
+      }
+      lp(0.1);
+    }, t * 1000 + 300);
+  }
+
+  function setVolume(v) {
+    if (masterGain) masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, v)), ctx.currentTime);
+  }
+
+  return { playLobby, playQuestion, playResults, playVictory, stop, setVolume };
+})();
 
 let state = {
   mode: null, gameCode: null, quizData: null, currentQ: 0,
@@ -664,6 +805,7 @@ window.hostQuiz = async (quizId) => {
   document.getElementById('players-grid').innerHTML = '';
   document.getElementById('start-game-btn').disabled = true;
   showScreen('screen-lobby-host');
+  Music.playLobby();
   listenPlayers(code);
 };
 
@@ -707,6 +849,7 @@ async function showQuestion() {
   document.getElementById('answered-count').textContent = '0';
   document.getElementById('total-players-q').textContent = '0';
   showScreen('screen-question-host');
+  Music.playQuestion(q.time||20);
   startTimer(q.time||20, endQuestion);
   listenAnswersHost();
 }
@@ -791,6 +934,7 @@ async function endQuestion() {
   document.getElementById('next-q-btn').textContent = isLast ? '🏁 סיום' : 'הבא ➡️';
   document.getElementById('results-title').textContent = `תוצאות שאלה ${state.currentQ+1}`;
   showScreen('screen-results-host');
+  Music.playResults();
 }
 
 function renderLeaderboard(id, sorted) {
@@ -823,6 +967,7 @@ async function showFinalResults() {
   });
   renderLeaderboard('full-leaderboard', sorted);
   showScreen('screen-final');
+  Music.playVictory();
   launchFireworks();
 }
 
