@@ -1,843 +1,958 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quizmo - Kahoot Clone</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- שימוש ב-SVG במקום ספריות אייקונים כבדות כדי למנוע קריסות בגיטהאב -->
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
-        
-        * { box-sizing: border-box; }
-        
-        body {
-            font-family: 'Montserrat', sans-serif;
-            margin: 0;
-            overflow-x: hidden;
-            background-color: #46178f; /* Kahoot Purple */
-            color: white;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dvir's Khoot 🎮</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka+One&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #6c3fff; --purple-dark: #4a1fcc; --pink: #ff3d8b;
+      --yellow: #ffd700; --green: #00e676; --red: #ff4444;
+      --blue: #00b0ff; --orange: #ff9100; --bg: #1a0a3e;
+      --radius: 16px;
+    }
+    body { font-family: 'Heebo', sans-serif; background: var(--bg); color: #fff; min-height: 100vh; overflow-x: hidden; }
+    .screen { display: none; min-height: 100vh; position: relative; }
+    .screen.active { display: flex; flex-direction: column; }
 
-        /* סגנונות קהוט 1:1 */
-        .kahoot-btn-red { background-color: #e21b3c; box-shadow: 0 4px 0 #b3122b; }
-        .kahoot-btn-blue { background-color: #1368ce; box-shadow: 0 4px 0 #0f52a3; }
-        .kahoot-btn-yellow { background-color: #d89e00; box-shadow: 0 4px 0 #a37700; }
-        .kahoot-btn-green { background-color: #26890c; box-shadow: 0 4px 0 #1e6c0a; }
-        
-        .kahoot-btn-red:active, .kahoot-btn-blue:active, .kahoot-btn-yellow:active, .kahoot-btn-green:active {
-            transform: translateY(4px);
-            box-shadow: 0 0px 0 transparent;
-        }
+    /* HOME */
+    #screen-home { background: radial-gradient(ellipse at 30% 20%, #2d1b6e 0%, #0d0628 60%); align-items: center; justify-content: center; overflow: hidden; }
+    .home-content { position: relative; z-index: 2; width: 100%; max-width: 480px; padding: 2rem; text-align: center; }
+    .logo-icon { font-size: 4rem; animation: bounce 2s infinite; display: block; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    .logo-title { font-family:'Fredoka One',cursive; font-size:3rem; background:linear-gradient(135deg,#fff 0%,var(--yellow) 50%,var(--pink) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height:1.1; }
+    .logo-sub { color:rgba(255,255,255,0.6); font-size:1rem; margin-top:0.3rem; margin-bottom:2.5rem; }
+    .home-card { background:rgba(255,255,255,0.07); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.15); border-radius:24px; padding:2rem; display:flex; flex-direction:column; gap:1rem; }
+    .input-label { font-size:0.85rem; color:rgba(255,255,255,0.6); }
+    .code-input { background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2); border-radius:12px; color:white; font-family:'Fredoka One',cursive; font-size:2rem; text-align:center; padding:0.6rem 1.5rem; width:100%; letter-spacing:0.3em; transition:border-color 0.2s; }
+    .code-input:focus { outline:none; border-color:var(--purple); }
+    .code-input::placeholder { color:rgba(255,255,255,0.3); }
+    .divider { display:flex; align-items:center; gap:1rem; color:rgba(255,255,255,0.3); font-size:0.85rem; }
+    .divider::before,.divider::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.15); }
+    .floating-shapes { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+    .shape { position:absolute; font-size:2rem; opacity:0.15; animation:float linear infinite; }
+    .s1{left:5%;animation-duration:8s;animation-delay:0s} .s2{left:20%;animation-duration:11s;animation-delay:-3s}
+    .s3{left:75%;animation-duration:9s;animation-delay:-6s} .s4{left:90%;animation-duration:13s;animation-delay:-1s} .s5{left:50%;animation-duration:7s;animation-delay:-4s}
+    @keyframes float { 0%{transform:translateY(110vh) rotate(0deg)} 100%{transform:translateY(-10vh) rotate(360deg)} }
 
-        .screen { display: none; flex-direction: column; flex-grow: 1; height: 100vh; }
-        .screen.active { display: flex; }
+    /* BUTTONS */
+    .btn { border:none; border-radius:12px; cursor:pointer; font-family:'Heebo',sans-serif; font-weight:700; font-size:1.1rem; padding:0.8rem 1.5rem; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; }
+    .btn:active { transform:scale(0.97); }
+    .btn-primary { background:linear-gradient(135deg,var(--purple) 0%,var(--pink) 100%); color:white; box-shadow:0 4px 20px rgba(108,63,255,0.4); }
+    .btn-primary:hover { box-shadow:0 6px 28px rgba(108,63,255,0.6); transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.5; transform:none; cursor:not-allowed; }
+    .btn-admin { background:transparent; color:rgba(255,255,255,0.6); border:1px solid rgba(255,255,255,0.2); font-size:0.9rem; padding:0.6rem; }
+    .btn-admin:hover { background:rgba(255,255,255,0.1); color:white; }
+    .btn-secondary { background:rgba(255,255,255,0.1); color:white; border:1px solid rgba(255,255,255,0.2); }
+    .btn-ghost { background:transparent; color:rgba(255,255,255,0.5); font-size:0.9rem; }
+    .btn-sm { font-size:0.85rem; padding:0.4rem 1rem; }
+    .btn-big { font-size:1.3rem; padding:1rem 2.5rem; }
+    .btn-edit { background:var(--blue); color:white; font-size:0.8rem; padding:0.3rem 0.7rem; border-radius:8px; border:none; cursor:pointer; font-family:'Heebo',sans-serif; font-weight:700; }
+    .btn-delete { background:var(--red); color:white; font-size:0.8rem; padding:0.3rem 0.7rem; border-radius:8px; border:none; cursor:pointer; font-family:'Heebo',sans-serif; font-weight:700; }
+    .btn-host-pick { background:linear-gradient(135deg,#00e676,#00b0ff); color:#000; font-size:0.9rem; padding:0.5rem 1rem; border-radius:10px; margin-top:0.5rem; border:none; cursor:pointer; font-family:'Heebo',sans-serif; font-weight:700; }
 
-        /* חלון קופץ מהיר ללא תלות ברשת */
-        .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85); z-index: 9999;
-            align-items: center; justify-content: center; backdrop-filter: blur(5px);
-        }
-        .modal-overlay.active { display: flex; animation: fadeIn 0.2s ease-out; }
+    /* MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:100; }
+    .modal-card { background:#1e0f4a; border:1px solid rgba(255,255,255,0.15); border-radius:24px; padding:2.5rem; max-width:360px; width:90%; text-align:center; display:flex; flex-direction:column; gap:1rem; position:relative; }
+    .modal-icon { font-size:3rem; }
+    .back-btn { position:absolute; top:1rem; right:1rem; background:transparent; border:none; color:rgba(255,255,255,0.5); cursor:pointer; font-size:0.9rem; font-family:'Heebo',sans-serif; }
+    .back-btn:hover { color:white; }
+    .error-msg { color:var(--red); font-size:0.9rem; min-height:1.2em; }
+    .success-msg { color:var(--green); font-size:0.9rem; min-height:1.2em; }
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes bounce-logo {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        .animate-logo { animation: bounce-logo 2s infinite; }
+    /* ADMIN */
+    #screen-admin-dashboard { background:#12072e; }
+    .admin-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 2rem; background:rgba(255,255,255,0.05); border-bottom:1px solid rgba(255,255,255,0.1); }
+    .admin-body { display:flex; flex:1; overflow:hidden; height:calc(100vh - 60px); }
+    .admin-sidebar { width:220px; min-width:220px; background:rgba(0,0,0,0.2); padding:1.5rem 1rem; display:flex; flex-direction:column; gap:0.5rem; border-left:1px solid rgba(255,255,255,0.1); }
+    .sidebar-btn { background:transparent; border:none; color:rgba(255,255,255,0.6); font-family:'Heebo',sans-serif; font-size:0.95rem; font-weight:700; padding:0.8rem 1rem; border-radius:12px; cursor:pointer; text-align:right; transition:all 0.2s; }
+    .sidebar-btn:hover { background:rgba(255,255,255,0.1); color:white; }
+    .sidebar-btn.active { background:var(--purple); color:white; }
+    .admin-main { flex:1; overflow-y:auto; padding:2rem; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .tab-content h3 { font-size:1.3rem; margin-bottom:1.5rem; }
+    .quizzes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:1rem; }
+    .quiz-card { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:1.2rem; }
+    .quiz-card h4 { font-size:1rem; margin-bottom:0.3rem; }
+    .quiz-card p { font-size:0.8rem; color:rgba(255,255,255,0.5); margin-bottom:1rem; }
+    .quiz-card-actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+    .empty-state { text-align:center; padding:4rem; color:rgba(255,255,255,0.4); }
+    .field-input { width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); border-radius:10px; color:white; font-family:'Heebo',sans-serif; font-size:1rem; padding:0.7rem 1rem; margin-bottom:1rem; }
+    .field-input:focus { outline:none; border-color:var(--purple); }
+    .field-input::placeholder { color:rgba(255,255,255,0.3); }
 
-        /* צורות קהוט ב-CSS (SVG מובנה בקוד) */
-        .shape-container { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+    /* QUESTION BLOCK */
+    .question-block { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:1.5rem; margin-bottom:1.5rem; position:relative; }
+    .question-block-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem; }
+    .question-block-header h4 { font-size:1rem; }
+    .q-remove-btn { background:var(--red); border:none; color:white; border-radius:8px; padding:0.3rem 0.6rem; cursor:pointer; font-size:0.8rem; font-family:'Heebo',sans-serif; }
+    .q-type-select,.q-time-select { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:white; padding:0.4rem 0.7rem; font-size:0.85rem; font-family:'Heebo',sans-serif; margin-right:0.5rem; }
+    .q-type-select option,.q-time-select option { background:#1a0a3e; }
+    .answers-section { margin-top:1rem; }
+    .answer-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; }
+    .answer-row input { flex:1; margin-bottom:0; }
+    .correct-radio { width:18px; height:18px; accent-color:var(--green); cursor:pointer; }
+    .correct-label { font-size:0.8rem; color:rgba(255,255,255,0.5); white-space:nowrap; }
+    .tf-options { display:flex; gap:1rem; margin-top:0.5rem; }
+    .tf-btn { flex:1; padding:0.7rem; border-radius:10px; border:2px solid rgba(255,255,255,0.2); background:transparent; color:white; cursor:pointer; font-family:'Heebo',sans-serif; font-weight:700; font-size:1rem; transition:all 0.2s; }
+    .tf-btn.selected-true { border-color:var(--green); background:rgba(0,230,118,0.2); }
+    .tf-btn.selected-false { border-color:var(--red); background:rgba(255,68,68,0.2); }
+    .poll-note { font-size:0.8rem; color:rgba(255,255,255,0.4); margin-bottom:0.5rem; }
 
-        /* כפתור הבית (Enter) הלבן והשחור */
-        .input-kahoot {
-            width: 100%; text-align: center; font-size: 1.5rem; padding: 1rem;
-            border: 2px solid #ccc; border-radius: 4px; outline: none; font-weight: 800;
-            color: black; margin-bottom: 0.5rem;
-        }
-        .input-kahoot:focus { border-color: #333; }
-        
-        .btn-kahoot-dark {
-            width: 100%; background-color: #333; color: white; font-size: 1.5rem;
-            font-weight: 800; padding: 1rem; border-radius: 4px; box-shadow: 0 4px 0 #000;
-            transition: background-color 0.2s;
-        }
-        .btn-kahoot-dark:active { transform: translateY(4px); box-shadow: 0 0 0 #000; }
-        .btn-kahoot-dark:hover { background-color: #222; }
+    /* LOBBY HOST */
+    #screen-lobby-host { background:radial-gradient(ellipse at center,#1a0a4e 0%,#08041a 100%); align-items:center; justify-content:center; }
+    .lobby-host-wrap { max-width:700px; width:100%; padding:2rem; text-align:center; }
+    .lobby-code-box { background:rgba(255,255,255,0.08); border-radius:24px; padding:2rem; margin-bottom:2rem; border:2px solid rgba(108,63,255,0.4); }
+    .lobby-code-box p { color:rgba(255,255,255,0.6); font-size:1rem; margin-bottom:0.5rem; }
+    .big-code { font-family:'Fredoka One',cursive; font-size:4rem; color:var(--yellow); letter-spacing:0.2em; text-shadow:0 0 30px rgba(255,215,0,0.5); }
+    .lobby-hint { color:rgba(255,255,255,0.4); font-size:0.9rem; margin-top:0.5rem; }
+    .lobby-players-section { margin-bottom:2rem; }
+    .lobby-players-section h3 { font-size:1.2rem; margin-bottom:1rem; }
+    .players-grid { display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:center; }
+    .player-chip { background:rgba(255,255,255,0.1); border-radius:50px; padding:0.4rem 1rem; font-size:0.9rem; animation:popIn 0.3s ease; }
+    @keyframes popIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
 
-        /* Loader */
-        .loader {
-            border: 6px solid #f3f3f3; border-top: 6px solid #46178f;
-            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    /* QUESTION HOST */
+    #screen-question-host { background:#0d0628; align-items:center; justify-content:center; }
+    .question-host-wrap { width:100%; max-width:900px; padding:1.5rem; }
+    .question-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
+    .question-header span { font-size:1.1rem; color:rgba(255,255,255,0.6); }
+    .timer-ring { position:relative; width:70px; height:70px; }
+    .timer-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+    .timer-bg { fill:none; stroke:rgba(255,255,255,0.1); stroke-width:5; }
+    .timer-progress { fill:none; stroke:var(--green); stroke-width:5; stroke-dasharray:163.4; stroke-dashoffset:0; stroke-linecap:round; transition:stroke-dashoffset 1s linear, stroke 0.3s; }
+    .timer-num { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:'Fredoka One',cursive; font-size:1.4rem; }
+    .question-box { background:rgba(255,255,255,0.08); border-radius:20px; padding:2rem; margin-bottom:1.5rem; text-align:center; }
+    .host-q-text { font-size:1.5rem; font-weight:700; line-height:1.4; }
+    .host-answers-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .host-answer-btn { padding:1.2rem; border-radius:14px; color:white; font-family:'Heebo',sans-serif; font-size:1.1rem; font-weight:700; text-align:center; display:flex; align-items:center; gap:0.75rem; }
+    .answer-icon { font-size:1.4rem; }
+    .answer-stats { text-align:center; margin-top:1rem; color:rgba(255,255,255,0.6); }
+    .color-0{background:#e21b3c} .color-1{background:#1368ce} .color-2{background:#d89e00} .color-3{background:#26890c}
+    .ans-colors { background: #e21b3c; }
 
-    </style>
+    /* RESULTS HOST */
+    #screen-results-host { background:#0d0628; align-items:center; justify-content:center; }
+    .results-wrap { max-width:700px; width:100%; padding:2rem; text-align:center; }
+    .results-wrap h2 { font-size:1.8rem; margin-bottom:1.5rem; }
+    .correct-reveal { background:rgba(0,230,118,0.15); border:2px solid var(--green); border-radius:16px; padding:1rem; margin-bottom:1.5rem; font-size:1.1rem; font-weight:700; }
+    .answer-breakdown { display:flex; gap:0.5rem; margin-bottom:2rem; align-items:flex-end; justify-content:center; }
+    .bar-item { display:flex; flex-direction:column; align-items:center; gap:0.3rem; flex:1; max-width:120px; }
+    .bar-fill { width:100%; min-height:4px; border-radius:8px; transition:height 0.8s ease; }
+    .bar-label { font-size:0.75rem; text-align:center; color:rgba(255,255,255,0.7); }
+    .bar-count { font-size:0.85rem; font-weight:700; }
+    .leaderboard-section { margin:1.5rem 0; }
+    .leaderboard-section h3 { margin-bottom:1rem; }
+    .leaderboard { display:flex; flex-direction:column; gap:0.5rem; }
+    .lb-row { display:flex; align-items:center; gap:1rem; background:rgba(255,255,255,0.07); border-radius:12px; padding:0.75rem 1rem; }
+    .lb-rank { font-family:'Fredoka One',cursive; font-size:1.2rem; min-width:35px; }
+    .lb-name { flex:1; font-weight:700; }
+    .lb-score { font-family:'Fredoka One',cursive; font-size:1.1rem; color:var(--yellow); }
+    .lb-row.rank-1{background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.3)}
+    .lb-row.rank-2{background:rgba(192,192,192,0.1)}
+    .lb-row.rank-3{background:rgba(205,127,50,0.1)}
+
+    /* FINAL */
+    #screen-final { background:radial-gradient(ellipse at center,#1a0a4e 0%,#08041a 100%); align-items:center; justify-content:center; overflow:hidden; }
+    .final-wrap { max-width:600px; width:100%; padding:2rem; text-align:center; position:relative; z-index:2; }
+    .final-title { font-family:'Fredoka One',cursive; font-size:2.5rem; color:var(--yellow); margin-bottom:2rem; }
+    .fireworks { position:absolute; inset:0; pointer-events:none; }
+    .firework-particle { position:absolute; width:8px; height:8px; border-radius:50%; animation:firework 1.5s ease-out forwards; }
+    @keyframes firework { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0} }
+    .podium-wrap { display:flex; align-items:flex-end; justify-content:center; gap:0.5rem; margin-bottom:2rem; height:160px; }
+    .podium-place { display:flex; flex-direction:column; align-items:center; border-radius:12px 12px 0 0; padding:0.5rem; }
+    .podium-place .emoji { font-size:2rem; margin-bottom:0.3rem; }
+    .podium-place .p-name { font-size:0.85rem; font-weight:700; margin-bottom:0.3rem; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .podium-place .p-score { font-size:0.8rem; color:rgba(255,255,255,0.7); }
+    .p1{background:linear-gradient(to top,#ffd700,#ffab00);width:100px;height:140px}
+    .p2{background:linear-gradient(to top,#9e9e9e,#616161);width:85px;height:110px}
+    .p3{background:linear-gradient(to top,#cd7f32,#8d4e04);width:85px;height:80px}
+
+    /* PLAYER SCREENS */
+    #screen-player-join,#screen-player-lobby,#screen-player-final {
+      background:radial-gradient(ellipse at 30% 30%,#1a0a5e 0%,#080420 100%);
+      align-items:center; justify-content:center;
+    }
+    #screen-player-question,#screen-player-answered,#screen-player-result {
+      background:#0d0628; align-items:center; justify-content:center;
+    }
+    .player-join-wrap,.player-wait-wrap,.player-final-wrap { text-align:center; padding:2rem; width:100%; max-width:400px; }
+    .logo-small { font-family:'Fredoka One',cursive; font-size:1.5rem; color:var(--yellow); margin-bottom:2rem; }
+    .player-join-card { background:rgba(255,255,255,0.08); border-radius:24px; padding:2rem; display:flex; flex-direction:column; gap:1rem; }
+    .player-join-card h2 { font-size:1.4rem; }
+    .player-name-badge { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--yellow); margin:1.5rem 0; }
+    .waiting-anim { display:flex; justify-content:center; gap:0.5rem; margin:2rem 0; }
+    .dot { width:12px; height:12px; border-radius:50%; background:var(--purple); animation:dotBounce 1.4s infinite; }
+    .dot:nth-child(2){animation-delay:0.2s} .dot:nth-child(3){animation-delay:0.4s}
+    @keyframes dotBounce { 0%,80%,100%{transform:scale(0.8);opacity:0.5} 40%{transform:scale(1.2);opacity:1} }
+    .waiting-text { color:rgba(255,255,255,0.5); font-size:0.95rem; }
+    .player-q-wrap { width:100%; max-width:600px; padding:1.5rem; }
+    .player-timer { text-align:center; font-family:'Fredoka One',cursive; font-size:3rem; color:var(--yellow); margin-bottom:1rem; text-shadow:0 0 20px rgba(255,215,0,0.5); }
+    .player-q-text { text-align:center; font-size:1.3rem; font-weight:700; margin-bottom:2rem; line-height:1.4; background:rgba(255,255,255,0.07); border-radius:16px; padding:1.5rem; }
+    .player-answers-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .player-answer-btn { padding:1.5rem 1rem; border-radius:16px; border:none; color:white; font-family:'Heebo',sans-serif; font-size:1.1rem; font-weight:700; cursor:pointer; text-align:center; transition:all 0.15s; line-height:1.3; min-height:80px; }
+    .player-answer-btn:active { transform:scale(0.96); }
+    .player-answer-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .player-answered-wrap,.player-result-wrap { text-align:center; padding:2rem; }
+    .answered-icon,.result-icon { font-size:5rem; margin-bottom:1rem; animation:pulseIcon 1s ease infinite alternate; }
+    @keyframes pulseIcon { from{transform:scale(1)} to{transform:scale(1.1)} }
+    .player-result-wrap h2 { font-size:2rem; margin-bottom:0.5rem; }
+    .points-gained { font-family:'Fredoka One',cursive; font-size:3rem; color:var(--yellow); animation:popIn 0.5s ease; }
+    .total-score { margin-top:0.5rem; color:rgba(255,255,255,0.6); font-size:1rem; }
+    .my-rank { margin-top:0.3rem; color:rgba(255,255,255,0.8); font-size:1.1rem; }
+    .final-place-icon { font-size:6rem; animation:bounce 1.5s infinite; }
+    .player-final-wrap h1 { font-family:'Fredoka One',cursive; font-size:2.5rem; margin:1rem 0; color:var(--yellow); }
+    .final-score-big { font-family:'Fredoka One',cursive; font-size:2rem; color:rgba(255,255,255,0.8); margin-bottom:2rem; }
+
+    @media(max-width:600px){
+      .logo-title{font-size:2.2rem}
+      .host-answers-grid,.player-answers-grid{grid-template-columns:1fr}
+      .admin-sidebar{display:none}
+      .big-code{font-size:3rem}
+      .host-q-text{font-size:1.2rem}
+    }
+  </style>
 </head>
 <body>
 
-    <!-- ================= מסך טעינה גלובלי ================= -->
-    <div id="global-loader" class="modal-overlay active" style="z-index: 10000; flex-direction: column; gap: 20px;">
-        <div class="loader"></div>
-        <div class="text-2xl font-bold text-white">Connecting to server...</div>
+<!-- HOME -->
+<div id="screen-home" class="screen active">
+  <div class="home-content">
+    <span class="logo-icon">🎮</span>
+    <h1 class="logo-title">Dvir's Khoot</h1>
+    <p class="logo-sub">משחק השאלות האולטימטיבי</p>
+    <div class="home-card">
+      <label class="input-label">הזן קוד משחק</label>
+      <input id="game-code-input" type="text" maxlength="6" placeholder="000000" class="code-input" inputmode="numeric"/>
+      <button class="btn btn-primary" onclick="joinGame()">כניסה למשחק 🚀</button>
+      <div class="divider"><span>או</span></div>
+      <button class="btn btn-admin" onclick="showAdminLogin()">🔒 כניסת מנהל</button>
     </div>
+  </div>
+  <div class="floating-shapes">
+    <div class="shape s1">❓</div><div class="shape s2">⭐</div>
+    <div class="shape s3">🏆</div><div class="shape s4">🎯</div><div class="shape s5">💡</div>
+  </div>
+</div>
 
-    <!-- ================= מסך 1: בית / כניסת שחקן ================= -->
-    <div id="screen-home" class="screen items-center justify-center p-4 relative">
-        <h1 class="text-5xl md:text-7xl font-black mb-10 drop-shadow-lg animate-logo">Quizmo!</h1>
-        
-        <div class="bg-white p-6 rounded shadow-2xl w-full max-w-sm flex flex-col gap-2">
-            <input type="number" id="pin-input" class="input-kahoot" placeholder="Game PIN" autocomplete="off">
-            <button onclick="quizmoApp.joinGame()" class="btn-kahoot-dark">Enter</button>
-            <div id="join-error" class="text-red-500 font-bold text-center mt-2 hidden"></div>
-        </div>
-
-        <!-- פאנל אדמין מוסתר למטה במדויק -->
-        <button onclick="quizmoApp.openAdminModal()" class="fixed bottom-4 text-white/40 hover:text-white font-bold text-sm tracking-widest transition-colors flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            ADMIN
-        </button>
+<!-- ADMIN LOGIN -->
+<div id="screen-admin-login" class="screen">
+  <div class="modal-overlay">
+    <div class="modal-card">
+      <button class="back-btn" onclick="showScreen('screen-home')">← חזרה</button>
+      <div class="modal-icon">🔐</div>
+      <h2>כניסת מנהל</h2>
+      <input id="admin-password" type="password" placeholder="סיסמה" class="code-input" style="text-align:center;font-size:1.5rem;letter-spacing:0.2em"/>
+      <button class="btn btn-primary" onclick="adminLogin()">כניסה</button>
+      <p id="admin-error" class="error-msg"></p>
     </div>
+  </div>
+</div>
 
-    <!-- ================= מודל סיסמת אדמין (קופץ מיידית) ================= -->
-    <div id="modal-admin" class="modal-overlay">
-        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
-            <h2 class="text-2xl font-black text-black mb-6 text-center">Admin Login</h2>
-            <input type="password" id="admin-password" class="input-kahoot mb-4" placeholder="Password (1234)">
-            <div id="admin-pass-error" class="text-red-500 font-bold text-center mb-4 hidden">Incorrect Password!</div>
-            <div class="flex gap-2">
-                <button onclick="quizmoApp.closeAdminModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-black font-bold py-3 rounded">Cancel</button>
-                <button onclick="quizmoApp.verifyAdmin()" class="flex-1 kahoot-btn-blue text-white font-bold py-3 rounded">Login</button>
-            </div>
-        </div>
+<!-- ADMIN DASHBOARD -->
+<div id="screen-admin-dashboard" class="screen">
+  <div class="admin-header">
+    <h2>🎮 Dvir's Khoot - ניהול</h2>
+    <button class="btn btn-sm btn-ghost" onclick="showScreen('screen-home')">יציאה</button>
+  </div>
+  <div class="admin-body">
+    <div class="admin-sidebar">
+      <button class="sidebar-btn active" onclick="adminTab('quizzes')">📋 השאלונים שלי</button>
+      <button class="sidebar-btn" onclick="adminTab('create')">➕ צור שאלון</button>
+      <button class="sidebar-btn" onclick="adminTab('host')">🚀 הפעל משחק</button>
     </div>
-
-    <!-- ================= מסך 2: בחירת כינוי לשחקן ================= -->
-    <div id="screen-nickname" class="screen items-center justify-center p-4">
-        <h1 class="text-5xl md:text-7xl font-black mb-10 drop-shadow-lg">Quizmo!</h1>
-        <div class="bg-white p-6 rounded shadow-2xl w-full max-w-sm flex flex-col gap-2">
-            <input type="text" id="nickname-input" class="input-kahoot" placeholder="Nickname" maxlength="15" autocomplete="off">
-            <button onclick="quizmoApp.submitNickname()" class="btn-kahoot-dark">OK, go!</button>
+    <div class="admin-main">
+      <div id="tab-quizzes" class="tab-content active">
+        <h3>השאלונים שלי</h3>
+        <div id="quizzes-list" class="quizzes-grid"></div>
+        <div class="empty-state" id="empty-quizzes" style="display:none"><div style="font-size:3rem">📭</div><p>אין עדיין שאלונים. צור אחד חדש!</p></div>
+      </div>
+      <div id="tab-create" class="tab-content">
+        <h3 id="create-tab-title">✨ צור שאלון חדש</h3>
+        <input id="quiz-title" type="text" placeholder="שם השאלון..." class="field-input"/>
+        <div id="questions-container"></div>
+        <button class="btn btn-secondary" onclick="addQuestion()" style="margin-bottom:1rem">➕ הוסף שאלה</button>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveQuiz()">💾 שמור</button>
+          <button class="btn btn-ghost" onclick="cancelEdit()">ביטול</button>
         </div>
+        <p id="save-msg" class="success-msg" style="margin-top:0.5rem"></p>
+      </div>
+      <div id="tab-host" class="tab-content">
+        <h3>🚀 הפעל משחק</h3>
+        <p style="color:rgba(255,255,255,0.5);margin-bottom:1rem">בחר שאלון:</p>
+        <div id="host-quiz-list" class="quizzes-grid"></div>
+      </div>
     </div>
+  </div>
+</div>
 
-    <!-- ================= מסך 3: המתנה בלובי (שחקן) ================= -->
-    <div id="screen-player-waiting" class="screen items-center justify-center p-4 text-center">
-        <h2 class="text-5xl font-black mb-4">You're in!</h2>
-        <h3 class="text-2xl font-bold text-white/80 animate-pulse">See your nickname on screen</h3>
+<!-- LOBBY HOST -->
+<div id="screen-lobby-host" class="screen">
+  <div class="lobby-host-wrap">
+    <div class="lobby-code-box">
+      <p>קוד המשחק:</p>
+      <div class="big-code" id="display-game-code">------</div>
+      <p class="lobby-hint">שתף עם השחקנים!</p>
     </div>
-
-    <!-- ================= מסך 4: שחקן עונה (רק צורות!) ================= -->
-    <div id="screen-player-game" class="screen bg-gray-100">
-        <div class="flex-grow grid grid-cols-2 grid-rows-2 gap-2 p-2 w-full h-full max-w-3xl mx-auto">
-            <button onclick="quizmoApp.submitAnswer(0)" class="kahoot-btn-red rounded-lg flex items-center justify-center transition-opacity" id="p-btn-0">
-                <svg viewBox="0 0 32 32" class="w-20 h-20 fill-white"><polygon points="16,4 30,28 2,28"/></svg>
-            </button>
-            <button onclick="quizmoApp.submitAnswer(1)" class="kahoot-btn-blue rounded-lg flex items-center justify-center transition-opacity" id="p-btn-1">
-                <svg viewBox="0 0 32 32" class="w-20 h-20 fill-white"><polygon points="16,2 30,16 16,30 2,16"/></svg>
-            </button>
-            <button onclick="quizmoApp.submitAnswer(2)" class="kahoot-btn-yellow rounded-lg flex items-center justify-center transition-opacity" id="p-btn-2">
-                <svg viewBox="0 0 32 32" class="w-20 h-20 fill-white"><circle cx="16" cy="16" r="14"/></svg>
-            </button>
-            <button onclick="quizmoApp.submitAnswer(3)" class="kahoot-btn-green rounded-lg flex items-center justify-center transition-opacity" id="p-btn-3">
-                <svg viewBox="0 0 32 32" class="w-20 h-20 fill-white"><rect x="4" y="4" width="24" height="24" rx="2"/></svg>
-            </button>
-        </div>
-        <div id="player-answered-overlay" class="hidden absolute inset-0 bg-kahoot-blue flex-col items-center justify-center z-50 text-center p-4">
-            <div class="text-white text-4xl font-black mb-4">Waiting for others...</div>
-            <div class="loader border-white border-t-transparent"></div>
-        </div>
+    <div class="lobby-players-section">
+      <h3>שחקנים: <span id="player-count">0</span></h3>
+      <div id="players-grid" class="players-grid"></div>
     </div>
+    <button class="btn btn-primary btn-big" onclick="startGame()" id="start-game-btn" disabled>התחל 🎯</button>
+  </div>
+</div>
 
-    <!-- ================= מסך 5: תוצאת שחקן ================= -->
-    <div id="screen-player-result" class="screen items-center justify-center p-4 text-center transition-colors duration-500">
-        <h2 id="player-result-title" class="text-6xl font-black mb-4 drop-shadow-lg">Correct!</h2>
-        <div class="bg-black/20 px-8 py-4 rounded-full mt-4">
-            <span class="text-xl font-bold">Score: </span>
-            <span id="player-result-score" class="text-3xl font-black">0</span>
-        </div>
+<!-- QUESTION HOST -->
+<div id="screen-question-host" class="screen">
+  <div class="question-host-wrap">
+    <div class="question-header">
+      <span id="q-number">שאלה 1/1</span>
+      <div class="timer-ring">
+        <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" class="timer-bg"/><circle cx="30" cy="30" r="26" class="timer-progress" id="timer-circle"/></svg>
+        <span id="timer-display" class="timer-num">20</span>
+      </div>
     </div>
+    <div class="question-box"><p id="host-question-text" class="host-q-text"></p></div>
+    <div id="host-answers" class="host-answers-grid"></div>
+    <div class="answer-stats">ענו: <strong id="answered-count">0</strong> / <strong id="total-players-q">0</strong></div>
+  </div>
+</div>
 
-    <!-- ================= מסך דאשבורד אדמין (ניהול) ================= -->
-    <div id="screen-dashboard" class="screen bg-[#f2f2f2] text-black">
-        <div class="bg-white shadow-md p-4 flex justify-between items-center">
-            <h1 class="text-3xl font-black text-[#46178f]">Quizmo Admin</h1>
-            <button onclick="quizmoApp.switchScreen('screen-home')" class="text-gray-500 font-bold hover:text-black">Logout</button>
-        </div>
-        <div class="p-6 max-w-5xl mx-auto w-full flex-grow overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">My Kahoots</h2>
-                <button onclick="quizmoApp.openEditor()" class="bg-[#1368ce] text-white font-bold py-3 px-6 rounded shadow hover:bg-blue-700">Create New</button>
-            </div>
-            <div id="quizzes-list" class="flex flex-col gap-4">
-                <!-- Quizzes injected here -->
-            </div>
-        </div>
+<!-- RESULTS HOST -->
+<div id="screen-results-host" class="screen">
+  <div class="results-wrap">
+    <h2 id="results-title">תוצאות</h2>
+    <div id="correct-answer-reveal" class="correct-reveal"></div>
+    <div id="answer-breakdown" class="answer-breakdown"></div>
+    <div class="leaderboard-section"><h3>🏆 לוח מובילים</h3><div id="leaderboard" class="leaderboard"></div></div>
+    <button class="btn btn-primary" onclick="nextQuestion()" id="next-q-btn" style="margin-top:1rem">הבא ➡️</button>
+  </div>
+</div>
+
+<!-- FINAL HOST -->
+<div id="screen-final" class="screen">
+  <div class="final-wrap">
+    <div class="fireworks" id="fireworks"></div>
+    <h1 class="final-title">🏆 המשחק הסתיים!</h1>
+    <div class="podium-wrap" id="podium"></div>
+    <div id="full-leaderboard" class="leaderboard" style="margin-top:2rem"></div>
+    <button class="btn btn-primary" onclick="showScreen('screen-admin-dashboard')" style="margin-top:1.5rem">חזרה לניהול</button>
+  </div>
+</div>
+
+<!-- PLAYER JOIN -->
+<div id="screen-player-join" class="screen">
+  <div class="player-join-wrap">
+    <div class="logo-small">🎮 Dvir's Khoot</div>
+    <div class="player-join-card">
+      <h2>מה השם שלך?</h2>
+      <input id="player-name-input" type="text" placeholder="הכנס שם..." class="field-input" maxlength="20"/>
+      <button class="btn btn-primary" onclick="submitPlayerName()">הצטרף! 🎉</button>
     </div>
+  </div>
+</div>
 
-    <!-- ================= מסך עורך (יצירת חידון) ================= -->
-    <div id="screen-editor" class="screen bg-[#f2f2f2] text-black">
-        <div class="bg-white shadow-md p-4 flex justify-between items-center z-10 sticky top-0">
-            <input type="text" id="editor-title" placeholder="Enter Kahoot Title..." class="text-2xl font-bold outline-none border-b-2 border-transparent focus:border-gray-300 w-1/2">
-            <div class="flex gap-2">
-                <button onclick="quizmoApp.switchScreen('screen-dashboard')" class="bg-gray-200 text-black font-bold py-2 px-4 rounded hover:bg-gray-300">Cancel</button>
-                <button onclick="quizmoApp.saveQuiz()" class="bg-[#26890c] text-white font-bold py-2 px-6 rounded shadow hover:bg-green-700">Save</button>
-            </div>
-        </div>
-        <div class="p-6 max-w-4xl mx-auto w-full flex-grow overflow-y-auto space-y-8" id="editor-questions">
-            <!-- Questions injected here -->
-        </div>
-        <div class="p-6 max-w-4xl mx-auto w-full">
-            <button onclick="quizmoApp.addEditorQuestion()" class="w-full bg-white border-2 border-dashed border-gray-400 text-gray-600 font-bold py-4 rounded-lg hover:bg-gray-50">+ Add Question</button>
-        </div>
+<!-- PLAYER LOBBY -->
+<div id="screen-player-lobby" class="screen">
+  <div class="player-wait-wrap">
+    <div class="logo-small">🎮</div>
+    <div class="player-name-badge" id="my-name-badge"></div>
+    <div class="waiting-anim"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    <p class="waiting-text">ממתין למנהל להתחיל...</p>
+  </div>
+</div>
+
+<!-- PLAYER QUESTION -->
+<div id="screen-player-question" class="screen">
+  <div class="player-q-wrap">
+    <div class="player-timer" id="player-timer">20</div>
+    <p class="player-q-text" id="player-q-text"></p>
+    <div id="player-answers" class="player-answers-grid"></div>
+  </div>
+</div>
+
+<!-- PLAYER ANSWERED -->
+<div id="screen-player-answered" class="screen">
+  <div class="player-answered-wrap">
+    <div class="answered-icon" id="answered-icon">✅</div>
+    <p id="answered-msg" style="font-size:1.2rem;font-weight:700">תשובתך נשלחה!</p>
+    <p class="waiting-text" style="margin-top:0.5rem">ממתין לשאר...</p>
+  </div>
+</div>
+
+<!-- PLAYER RESULT -->
+<div id="screen-player-result" class="screen">
+  <div class="player-result-wrap">
+    <div class="result-icon" id="result-icon">✅</div>
+    <h2 id="result-msg">נכון!</h2>
+    <div class="points-gained" id="points-gained">+0</div>
+    <div class="total-score">סה"כ: <strong id="my-total-score">0</strong> נקודות</div>
+    <div class="my-rank">מקום <strong id="my-rank">1</strong></div>
+  </div>
+</div>
+
+<!-- PLAYER FINAL -->
+<div id="screen-player-final" class="screen">
+  <div class="player-final-wrap">
+    <div id="player-final-icon" class="final-place-icon">🎮</div>
+    <h1 id="player-final-title">כל הכבוד!</h1>
+    <div class="final-score-big" id="player-final-score"></div>
+    <button class="btn btn-primary" onclick="showScreen('screen-home')">משחק חדש</button>
+  </div>
+</div>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, push, onValue, off, update, remove, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
+  authDomain: "quizmo-kahoot.firebaseapp.com",
+  projectId: "quizmo-kahoot",
+  storageBucket: "quizmo-kahoot.firebasestorage.app",
+  messagingSenderId: "738657082184",
+  appId: "1:738657082184:web:076d9ccf27706d356bb17d",
+  databaseURL: "https://quizmo-kahoot-default-rtdb.europe-west1.firebasedatabase.app"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const ADMIN_PASSWORD = "2160";
+const ANSWER_ICONS = ["▲", "◆", "●", "■"];
+const ANSWER_COLORS = ["#e21b3c","#1368ce","#d89e00","#26890c"];
+
+let state = {
+  mode: null, gameCode: null, quizData: null, currentQ: 0,
+  playerName: null, playerId: null, myScore: 0,
+  timerInterval: null, listeners: [], editingQuizId: null, questionCount: 0
+};
+let playerAnsweredThisQ = false;
+let playerCurrentQ = -1;
+let playerTimerInterval = null;
+let questionStartTime = 0;
+
+// ---- SCREENS ----
+window.showScreen = (id) => {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+};
+
+// ---- HOME ----
+window.joinGame = () => {
+  const code = document.getElementById('game-code-input').value.trim();
+  if (!code || code.length < 4) return alert("הזן קוד משחק תקין");
+  state.gameCode = code.toUpperCase();
+  state.mode = 'player';
+  showScreen('screen-player-join');
+};
+window.showAdminLogin = () => {
+  document.getElementById('admin-error').textContent = '';
+  document.getElementById('admin-password').value = '';
+  showScreen('screen-admin-login');
+};
+window.adminLogin = () => {
+  const pw = document.getElementById('admin-password').value;
+  if (pw === ADMIN_PASSWORD) { showScreen('screen-admin-dashboard'); loadQuizzes(); adminTab('quizzes'); }
+  else document.getElementById('admin-error').textContent = 'סיסמה שגויה!';
+};
+
+// ---- ADMIN TABS ----
+window.adminTab = (tab) => {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  const tabMap = { quizzes:0, create:1, host:2 };
+  document.querySelectorAll('.sidebar-btn')[tabMap[tab]]?.classList.add('active');
+  if (tab === 'quizzes') loadQuizzes();
+  if (tab === 'host') loadHostList();
+  if (tab === 'create' && !state.editingQuizId) resetCreateForm();
+};
+
+// ---- QUIZ CRUD ----
+async function loadQuizzes() {
+  const snap = await get(ref(db, 'quizzes'));
+  const list = document.getElementById('quizzes-list');
+  const empty = document.getElementById('empty-quizzes');
+  list.innerHTML = '';
+  if (!snap.exists()) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  Object.entries(snap.val()).forEach(([id, quiz]) => {
+    const card = document.createElement('div');
+    card.className = 'quiz-card';
+    card.innerHTML = `<h4>${quiz.title}</h4><p>${quiz.questions?.length||0} שאלות</p>
+      <div class="quiz-card-actions">
+        <button class="btn-edit" onclick="editQuiz('${id}')">✏️ עריכה</button>
+        <button class="btn-delete" onclick="deleteQuiz('${id}')">🗑️ מחק</button>
+        <button class="btn-host-pick" onclick="hostQuiz('${id}')">🚀 הפעל</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+async function loadHostList() {
+  const snap = await get(ref(db, 'quizzes'));
+  const list = document.getElementById('host-quiz-list');
+  list.innerHTML = '';
+  if (!snap.exists()) { list.innerHTML = '<p style="color:rgba(255,255,255,0.4)">אין שאלונים עדיין.</p>'; return; }
+  Object.entries(snap.val()).forEach(([id, quiz]) => {
+    const card = document.createElement('div');
+    card.className = 'quiz-card';
+    card.innerHTML = `<h4>${quiz.title}</h4><p>${quiz.questions?.length||0} שאלות</p>
+      <button class="btn-host-pick" onclick="hostQuiz('${id}')">🚀 הפעל עכשיו</button>`;
+    list.appendChild(card);
+  });
+}
+
+window.deleteQuiz = async (id) => {
+  if (!confirm('למחוק?')) return;
+  await remove(ref(db, `quizzes/${id}`));
+  loadQuizzes();
+};
+
+window.editQuiz = async (id) => {
+  const snap = await get(ref(db, `quizzes/${id}`));
+  if (!snap.exists()) return;
+  const quiz = snap.val();
+  state.editingQuizId = id;
+  document.getElementById('create-tab-title').textContent = '✏️ עריכת שאלון';
+  document.getElementById('quiz-title').value = quiz.title;
+  document.getElementById('questions-container').innerHTML = '';
+  state.questionCount = 0;
+  (quiz.questions || []).forEach(q => addQuestion(q));
+  adminTab('create');
+};
+
+window.cancelEdit = () => { state.editingQuizId = null; resetCreateForm(); adminTab('quizzes'); };
+
+function resetCreateForm() {
+  state.editingQuizId = null; state.questionCount = 0;
+  document.getElementById('create-tab-title').textContent = '✨ צור שאלון חדש';
+  document.getElementById('quiz-title').value = '';
+  document.getElementById('questions-container').innerHTML = '';
+  document.getElementById('save-msg').textContent = '';
+  addQuestion();
+}
+
+// ---- QUESTION EDITOR ----
+window.addQuestion = (data = null) => {
+  state.questionCount++;
+  const idx = state.questionCount;
+  const qType = data?.type || 'multiple';
+  const block = document.createElement('div');
+  block.className = 'question-block'; block.id = `q-block-${idx}`;
+  block.innerHTML = `
+    <div class="question-block-header">
+      <h4>שאלה ${idx}</h4>
+      <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap">
+        <label style="font-size:0.8rem;color:rgba(255,255,255,0.5)">סוג:</label>
+        <select class="q-type-select" id="q-type-${idx}" onchange="changeQType(${idx})">
+          <option value="multiple" ${qType==='multiple'?'selected':''}>4 תשובות</option>
+          <option value="two" ${qType==='two'?'selected':''}>2 תשובות</option>
+          <option value="truefalse" ${qType==='truefalse'?'selected':''}>נכון/לא נכון</option>
+          <option value="poll" ${qType==='poll'?'selected':''}>סקר</option>
+        </select>
+        <label style="font-size:0.8rem;color:rgba(255,255,255,0.5)">זמן:</label>
+        <select class="q-time-select" id="q-time-${idx}">
+          <option value="5" ${data?.time==5?'selected':''}>5ש'</option>
+          <option value="10" ${data?.time==10?'selected':''}>10ש'</option>
+          <option value="20" ${!data?.time||data?.time==20?'selected':''}>20ש'</option>
+          <option value="30" ${data?.time==30?'selected':''}>30ש'</option>
+          <option value="60" ${data?.time==60?'selected':''}>60ש'</option>
+        </select>
+        <button class="q-remove-btn" onclick="removeQuestion(${idx})">✕</button>
+      </div>
     </div>
+    <input type="text" class="field-input" id="q-text-${idx}" placeholder="השאלה..." value="${data?.text||''}"/>
+    <div class="answers-section" id="q-answers-${idx}"></div>`;
+  document.getElementById('questions-container').appendChild(block);
+  renderAnswersByType(idx, qType, data);
+};
 
-    <!-- ================= מסך לובי למנהל (מארח) ================= -->
-    <div id="screen-host-lobby" class="screen bg-[#f2f2f2] text-black relative">
-        <div class="absolute inset-0 bg-[#46178f] flex flex-col items-center p-8">
-            <div class="w-full flex justify-between items-start mb-10">
-                <h2 id="host-quiz-name" class="text-3xl font-bold text-white max-w-md truncate">Quiz Name</h2>
-                <button onclick="quizmoApp.closeHostRoom()" class="bg-black/30 hover:bg-black/50 text-white px-4 py-2 rounded font-bold transition-colors">Close Room</button>
-            </div>
-            
-            <div class="bg-white text-black p-8 flex flex-col items-center rounded-lg shadow-2xl mb-10">
-                <div class="text-2xl font-bold mb-2">Join at <span class="text-[#46178f]">Quizmo</span> with Game PIN:</div>
-                <div id="host-pin-display" class="text-8xl md:text-9xl font-black tracking-tighter">000000</div>
-            </div>
+window.removeQuestion = (idx) => document.getElementById(`q-block-${idx}`)?.remove();
 
-            <div class="w-full flex justify-between items-center mb-4 px-4 bg-black/20 py-3 rounded-lg">
-                <div class="text-white font-bold text-xl"><span id="host-player-count">0</span> Players</div>
-                <button id="btn-start-game" onclick="quizmoApp.startHostGame()" disabled class="bg-gray-400 text-gray-200 font-bold text-xl py-3 px-12 rounded cursor-not-allowed transition-colors shadow-lg">Start</button>
-            </div>
+window.changeQType = (idx) => {
+  renderAnswersByType(idx, document.getElementById(`q-type-${idx}`).value, null);
+};
 
-            <div id="host-players-list" class="flex flex-wrap justify-center gap-3 w-full content-start overflow-y-auto max-h-64">
-                <div class="text-white/50 text-2xl font-bold italic mt-10">Waiting for players...</div>
-            </div>
-        </div>
-    </div>
+function renderAnswersByType(idx, type, data) {
+  const c = document.getElementById(`q-answers-${idx}`); c.innerHTML = '';
+  if (type === 'multiple' || type === 'two' || type === 'poll') {
+    const count = type === 'two' ? 2 : 4;
+    const isPoll = type === 'poll';
+    if (isPoll) c.innerHTML = '<p class="poll-note">* סקר - אין תשובה נכונה, אין ניקוד</p>';
+    for (let i = 0; i < count; i++) {
+      const row = document.createElement('div'); row.className = 'answer-row';
+      const isCorrect = !isPoll && data?.correct === i;
+      row.innerHTML = `<span style="width:14px;height:14px;border-radius:3px;background:${ANSWER_COLORS[i]};display:inline-block;flex-shrink:0"></span>
+        <input type="text" class="field-input" style="margin:0" id="q-${idx}-ans-${i}" placeholder="תשובה ${i+1}" value="${data?.answers?.[i]||''}"/>
+        ${!isPoll?`<input type="radio" name="correct-${idx}" class="correct-radio" id="q-${idx}-correct-${i}" ${isCorrect?'checked':''}/>
+        <label class="correct-label" for="q-${idx}-correct-${i}">✓</label>`:''}`;
+      c.appendChild(row);
+    }
+  } else if (type === 'truefalse') {
+    const correct = data?.correct;
+    c.innerHTML = `<p style="font-size:0.85rem;color:rgba(255,255,255,0.5);margin-bottom:0.5rem">בחר תשובה נכונה:</p>
+      <div class="tf-options">
+        <button type="button" class="tf-btn ${correct===0?'selected-true':''}" id="q-${idx}-tf-true" onclick="selectTF(${idx},0)">✓ נכון</button>
+        <button type="button" class="tf-btn ${correct===1?'selected-false':''}" id="q-${idx}-tf-false" onclick="selectTF(${idx},1)">✗ לא נכון</button>
+      </div>
+      <input type="hidden" id="q-${idx}-tf-val" value="${correct!==undefined?correct:''}"/>`;
+  }
+}
 
-    <!-- ================= מסך משחק למנהל (הצגת השאלה) ================= -->
-    <div id="screen-host-game" class="screen bg-[#f2f2f2] text-black flex flex-col">
-        <!-- Header: Timer and Answers Count -->
-        <div class="flex justify-between items-center p-6 bg-white shadow-md">
-            <div class="w-24 h-24 rounded-full bg-[#46178f] text-white flex items-center justify-center text-4xl font-black shadow-inner" id="host-timer">20</div>
-            <h2 id="host-question-text" class="text-3xl md:text-5xl font-black text-center flex-grow px-4">Question text goes here?</h2>
-            <div class="flex flex-col items-center">
-                <div class="text-3xl font-black text-gray-800" id="host-answers-count">0</div>
-                <div class="text-sm font-bold text-gray-500 uppercase tracking-wide">Answers</div>
-            </div>
-        </div>
+window.selectTF = (idx, val) => {
+  document.getElementById(`q-${idx}-tf-val`).value = val;
+  document.getElementById(`q-${idx}-tf-true`).className = `tf-btn ${val===0?'selected-true':''}`;
+  document.getElementById(`q-${idx}-tf-false`).className = `tf-btn ${val===1?'selected-false':''}`;
+};
 
-        <!-- Answers Grid -->
-        <div class="flex-grow p-4 grid grid-cols-2 grid-rows-2 gap-4 max-w-7xl mx-auto w-full">
-            <div class="kahoot-btn-red rounded-lg flex items-center p-4 shadow-lg text-white gap-6 relative" id="h-ans-0">
-                <svg viewBox="0 0 32 32" class="w-12 h-12 fill-white shrink-0"><polygon points="16,4 30,28 2,28"/></svg>
-                <span class="text-2xl md:text-4xl font-bold break-words w-full" id="h-text-0">Answer 1</span>
-                <div class="absolute inset-0 bg-black/50 hidden items-center justify-center rounded-lg" id="h-dim-0"></div>
-            </div>
-            <div class="kahoot-btn-blue rounded-lg flex items-center p-4 shadow-lg text-white gap-6 relative" id="h-ans-1">
-                <svg viewBox="0 0 32 32" class="w-12 h-12 fill-white shrink-0"><polygon points="16,2 30,16 16,30 2,16"/></svg>
-                <span class="text-2xl md:text-4xl font-bold break-words w-full" id="h-text-1">Answer 2</span>
-                <div class="absolute inset-0 bg-black/50 hidden items-center justify-center rounded-lg" id="h-dim-1"></div>
-            </div>
-            <div class="kahoot-btn-yellow rounded-lg flex items-center p-4 shadow-lg text-white gap-6 relative" id="h-ans-2">
-                <svg viewBox="0 0 32 32" class="w-12 h-12 fill-white shrink-0"><circle cx="16" cy="16" r="14"/></svg>
-                <span class="text-2xl md:text-4xl font-bold break-words w-full" id="h-text-2">Answer 3</span>
-                <div class="absolute inset-0 bg-black/50 hidden items-center justify-center rounded-lg" id="h-dim-2"></div>
-            </div>
-            <div class="kahoot-btn-green rounded-lg flex items-center p-4 shadow-lg text-white gap-6 relative" id="h-ans-3">
-                <svg viewBox="0 0 32 32" class="w-12 h-12 fill-white shrink-0"><rect x="4" y="4" width="24" height="24" rx="2"/></svg>
-                <span class="text-2xl md:text-4xl font-bold break-words w-full" id="h-text-3">Answer 4</span>
-                <div class="absolute inset-0 bg-black/50 hidden items-center justify-center rounded-lg" id="h-dim-3"></div>
-            </div>
-        </div>
-        
-        <!-- Controls (Hidden until question ends) -->
-        <div id="host-game-controls" class="hidden p-6 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex justify-end">
-            <button onclick="quizmoApp.hostNext()" class="bg-[#1368ce] hover:bg-blue-700 text-white font-bold text-2xl py-3 px-10 rounded shadow">Next</button>
-        </div>
-    </div>
+function collectQuestions() {
+  const questions = [];
+  document.querySelectorAll('.question-block').forEach(block => {
+    const id = block.id.replace('q-block-','');
+    const text = document.getElementById(`q-text-${id}`)?.value?.trim();
+    if (!text) return;
+    const type = document.getElementById(`q-type-${id}`)?.value || 'multiple';
+    const time = parseInt(document.getElementById(`q-time-${id}`)?.value) || 20;
+    let answers = [], correct = 0;
+    if (type === 'multiple' || type === 'two' || type === 'poll') {
+      const count = type === 'two' ? 2 : 4;
+      for (let i=0;i<count;i++) answers.push(document.getElementById(`q-${id}-ans-${i}`)?.value?.trim()||'');
+      if (type !== 'poll') for (let i=0;i<count;i++) if (document.getElementById(`q-${id}-correct-${i}`)?.checked) { correct=i; break; }
+      else correct = -1;
+    } else if (type === 'truefalse') {
+      answers = ['נכון','לא נכון'];
+      const v = document.getElementById(`q-${id}-tf-val`)?.value;
+      correct = v!==''?parseInt(v):0;
+    }
+    questions.push({ text, type, answers, correct, time });
+  });
+  return questions;
+}
 
-    <!-- ================= מסך תוצאות ביניים למנהל (Scoreboard) ================= -->
-    <div id="screen-host-scoreboard" class="screen bg-[#46178f] p-8 flex flex-col items-center">
-        <div class="w-full max-w-4xl bg-white rounded-lg p-8 shadow-2xl flex-grow flex flex-col text-black">
-            <h2 class="text-4xl font-black text-center mb-8 text-[#46178f]">Top Players</h2>
-            <div id="host-leaderboard-list" class="flex flex-col gap-4 flex-grow">
-                <!-- Leaderboard items -->
-            </div>
-            <div class="flex justify-end mt-8">
-                <button onclick="quizmoApp.hostProceedFromScoreboard()" class="bg-[#1368ce] hover:bg-blue-700 text-white font-bold text-2xl py-3 px-10 rounded shadow">Next</button>
-            </div>
-        </div>
-    </div>
+window.saveQuiz = async () => {
+  const title = document.getElementById('quiz-title').value.trim();
+  if (!title) return alert('הזן שם לשאלון');
+  const questions = collectQuestions();
+  if (!questions.length) return alert('הוסף לפחות שאלה אחת');
+  const quiz = { title, questions, createdAt: Date.now() };
+  if (state.editingQuizId) await update(ref(db, `quizzes/${state.editingQuizId}`), quiz);
+  else await push(ref(db, 'quizzes'), quiz);
+  document.getElementById('save-msg').textContent = '✅ נשמר!';
+  setTimeout(() => { state.editingQuizId = null; adminTab('quizzes'); }, 1000);
+};
 
-    <!-- ================= מסך פודיום סופי ================= -->
-    <div id="screen-podium" class="screen bg-[#46178f] p-8 flex flex-col items-center justify-center text-center">
-        <h1 class="text-6xl font-black mb-12 animate-bounce">Podium</h1>
-        <div class="flex items-end justify-center gap-4 h-64 mb-10" id="podium-bars">
-            <!-- Podium injected -->
-        </div>
-        <button onclick="quizmoApp.closeHostRoom()" class="bg-white text-black font-bold text-xl py-3 px-8 rounded mt-10 hover:bg-gray-200">Finish Game</button>
-    </div>
+// ---- HOST GAME ----
+window.hostQuiz = async (quizId) => {
+  const snap = await get(ref(db, `quizzes/${quizId}`));
+  if (!snap.exists()) return alert('שאלון לא נמצא');
+  state.quizData = snap.val(); state.quizData.id = quizId;
+  state.currentQ = 0; state.mode = 'host';
+  const code = Math.floor(100000 + Math.random()*900000).toString();
+  state.gameCode = code;
+  await set(ref(db, `games/${code}`), { status:'lobby', quizId, quizTitle:state.quizData.title, currentQ:-1, players:{}, createdAt:serverTimestamp() });
+  document.getElementById('display-game-code').textContent = code;
+  document.getElementById('player-count').textContent = '0';
+  document.getElementById('players-grid').innerHTML = '';
+  document.getElementById('start-game-btn').disabled = true;
+  showScreen('screen-lobby-host');
+  listenPlayers(code);
+};
 
+function listenPlayers(code) {
+  const pRef = ref(db, `games/${code}/players`);
+  const listener = onValue(pRef, snap => {
+    const grid = document.getElementById('players-grid'); grid.innerHTML = '';
+    let count = 0;
+    if (snap.exists()) {
+      count = Object.keys(snap.val()).length;
+      Object.values(snap.val()).forEach(p => {
+        const chip = document.createElement('div'); chip.className = 'player-chip'; chip.textContent = p.name; grid.appendChild(chip);
+      });
+    }
+    document.getElementById('player-count').textContent = count;
+    document.getElementById('start-game-btn').disabled = count < 1;
+  });
+  state.listeners.push({ ref: pRef, listener });
+}
 
-    <!-- ==================== LOGIC (JavaScript) ==================== -->
-    <script type="module">
-        // 1. ייבוא Firebase מדויק (מודולים עובדים בכל הדפדפנים וגיטהאב)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+window.startGame = async () => {
+  await update(ref(db, `games/${state.gameCode}`), { status:'playing' });
+  showQuestion();
+};
 
-        // 2. קונפיגורציה: משתמש בשלך, או בסביבת הפיתוח שלנו.
-        const userConfig = {
-            apiKey: "AIzaSyAQpMXfKu7RJxdoeJl-keBtrUz23ZvnH80",
-            authDomain: "quizmo-kahoot.firebaseapp.com",
-            projectId: "quizmo-kahoot",
-            storageBucket: "quizmo-kahoot.firebasestorage.app",
-            messagingSenderId: "738657082184",
-            appId: "1:738657082184:web:076d9ccf27706d356bb17d"
-        };
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userConfig;
-        
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        // מזהה אפליקציה שמסתדר גם עם החוקים שלי וגם בגיטהאב
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quizmo-kahoot';
+// ---- QUESTION HOST ----
+async function showQuestion() {
+  clearAllListeners();
+  const q = state.quizData.questions[state.currentQ];
+  await update(ref(db, `games/${state.gameCode}`), { currentQ:state.currentQ, questionStarted:true });
+  await set(ref(db, `games/${state.gameCode}/answers`), {});
+  document.getElementById('q-number').textContent = `שאלה ${state.currentQ+1}/${state.quizData.questions.length}`;
+  document.getElementById('host-question-text').textContent = q.text;
+  const answersGrid = document.getElementById('host-answers'); answersGrid.innerHTML = '';
+  getDisplayAnswers(q).forEach((ans, i) => {
+    const btn = document.createElement('div');
+    btn.className = `host-answer-btn color-${i}`;
+    btn.innerHTML = `<span class="answer-icon">${ANSWER_ICONS[i]}</span>${ans}`;
+    answersGrid.appendChild(btn);
+  });
+  document.getElementById('answered-count').textContent = '0';
+  document.getElementById('total-players-q').textContent = '0';
+  showScreen('screen-question-host');
+  startTimer(q.time||20, endQuestion);
+  listenAnswersHost();
+}
 
-        // 3. משתני מערכת וניהול State (מכונת מצבים)
-        const STATE = {
-            user: null,
-            localQuizzes: [],
-            editQuizId: null,
-            editQuestions: [],
-            
-            // Player state
-            playerPin: null,
-            playerName: null,
-            playerUnsub: null,
-            hasAnsweredCurrent: false,
-            
-            // Host state
-            hostPin: null,
-            hostGameObj: null,
-            hostUnsub: null,
-            timerInterval: null,
-            timeLeft: 20
-        };
+function getDisplayAnswers(q) {
+  if (q.type==='truefalse') return ['נכון','לא נכון'];
+  if (q.type==='two') return q.answers.slice(0,2);
+  return q.answers;
+}
 
-        // 4. אובייקט גלובלי שמכיל את כל הפונקציות כדי שאפשר יהיה לקרוא להן מה-HTML מכל מקום ללא שגיאות סקופ
-        window.quizmoApp = {
-            
-            // --- UI Helpers ---
-            switchScreen: (screenId) => {
-                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-                document.getElementById(screenId).classList.add('active');
-            },
-            hideLoader: () => document.getElementById('global-loader').classList.remove('active'),
-            
-            openAdminModal: () => {
-                document.getElementById('admin-password').value = '';
-                document.getElementById('admin-pass-error').classList.add('hidden');
-                document.getElementById('modal-admin').classList.add('active');
-                setTimeout(() => document.getElementById('admin-password').focus(), 100);
-            },
-            closeAdminModal: () => document.getElementById('modal-admin').classList.remove('active'),
-            verifyAdmin: () => {
-                const pass = document.getElementById('admin-password').value;
-                if(pass === "1234") {
-                    quizmoApp.closeAdminModal();
-                    quizmoApp.switchScreen('screen-dashboard');
-                    quizmoApp.renderDashboard();
-                } else {
-                    document.getElementById('admin-pass-error').classList.remove('hidden');
-                }
-            },
+function listenAnswersHost() {
+  const aRef = ref(db, `games/${state.gameCode}/answers`);
+  const pRef = ref(db, `games/${state.gameCode}/players`);
+  const listener = onValue(aRef, async snap => {
+    const pSnap = await get(pRef);
+    const totalP = pSnap.exists() ? Object.keys(pSnap.val()).length : 0;
+    const answered = snap.exists() ? Object.keys(snap.val()).length : 0;
+    document.getElementById('answered-count').textContent = answered;
+    document.getElementById('total-players-q').textContent = totalP;
+    if (answered >= totalP && totalP > 0) { clearInterval(state.timerInterval); endQuestion(); }
+  });
+  state.listeners.push({ ref:aRef, listener });
+}
 
-            // --- Admin & Editor ---
-            loadQuizzes: () => {
-                const q = localStorage.getItem('quizmoKahoots');
-                if(q) STATE.localQuizzes = JSON.parse(q);
-            },
-            saveQuizzesLocal: () => localStorage.setItem('quizmoKahoots', JSON.stringify(STATE.localQuizzes)),
-            renderDashboard: () => {
-                const list = document.getElementById('quizzes-list');
-                list.innerHTML = '';
-                if(STATE.localQuizzes.length === 0) {
-                    list.innerHTML = `<div class="text-center text-gray-500 font-bold py-10">No quizzes yet. Create your first one!</div>`;
-                    return;
-                }
-                STATE.localQuizzes.forEach(quiz => {
-                    list.innerHTML += `
-                        <div class="bg-white border p-4 rounded-lg flex flex-col md:flex-row justify-between items-center shadow-sm hover:shadow-md transition">
-                            <div class="mb-4 md:mb-0">
-                                <h3 class="text-xl font-bold">${quiz.title}</h3>
-                                <p class="text-sm text-gray-500 font-semibold">${quiz.questions.length} Questions</p>
-                            </div>
-                            <div class="flex gap-2 w-full md:w-auto">
-                                <button onclick="quizmoApp.initHost('${quiz.id}')" class="flex-1 md:flex-none bg-[#26890c] hover:bg-green-700 text-white font-bold py-2 px-6 rounded shadow">Play</button>
-                                <button onclick="quizmoApp.editQuiz('${quiz.id}')" class="flex-1 md:flex-none bg-gray-200 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded">Edit</button>
-                                <button onclick="quizmoApp.deleteQuiz('${quiz.id}')" class="flex-1 md:flex-none bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 px-4 rounded">Delete</button>
-                            </div>
-                        </div>
-                    `;
-                });
-            },
-            openEditor: () => {
-                STATE.editQuizId = null;
-                document.getElementById('editor-title').value = '';
-                STATE.editQuestions = [{text: '', answers: ['','','',''], correct: 0}];
-                quizmoApp.renderEditor();
-                quizmoApp.switchScreen('screen-editor');
-            },
-            editQuiz: (id) => {
-                STATE.editQuizId = id;
-                const q = STATE.localQuizzes.find(x => x.id === id);
-                document.getElementById('editor-title').value = q.title;
-                STATE.editQuestions = JSON.parse(JSON.stringify(q.questions));
-                quizmoApp.renderEditor();
-                quizmoApp.switchScreen('screen-editor');
-            },
-            deleteQuiz: (id) => {
-                if(confirm('Delete this quiz forever?')) {
-                    STATE.localQuizzes = STATE.localQuizzes.filter(x => x.id !== id);
-                    quizmoApp.saveQuizzesLocal();
-                    quizmoApp.renderDashboard();
-                }
-            },
-            addEditorQuestion: () => {
-                STATE.editQuestions.push({text: '', answers: ['','','',''], correct: 0});
-                quizmoApp.renderEditor();
-            },
-            removeQuestion: (idx) => {
-                if(STATE.editQuestions.length > 1) {
-                    STATE.editQuestions.splice(idx, 1);
-                    quizmoApp.renderEditor();
-                } else {
-                    alert('You must have at least one question.');
-                }
-            },
-            updateQ: (idx, field, val, aIdx=0) => {
-                if(field === 'text') STATE.editQuestions[idx].text = val;
-                else if(field === 'ans') STATE.editQuestions[idx].answers[aIdx] = val;
-                else if(field === 'correct') STATE.editQuestions[idx].correct = val;
-                if(field === 'correct') quizmoApp.renderEditor(); // Rerender for radio buttons
-            },
-            renderEditor: () => {
-                const container = document.getElementById('editor-questions');
-                container.innerHTML = '';
-                const colors = ['bg-[#e21b3c]', 'bg-[#1368ce]', 'bg-[#d89e00]', 'bg-[#26890c]'];
-                
-                STATE.editQuestions.forEach((q, qIndex) => {
-                    let ansHtml = '';
-                    for(let i=0; i<4; i++) {
-                        const isChecked = q.correct === i ? 'checked' : '';
-                        const bgSelected = q.correct === i ? 'bg-green-50 border-green-400' : 'bg-white border-gray-300';
-                        ansHtml += `
-                            <div class="flex items-center gap-3 w-full">
-                                <input type="radio" name="q_${qIndex}" class="w-6 h-6 cursor-pointer accent-[#46178f]" ${isChecked} onchange="quizmoApp.updateQ(${qIndex}, 'correct', ${i})">
-                                <div class="w-8 h-8 rounded shrink-0 ${colors[i]} shadow"></div>
-                                <input type="text" placeholder="Answer ${i+1}" value="${q.answers[i]}" oninput="quizmoApp.updateQ(${qIndex}, 'ans', this.value, ${i})" class="flex-grow p-3 border-2 rounded font-bold outline-none focus:border-black ${bgSelected}">
-                            </div>
-                        `;
-                    }
-                    container.innerHTML += `
-                        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100 relative">
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="text-gray-400 font-black text-xl">Question ${qIndex+1}</span>
-                                <button onclick="quizmoApp.removeQuestion(${qIndex})" class="text-red-500 font-bold hover:underline">Remove</button>
-                            </div>
-                            <input type="text" placeholder="Start typing your question" value="${q.text}" oninput="quizmoApp.updateQ(${qIndex}, 'text', this.value)" class="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded mb-6 outline-none focus:border-black shadow-inner">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                ${ansHtml}
-                            </div>
-                        </div>
-                    `;
-                });
-            },
-            saveQuiz: () => {
-                const title = document.getElementById('editor-title').value.trim();
-                if(!title) return alert("Title required!");
-                for(let q of STATE.editQuestions) {
-                    if(!q.text.trim()) return alert("Fill all questions");
-                    if(q.answers.some(a => !a.trim())) return alert("Fill all 4 answers for each question");
-                }
+function startTimer(seconds, onEnd) {
+  const circle = document.getElementById('timer-circle');
+  const display = document.getElementById('timer-display');
+  const circumference = 163.4;
+  let remaining = seconds;
+  display.textContent = remaining; circle.style.strokeDashoffset = 0; circle.style.stroke = '#00e676';
+  clearInterval(state.timerInterval);
+  state.timerInterval = setInterval(() => {
+    remaining--;
+    display.textContent = remaining;
+    circle.style.strokeDashoffset = circumference * (1 - remaining/seconds);
+    if (remaining<=5) circle.style.stroke = '#ff4444';
+    else if (remaining<=10) circle.style.stroke = '#ffd700';
+    if (remaining<=0) { clearInterval(state.timerInterval); onEnd(); }
+  }, 1000);
+}
 
-                if(STATE.editQuizId) {
-                    const idx = STATE.localQuizzes.findIndex(x => x.id === STATE.editQuizId);
-                    STATE.localQuizzes[idx].title = title;
-                    STATE.localQuizzes[idx].questions = STATE.editQuestions;
-                } else {
-                    STATE.localQuizzes.push({
-                        id: 'quiz_' + Date.now(),
-                        title: title,
-                        questions: STATE.editQuestions
-                    });
-                }
-                quizmoApp.saveQuizzesLocal();
-                quizmoApp.switchScreen('screen-dashboard');
-                quizmoApp.renderDashboard();
-            },
+async function endQuestion() {
+  clearAllListeners();
+  const q = state.quizData.questions[state.currentQ];
+  const aSnap = await get(ref(db, `games/${state.gameCode}/answers`));
+  const pSnap = await get(ref(db, `games/${state.gameCode}/players`));
+  const answers = aSnap.exists() ? aSnap.val() : {};
+  const players = pSnap.exists() ? pSnap.val() : {};
+  const displayAnswers = getDisplayAnswers(q);
+  const isPoll = q.type === 'poll';
+  const counts = new Array(displayAnswers.length).fill(0);
+  Object.values(answers).forEach(a => { if (a.answerIdx>=0 && a.answerIdx<counts.length) counts[a.answerIdx]++; });
+  const updates = {};
+  Object.entries(answers).forEach(([pid, a]) => {
+    const isCorrect = isPoll ? true : a.answerIdx === q.correct;
+    const speed = a.time||0; const maxTime = q.time||20;
+    const points = (!isPoll && isCorrect) ? Math.max(100, Math.round(1000*(1-speed/maxTime/2))) : 0;
+    const curScore = (players[pid]?.score||0) + points;
+    updates[`games/${state.gameCode}/players/${pid}/score`] = curScore;
+    updates[`games/${state.gameCode}/players/${pid}/lastCorrect`] = isPoll || isCorrect;
+    updates[`games/${state.gameCode}/players/${pid}/lastPoints`] = points;
+  });
+  updates[`games/${state.gameCode}/questionStarted`] = false;
+  await update(ref(db,'/'), updates);
+  // Show results
+  const reveal = document.getElementById('correct-answer-reveal');
+  reveal.textContent = isPoll ? '📊 שאלת סקר - אין תשובה נכונה' : `✅ תשובה נכונה: ${displayAnswers[q.correct]}`;
+  const breakdown = document.getElementById('answer-breakdown'); breakdown.innerHTML = '';
+  const maxCount = Math.max(...counts, 1);
+  counts.forEach((c, i) => {
+    const item = document.createElement('div'); item.className = 'bar-item';
+    item.innerHTML = `<div class="bar-count">${c}</div>
+      <div class="bar-fill" style="height:${Math.round(c/maxCount*100)}px;background:${ANSWER_COLORS[i]}"></div>
+      <div class="bar-label">${ANSWER_ICONS[i]} ${displayAnswers[i]||''}</div>`;
+    breakdown.appendChild(item);
+  });
+  const pSnapFresh = await get(ref(db, `games/${state.gameCode}/players`));
+  const playersFresh = pSnapFresh.exists() ? pSnapFresh.val() : {};
+  const sorted = Object.entries(playersFresh).sort((a,b)=>(b[1].score||0)-(a[1].score||0));
+  renderLeaderboard('leaderboard', sorted.slice(0,5));
+  const isLast = state.currentQ >= state.quizData.questions.length-1;
+  document.getElementById('next-q-btn').textContent = isLast ? '🏁 סיום' : 'הבא ➡️';
+  document.getElementById('results-title').textContent = `תוצאות שאלה ${state.currentQ+1}`;
+  showScreen('screen-results-host');
+}
 
-            // --- Database Helpers (Firestore Path Rule Enforced) ---
-            getGameRef: (pin) => doc(db, 'artifacts', appId, 'public', 'data', 'games', pin),
+function renderLeaderboard(id, sorted) {
+  const lb = document.getElementById(id); lb.innerHTML = '';
+  const medals = ['🥇','🥈','🥉'];
+  sorted.forEach(([,p], i) => {
+    const row = document.createElement('div'); row.className = `lb-row rank-${i+1}`;
+    row.innerHTML = `<div class="lb-rank">${medals[i]||(i+1)}</div><div class="lb-name">${p.name}</div><div class="lb-score">${p.score||0}</div>`;
+    lb.appendChild(row);
+  });
+}
 
-            // --- Host Logic ---
-            initHost: async (quizId) => {
-                if(!STATE.user) return alert("Firebase Auth not ready. Wait 1 sec.");
-                const quiz = STATE.localQuizzes.find(x => x.id === quizId);
-                
-                // Generate 6 digit PIN
-                STATE.hostPin = Math.floor(100000 + Math.random() * 900000).toString();
-                STATE.hostGameObj = {
-                    status: 'lobby',
-                    hostId: STATE.user.uid,
-                    quiz: quiz,
-                    currentQ: -1,
-                    players: {}
-                };
+window.nextQuestion = async () => {
+  state.currentQ++;
+  if (state.currentQ >= state.quizData.questions.length) showFinalResults();
+  else showQuestion();
+};
 
-                try {
-                    await setDoc(quizmoApp.getGameRef(STATE.hostPin), STATE.hostGameObj);
-                    
-                    document.getElementById('host-quiz-name').innerText = quiz.title;
-                    document.getElementById('host-pin-display').innerText = STATE.hostPin;
-                    quizmoApp.switchScreen('screen-host-lobby');
+async function showFinalResults() {
+  await update(ref(db, `games/${state.gameCode}`), { status:'ended' });
+  const pSnap = await get(ref(db, `games/${state.gameCode}/players`));
+  const players = pSnap.exists() ? pSnap.val() : {};
+  const sorted = Object.entries(players).sort((a,b)=>(b[1].score||0)-(a[1].score||0));
+  const podium = document.getElementById('podium'); podium.innerHTML = '';
+  [[1,'p2','🥈'],[0,'p1','🥇'],[2,'p3','🥉']].forEach(([pos,cls,emoji]) => {
+    const entry = sorted[pos]; if (!entry) return;
+    const div = document.createElement('div'); div.className = `podium-place ${cls}`;
+    div.innerHTML = `<div class="emoji">${emoji}</div><div class="p-name">${entry[1].name}</div><div class="p-score">${entry[1].score||0}</div>`;
+    podium.appendChild(div);
+  });
+  renderLeaderboard('full-leaderboard', sorted);
+  showScreen('screen-final');
+  launchFireworks();
+}
 
-                    // Listener for Lobby
-                    if(STATE.hostUnsub) STATE.hostUnsub();
-                    STATE.hostUnsub = onSnapshot(quizmoApp.getGameRef(STATE.hostPin), (snap) => {
-                        if(snap.exists()) {
-                            STATE.hostGameObj = snap.data();
-                            quizmoApp.hostProcessState();
-                        }
-                    }, (err) => console.error("Host snap error:", err));
+function launchFireworks() {
+  const c = document.getElementById('fireworks'); c.innerHTML = '';
+  const colors = ['#ffd700','#ff3d8b','#00e676','#00b0ff','#ff9100'];
+  for (let i=0;i<60;i++) setTimeout(()=>{
+    const p = document.createElement('div'); p.className = 'firework-particle';
+    p.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*5)]};--tx:${(Math.random()-.5)*200}px;--ty:${(Math.random()-.5)*200}px;animation-delay:${Math.random()*.5}s`;
+    c.appendChild(p);
+  }, i*40);
+}
 
-                } catch(e) {
-                    console.error(e);
-                    alert("Error creating room. Check Firebase permissions.");
-                }
-            },
-            
-            closeHostRoom: async () => {
-                if(STATE.hostUnsub) STATE.hostUnsub();
-                if(STATE.hostPin) {
-                    try { await deleteDoc(quizmoApp.getGameRef(STATE.hostPin)); } catch(e){}
-                }
-                clearInterval(STATE.timerInterval);
-                quizmoApp.switchScreen('screen-dashboard');
-            },
+// ---- PLAYER FLOW ----
+window.submitPlayerName = async () => {
+  const name = document.getElementById('player-name-input').value.trim();
+  if (!name) return alert('הזן שם');
+  const gSnap = await get(ref(db, `games/${state.gameCode}`));
+  if (!gSnap.exists()) return alert('קוד משחק לא נמצא!');
+  if (gSnap.val().status !== 'lobby') return alert('המשחק כבר התחיל!');
+  const pRef = push(ref(db, `games/${state.gameCode}/players`));
+  state.playerId = pRef.key; state.playerName = name; state.myScore = 0;
+  await set(pRef, { name, score:0, joined:serverTimestamp() });
+  document.getElementById('my-name-badge').textContent = name;
+  showScreen('screen-player-lobby');
+  listenGameStatus();
+};
 
-            hostProcessState: () => {
-                const data = STATE.hostGameObj;
-                const playersObj = data.players || {};
-                const playerKeys = Object.keys(playersObj);
-                
-                if(data.status === 'lobby') {
-                    document.getElementById('host-player-count').innerText = playerKeys.length;
-                    const list = document.getElementById('host-players-list');
-                    const btn = document.getElementById('btn-start-game');
-                    
-                    if(playerKeys.length === 0) {
-                        list.innerHTML = `<div class="text-white/50 text-2xl font-bold italic mt-10">Waiting for players...</div>`;
-                        btn.disabled = true;
-                        btn.className = "bg-gray-400 text-gray-200 font-bold text-xl py-3 px-12 rounded cursor-not-allowed transition-colors shadow-lg";
-                    } else {
-                        list.innerHTML = '';
-                        playerKeys.forEach(uid => {
-                            list.innerHTML += `<div class="bg-black/30 text-white font-bold text-2xl py-2 px-6 rounded-lg shadow">${playersObj[uid].name}</div>`;
-                        });
-                        btn.disabled = false;
-                        btn.className = "bg-[#1368ce] hover:bg-blue-700 text-white font-bold text-xl py-3 px-12 rounded transition-colors shadow-lg";
-                    }
-                }
-                
-                else if(data.status === 'question') {
-                    // Update answers count live
-                    let ansCount = 0;
-                    playerKeys.forEach(uid => { if(playersObj[uid].currentAnswer !== null) ansCount++; });
-                    document.getElementById('host-answers-count').innerText = ansCount;
-                    
-                    // Auto stop if everyone answered
-                    if(ansCount >= playerKeys.length && playerKeys.length > 0) {
-                        if(STATE.timeLeft > 1) STATE.timeLeft = 1; // force timer end
-                    }
-                }
-            },
+function listenGameStatus() {
+  const gRef = ref(db, `games/${state.gameCode}`);
+  const listener = onValue(gRef, snap => {
+    if (!snap.exists()) return;
+    const game = snap.val();
+    if (game.status==='playing' && game.questionStarted) showPlayerQuestion(game);
+    else if (game.status==='playing' && !game.questionStarted && game.currentQ>=0) showPlayerResult(game);
+    else if (game.status==='ended') showPlayerFinal();
+  });
+  state.listeners.push({ ref:gRef, listener });
+}
 
-            startHostGame: async () => {
-                await updateDoc(quizmoApp.getGameRef(STATE.hostPin), {
-                    status: 'question',
-                    currentQ: 0
-                });
-                quizmoApp.hostShowQuestion();
-            },
+function showPlayerQuestion(game) {
+  const qIdx = game.currentQ;
+  if (qIdx === playerCurrentQ) return;
+  playerCurrentQ = qIdx; playerAnsweredThisQ = false;
+  get(ref(db, `quizzes/${game.quizId}`)).then(snap => {
+    if (!snap.exists()) return;
+    const question = snap.val().questions[qIdx];
+    const displayAnswers = getDisplayAnswers(question);
+    document.getElementById('player-q-text').textContent = question.text;
+    const grid = document.getElementById('player-answers'); grid.innerHTML = '';
+    displayAnswers.forEach((ans, i) => {
+      const btn = document.createElement('button');
+      btn.className = `player-answer-btn color-${i}`;
+      btn.textContent = `${ANSWER_ICONS[i]} ${ans}`;
+      btn.onclick = () => submitAnswer(i, question);
+      grid.appendChild(btn);
+    });
+    showScreen('screen-player-question');
+    startPlayerTimer(question.time||20);
+  });
+}
 
-            hostShowQuestion: () => {
-                const qIndex = STATE.hostGameObj.currentQ;
-                const q = STATE.hostGameObj.quiz.questions[qIndex];
-                
-                document.getElementById('host-question-text').innerText = q.text;
-                for(let i=0; i<4; i++) {
-                    document.getElementById(`h-text-${i}`).innerText = q.answers[i];
-                    document.getElementById(`h-dim-${i}`).classList.add('hidden'); // un-dim
-                }
-                document.getElementById('host-game-controls').classList.add('hidden');
-                document.getElementById('host-answers-count').innerText = '0';
-                
-                quizmoApp.switchScreen('screen-host-game');
-                
-                // Clear player answers in DB
-                const updates = {};
-                const pKeys = Object.keys(STATE.hostGameObj.players || {});
-                pKeys.forEach(uid => { updates[`players.${uid}.currentAnswer`] = null; });
-                updateDoc(quizmoApp.getGameRef(STATE.hostPin), updates);
+function startPlayerTimer(seconds) {
+  clearInterval(playerTimerInterval);
+  questionStartTime = Date.now();
+  let remaining = seconds;
+  const display = document.getElementById('player-timer');
+  display.textContent = remaining;
+  playerTimerInterval = setInterval(() => {
+    remaining--;
+    display.textContent = remaining;
+    if (remaining<=0) {
+      clearInterval(playerTimerInterval);
+      if (!playerAnsweredThisQ) {
+        document.getElementById('answered-icon').textContent = '⏰';
+        document.getElementById('answered-msg').textContent = 'נגמר הזמן!';
+        showScreen('screen-player-answered');
+      }
+    }
+  }, 1000);
+}
 
-                // Start Timer
-                STATE.timeLeft = 20;
-                document.getElementById('host-timer').innerText = STATE.timeLeft;
-                clearInterval(STATE.timerInterval);
-                STATE.timerInterval = setInterval(() => {
-                    STATE.timeLeft--;
-                    document.getElementById('host-timer').innerText = STATE.timeLeft;
-                    if(STATE.timeLeft <= 0) {
-                        clearInterval(STATE.timerInterval);
-                        quizmoApp.hostEndQuestion();
-                    }
-                }, 1000);
-            },
+async function submitAnswer(idx) {
+  if (playerAnsweredThisQ) return;
+  playerAnsweredThisQ = true;
+  clearInterval(playerTimerInterval);
+  const elapsed = (Date.now()-questionStartTime)/1000;
+  await set(ref(db, `games/${state.gameCode}/answers/${state.playerId}`), { answerIdx:idx, time:elapsed, name:state.playerName });
+  document.getElementById('answered-icon').textContent = '✅';
+  document.getElementById('answered-msg').textContent = 'תשובתך נשלחה!';
+  showScreen('screen-player-answered');
+}
 
-            hostEndQuestion: async () => {
-                const qIndex = STATE.hostGameObj.currentQ;
-                const q = STATE.hostGameObj.quiz.questions[qIndex];
-                const correctIdx = q.correct;
+function showPlayerResult(game) {
+  get(ref(db, `games/${state.gameCode}/players/${state.playerId}`)).then(snap => {
+    if (!snap.exists()) return;
+    const p = snap.val();
+    state.myScore = p.score||0;
+    document.getElementById('result-icon').textContent = p.lastCorrect ? '✅' : '❌';
+    document.getElementById('result-msg').textContent = p.lastCorrect ? 'נכון! 🎉' : 'לא נכון 😢';
+    document.getElementById('points-gained').textContent = `+${p.lastPoints||0}`;
+    document.getElementById('my-total-score').textContent = state.myScore;
+    get(ref(db, `games/${state.gameCode}/players`)).then(pSnap => {
+      if (!pSnap.exists()) return;
+      const sorted = Object.entries(pSnap.val()).sort((a,b)=>(b[1].score||0)-(a[1].score||0));
+      document.getElementById('my-rank').textContent = sorted.findIndex(([id])=>id===state.playerId)+1;
+    });
+    showScreen('screen-player-result');
+  });
+}
 
-                // Dim wrong answers
-                for(let i=0; i<4; i++) {
-                    if(i !== correctIdx) document.getElementById(`h-dim-${i}`).classList.remove('hidden');
-                }
-                document.getElementById('host-game-controls').classList.remove('hidden');
+function showPlayerFinal() {
+  get(ref(db, `games/${state.gameCode}/players`)).then(pSnap => {
+    if (!pSnap.exists()) return;
+    const players = pSnap.val();
+    const sorted = Object.entries(players).sort((a,b)=>(b[1].score||0)-(a[1].score||0));
+    const myRank = sorted.findIndex(([id])=>id===state.playerId)+1;
+    const icons = ['🥇','🥈','🥉'];
+    const titles = {1:'ניצחת! 🎉',2:'מקום שני! 🥈',3:'מקום שלישי! 🥉'};
+    document.getElementById('player-final-icon').textContent = icons[myRank-1]||'🎮';
+    document.getElementById('player-final-title').textContent = titles[myRank]||`מקום ${myRank}/${sorted.length}`;
+    document.getElementById('player-final-score').textContent = `${players[state.playerId]?.score||0} נקודות`;
+    showScreen('screen-player-final');
+  });
+}
 
-                // Calculate scores (simulate checking local state of DB)
-                const players = STATE.hostGameObj.players || {};
-                const updates = { status: 'scoreboard' };
-                
-                Object.keys(players).forEach(uid => {
-                    const p = players[uid];
-                    if(p.currentAnswer === correctIdx) {
-                        // In real kahoot, score depends on time. We give flat 1000 for simplicity to ensure 1:1 robustness.
-                        updates[`players.${uid}.score`] = (p.score || 0) + 1000;
-                    }
-                });
-                
-                await updateDoc(quizmoApp.getGameRef(STATE.hostPin), updates);
-            },
-
-            hostNext: () => {
-                quizmoApp.renderHostScoreboard();
-                quizmoApp.switchScreen('screen-host-scoreboard');
-            },
-
-            renderHostScoreboard: () => {
-                const players = STATE.hostGameObj.players || {};
-                const arr = Object.values(players).sort((a,b) => (b.score||0) - (a.score||0)).slice(0, 5);
-                const list = document.getElementById('host-leaderboard-list');
-                list.innerHTML = '';
-                arr.forEach((p, idx) => {
-                    list.innerHTML += `
-                        <div class="bg-gray-100 p-4 rounded text-xl font-bold flex justify-between items-center shadow">
-                            <div class="flex items-center gap-4">
-                                <span class="bg-[#46178f] text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">${idx+1}</span>
-                                <span>${p.name}</span>
-                            </div>
-                            <span class="text-[#1368ce]">${p.score || 0}</span>
-                        </div>
-                    `;
-                });
-            },
-
-            hostProceedFromScoreboard: async () => {
-                const totalQ = STATE.hostGameObj.quiz.questions.length;
-                let nextQ = STATE.hostGameObj.currentQ + 1;
-                
-                if(nextQ >= totalQ) {
-                    await updateDoc(quizmoApp.getGameRef(STATE.hostPin), { status: 'finished' });
-                    quizmoApp.renderPodium();
-                    quizmoApp.switchScreen('screen-podium');
-                } else {
-                    await updateDoc(quizmoApp.getGameRef(STATE.hostPin), { 
-                        status: 'question',
-                        currentQ: nextQ
-                    });
-                    quizmoApp.hostShowQuestion();
-                }
-            },
-
-            renderPodium: () => {
-                const players = STATE.hostGameObj.players || {};
-                const arr = Object.values(players).sort((a,b) => (b.score||0) - (a.score||0));
-                const podium = document.getElementById('podium-bars');
-                podium.innerHTML = '';
-                
-                // Rank 2
-                if(arr[1]) podium.innerHTML += `<div class="w-24 bg-[#1368ce] h-32 flex flex-col items-center justify-start pt-4 text-white font-black shadow-lg rounded-t"><span class="text-xl">${arr[1].name}</span><span class="mt-2 text-sm">${arr[1].score||0}</span><div class="mt-auto text-4xl mb-2">2</div></div>`;
-                // Rank 1
-                if(arr[0]) podium.innerHTML += `<div class="w-24 bg-[#d89e00] h-48 flex flex-col items-center justify-start pt-4 text-white font-black shadow-lg rounded-t"><span class="text-xl">${arr[0].name}</span><span class="mt-2 text-sm">${arr[0].score||0}</span><div class="mt-auto text-5xl mb-2">1</div></div>`;
-                // Rank 3
-                if(arr[2]) podium.innerHTML += `<div class="w-24 bg-[#26890c] h-24 flex flex-col items-center justify-start pt-4 text-white font-black shadow-lg rounded-t"><span class="text-xl">${arr[2].name}</span><span class="mt-2 text-sm">${arr[2].score||0}</span><div class="mt-auto text-3xl mb-2">3</div></div>`;
-            },
-
-            // --- Player Logic ---
-            joinGame: async () => {
-                if(!STATE.user) return alert("System connecting. Try again in 2 seconds.");
-                const pin = document.getElementById('pin-input').value.trim();
-                const err = document.getElementById('join-error');
-                if(!pin) return;
-
-                err.classList.add('hidden');
-                document.getElementById('global-loader').classList.add('active');
-
-                try {
-                    const snap = await getDoc(quizmoApp.getGameRef(pin));
-                    if(snap.exists() && snap.data().status === 'lobby') {
-                        STATE.playerPin = pin;
-                        document.getElementById('global-loader').classList.remove('active');
-                        quizmoApp.switchScreen('screen-nickname');
-                        setTimeout(() => document.getElementById('nickname-input').focus(), 100);
-                    } else {
-                        document.getElementById('global-loader').classList.remove('active');
-                        err.innerText = "We didn't recognize that game PIN.";
-                        err.classList.remove('hidden');
-                    }
-                } catch(e) {
-                    console.error(e);
-                    document.getElementById('global-loader').classList.remove('active');
-                    err.innerText = "Connection error. Check console.";
-                    err.classList.remove('hidden');
-                }
-            },
-
-            submitNickname: async () => {
-                const name = document.getElementById('nickname-input').value.trim();
-                if(!name) return;
-                STATE.playerName = name;
-                document.getElementById('global-loader').classList.add('active');
-
-                try {
-                    await updateDoc(quizmoApp.getGameRef(STATE.playerPin), {
-                        [`players.${STATE.user.uid}`]: { name: name, score: 0, currentAnswer: null }
-                    });
-                    
-                    document.getElementById('global-loader').classList.remove('active');
-                    quizmoApp.switchScreen('screen-player-waiting');
-                    quizmoApp.listenPlayerGame();
-                } catch(e) {
-                    document.getElementById('global-loader').classList.remove('active');
-                    alert("Game closed or error occurred.");
-                    quizmoApp.switchScreen('screen-home');
-                }
-            },
-
-            listenPlayerGame: () => {
-                if(STATE.playerUnsub) STATE.playerUnsub();
-                
-                STATE.playerUnsub = onSnapshot(quizmoApp.getGameRef(STATE.playerPin), (snap) => {
-                    if(!snap.exists()) {
-                        alert("Host disconnected.");
-                        if(STATE.playerUnsub) STATE.playerUnsub();
-                        quizmoApp.switchScreen('screen-home');
-                        return;
-                    }
-
-                    const data = snap.data();
-                    const me = data.players[STATE.user.uid];
-                    
-                    if(data.status === 'question') {
-                        // Only reset state if it's a NEW question
-                        if(document.getElementById('screen-player-game').classList.contains('active') && STATE.hasAnsweredCurrent) {
-                            // do nothing, already waiting
-                        } else {
-                            STATE.hasAnsweredCurrent = false;
-                            document.getElementById('player-answered-overlay').classList.add('hidden');
-                            quizmoApp.switchScreen('screen-player-game');
-                        }
-                    } 
-                    else if(data.status === 'scoreboard') {
-                        const correctIdx = data.quiz.questions[data.currentQ].correct;
-                        const myLastAns = me.currentAnswer;
-                        const title = document.getElementById('player-result-title');
-                        const screen = document.getElementById('screen-player-result');
-                        
-                        document.getElementById('player-result-score').innerText = me.score || 0;
-                        
-                        if(myLastAns === correctIdx) {
-                            title.innerText = "Correct!";
-                            screen.style.backgroundColor = "#26890c"; // Green
-                        } else {
-                            title.innerText = "Incorrect";
-                            screen.style.backgroundColor = "#e21b3c"; // Red
-                        }
-                        quizmoApp.switchScreen('screen-player-result');
-                    }
-                    else if(data.status === 'finished') {
-                        const title = document.getElementById('player-result-title');
-                        const screen = document.getElementById('screen-player-result');
-                        title.innerText = "Game Over!";
-                        screen.style.backgroundColor = "#46178f";
-                        document.getElementById('player-result-score').innerText = me.score || 0;
-                        quizmoApp.switchScreen('screen-player-result');
-                    }
-                }, (err) => {
-                    console.error("Player snap error:", err);
-                });
-            },
-
-            submitAnswer: async (ansIndex) => {
-                if(STATE.hasAnsweredCurrent) return;
-                STATE.hasAnsweredCurrent = true;
-                document.getElementById('player-answered-overlay').classList.remove('hidden');
-
-                try {
-                    await updateDoc(quizmoApp.getGameRef(STATE.playerPin), {
-                        [`players.${STATE.user.uid}.currentAnswer`]: ansIndex
-                    });
-                } catch(e) {
-                    console.error("Failed to submit answer:", e);
-                }
-            }
-        };
-
-        // 5. אתחול Auth במערכת
-        window.addEventListener('DOMContentLoaded', () => {
-            quizmoApp.loadQuizzes();
-            
-            // Listeners למקשי אנטר במקלדת
-            document.getElementById('pin-input').addEventListener('keypress', e => { if(e.key === 'Enter') quizmoApp.joinGame() });
-            document.getElementById('nickname-input').addEventListener('keypress', e => { if(e.key === 'Enter') quizmoApp.submitNickname() });
-            document.getElementById('admin-password').addEventListener('keypress', e => { if(e.key === 'Enter') quizmoApp.verifyAdmin() });
-
-            // התחברות ל-Firebase בסתר
-            onAuthStateChanged(auth, (user) => {
-                if(user) {
-                    STATE.user = user;
-                    quizmoApp.hideLoader();
-                } else {
-                    signInAnonymously(auth).catch(e => {
-                        console.error("Auth Error:", e);
-                        quizmoApp.hideLoader();
-                        // התראה למקרה שמריצים בגיטהאב והדומיין לא מאושר
-                        alert("Firebase Auth Failed. If you are on GitHub Pages, make sure to add your domain to Firebase Authentication -> Authorized Domains.");
-                    });
-                }
-            });
-        });
-
-    </script>
+function clearAllListeners() {
+  state.listeners.forEach(({ref:r, listener}) => off(r,'value',listener));
+  state.listeners = [];
+}
+</script>
 </body>
 </html>
