@@ -761,7 +761,7 @@ async function endQuestion() {
   Object.values(answers).forEach(a => { if (a.answerIdx>=0 && a.answerIdx<counts.length) counts[a.answerIdx]++; });
   const updates = {};
   Object.entries(answers).forEach(([pid, a]) => {
-    const isCorrect = isPoll ? true : a.answerIdx === q.correct;
+    const isCorrect = isPoll ? true : Number(a.answerIdx) === Number(q.correct);
     const speed = a.time||0; const maxTime = q.time||20;
     const points = (!isPoll && isCorrect) ? Math.max(100, Math.round(1000*(1-speed/maxTime/2))) : 0;
     const curScore = (players[pid]?.score||0) + points;
