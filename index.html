@@ -178,6 +178,8 @@
     .p1{background:linear-gradient(to top,#ffd700,#f59e0b);width:110px;height:150px}
     .p2{background:linear-gradient(to top,#94a3b8,#64748b);width:90px;height:115px}
     .p3{background:linear-gradient(to top,#cd7f32,#92400e);width:90px;height:85px}
+    .podium-hidden { opacity:0; transform:translateY(60px) scale(0.7); }
+    .podium-place { transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.34,1.56,0.64,1); }
 
     /* ── PLAYER SCREENS ── */
     #screen-player-join,#screen-player-lobby,#screen-player-final {
@@ -352,7 +354,7 @@
     <h1 class="final-title">🏆 המשחק הסתיים!</h1>
     <div class="podium-wrap" id="podium"></div>
     <div id="full-leaderboard" class="leaderboard" style="margin-top:2rem"></div>
-    <button class="btn btn-primary" onclick="Music.stop(); showScreen('screen-admin-dashboard')" style="margin-top:1.5rem">חזרה לניהול</button>
+    <button class="btn btn-primary" onclick="Music.stop(); clearAllListeners(); showScreen('screen-admin-dashboard'); loadQuizzes(); adminTab('quizzes');" style="margin-top:1.5rem">חזרה לניהול</button>
   </div>
 </div>
 
@@ -413,7 +415,7 @@
     <div id="player-final-icon" class="final-place-icon">🎮</div>
     <h1 id="player-final-title">כל הכבוד!</h1>
     <div class="final-score-big" id="player-final-score"></div>
-    <button class="btn btn-primary" onclick="showScreen('screen-home')">משחק חדש</button>
+    <button class="btn btn-primary" onclick="location.reload()">משחק חדש</button>
   </div>
 </div>
 
@@ -1094,17 +1096,38 @@ async function showFinalResults() {
   const pSnap = await get(ref(db, `games/${state.gameCode}/players`));
   const players = pSnap.exists() ? pSnap.val() : {};
   const sorted = Object.entries(players).sort((a,b)=>(b[1].score||0)-(a[1].score||0));
+
+  // Clear podium, show screen first
   const podium = document.getElementById('podium'); podium.innerHTML = '';
-  [[1,'p2','🥈'],[0,'p1','🥇'],[2,'p3','🥉']].forEach(([pos,cls,emoji]) => {
-    const entry = sorted[pos]; if (!entry) return;
-    const div = document.createElement('div'); div.className = `podium-place ${cls}`;
-    div.innerHTML = `<div class="emoji">${emoji}</div><div class="p-name">${entry[1].name}</div><div class="p-score">${entry[1].score||0}</div>`;
-    podium.appendChild(div);
-  });
-  renderLeaderboard('full-leaderboard', sorted);
+  document.getElementById('full-leaderboard').innerHTML = '';
   showScreen('screen-final');
   Music.playVictory();
   launchFireworks();
+
+  // Dramatic reveal: 3rd → 2nd → 1st with delays
+  const revealOrder = [
+    { pos: 2, cls: 'p3', emoji: '🥉', delay: 1800 },
+    { pos: 1, cls: 'p2', emoji: '🥈', delay: 3800 },
+    { pos: 0, cls: 'p1', emoji: '🥇', delay: 6200 },
+  ];
+
+  revealOrder.forEach(({ pos, cls, emoji, delay }) => {
+    const entry = sorted[pos];
+    if (!entry) return;
+    setTimeout(() => {
+      const div = document.createElement('div');
+      div.className = `podium-place ${cls} podium-hidden`;
+      div.innerHTML = `<div class="emoji">${emoji}</div><div class="p-name">${entry[1].name}</div><div class="p-score">${entry[1].score||0} נק'</div>`;
+      // insert in correct visual order (p2 left, p1 center, p3 right)
+      if (cls === 'p2') podium.insertBefore(div, podium.firstChild);
+      else podium.appendChild(div);
+      // trigger animation next frame
+      requestAnimationFrame(() => requestAnimationFrame(() => div.classList.remove('podium-hidden')));
+    }, delay);
+  });
+
+  // Show full leaderboard after all revealed
+  setTimeout(() => renderLeaderboard('full-leaderboard', sorted), 8000);
 }
 
 function launchFireworks() {
