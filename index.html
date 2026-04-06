@@ -1331,6 +1331,7 @@ async function endQuestion(skipped=false){
   Object.values(answers).forEach(a=>{if(a.answerIdx>=0&&a.answerIdx<counts.length)counts[a.answerIdx]++});
   // score — if skipped, nobody gets points
   const upd={};
+  // Process players who answered
   Object.entries(answers).forEach(([pid,a])=>{
     const isC=isPoll?true:Number(a.answerIdx)===Number(q.correct);
     const spd=a.time||0;const mt=q.time||20;
@@ -1339,6 +1340,13 @@ async function endQuestion(skipped=false){
     upd['games/'+S.gameCode+'/players/'+pid+'/score']=cur;
     upd['games/'+S.gameCode+'/players/'+pid+'/lastCorrect']=skipped?false:(isPoll||isC);
     upd['games/'+S.gameCode+'/players/'+pid+'/lastPoints']=pts;
+  });
+  // Players who didn't answer get 0 points
+  Object.keys(players).forEach(pid=>{
+    if(!answers[pid]){
+      upd['games/'+S.gameCode+'/players/'+pid+'/lastCorrect']=false;
+      upd['games/'+S.gameCode+'/players/'+pid+'/lastPoints']=0;
+    }
   });
   upd['games/'+S.gameCode+'/questionStarted']=false;
   await update(ref(db,'/'),upd);
@@ -1380,7 +1388,6 @@ function showResultsScreen(q,disp,counts){
   }
 }
 window.goToFinal=async()=>{
-  S.currentQ++;
   showFinalResults();
 };
 window.showScoreboard=async()=>{
