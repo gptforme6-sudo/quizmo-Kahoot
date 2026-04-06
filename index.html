@@ -902,20 +902,18 @@ window.SS = id => {
   document.getElementById(id).classList.add('active');
 };
 
-// ══ AUDIO SYSTEM — Real Kahoot sounds ══
+// ══ AUDIO SYSTEM — Real Kahoot sounds (archive.org) ══
 const AUDIO_URLS = {
-  lobby: "https://www.myinstants.com/media/sounds/kahoot-lobby-music.mp3",
-  countdown: "https://www.myinstants.com/media/sounds/kahoot-20-second-countdown.mp3",
-  correct: "https://www.myinstants.com/media/sounds/kahoot-answer-correct.mp3",
-  wrong: "https://www.myinstants.com/media/sounds/kahoot-answer-wrong.mp3",
-  podium: "https://www.myinstants.com/media/sounds/kahoot-winner.mp3"
+  lobby:    "https://archive.org/download/kahoot-lobby-music/Kahoot%20Lobby%20Music.mp3",
+  question: "https://archive.org/download/kahoot-music-collection/Kahoot%20Question%20Music.mp3",
+  timesup:  "https://archive.org/download/kahoot-music-collection/Kahoot%20Times%20Up.mp3",
+  podium:   "https://archive.org/download/kahoot-music-collection/Kahoot%20Podium.mp3"
 };
 
 window.Music = (() => {
   let tracks = {};
-  let currentBG = null; // currently playing background track key
+  let currentBG = null;
 
-  // Pre-load all audio tracks
   function init(){
     for(let key in AUDIO_URLS){
       if(!tracks[key]){
@@ -926,7 +924,6 @@ window.Music = (() => {
     }
   }
 
-  // Stop all tracks
   function stopAll(){
     currentBG = null;
     for(let key in tracks){
@@ -935,7 +932,7 @@ window.Music = (() => {
     }
   }
 
-  // Play a background track (stops others first)
+  // Play a background track (stops all others first)
   function playTrack(key){
     if(currentBG === key) return;
     stopAll();
@@ -947,8 +944,9 @@ window.Music = (() => {
     }
   }
 
-  // Play a sound effect WITHOUT stopping background music
+  // Play a short stinger (stops background, plays once)
   function playSFX(key){
+    stopAll();
     init();
     if(tracks[key]){
       tracks[key].currentTime = 0;
@@ -956,17 +954,15 @@ window.Music = (() => {
     }
   }
 
-  // Public API — matches the old Music interface
-  function playLobby(){ playTrack('lobby'); }
-  function playQuestion(){ playTrack('countdown'); }
-  function playResults(){ playSFX('correct'); }
-  function playVictory(){ playTrack('podium'); }
+  function playLobby(){ playTrack('lobby'); }     // lobby — loop while players join
+  function playQuestion(){ playTrack('question'); } // question countdown music
+  function playTimesUp(){ playSFX('timesup'); }     // short stinger when round ends
+  function playVictory(){ playTrack('podium'); }    // final podium music
   function stop(){ stopAll(); }
 
-  // Initialize on first load
   init();
 
-  return { playLobby, playQuestion, playResults, playVictory, playSFX, stop, init };
+  return { playLobby, playQuestion, playTimesUp, playVictory, stop, init };
 })();
 
 // ══ ADMIN MODAL ══
@@ -1339,7 +1335,7 @@ function showResultsScreen(q,disp,counts){
     pills.appendChild(p);
   });
   const isLast=S.currentQ>=S.quizData.questions.length-1;
-  SS('screen-results');Music.playResults();
+  SS('screen-results');Music.playTimesUp();
   // If last question, auto-proceed to final podium after showing results
   if(isLast){
     document.querySelector('#screen-results .results-top .btn').textContent='🏁 תוצאות סופיות →';
