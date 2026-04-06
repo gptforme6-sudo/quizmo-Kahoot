@@ -902,12 +902,12 @@ window.SS = id => {
   document.getElementById(id).classList.add('active');
 };
 
-// ══ AUDIO SYSTEM — Real Kahoot sounds (archive.org) ══
+// ══ AUDIO SYSTEM — Kahoot sounds (self-hosted) ══
 const AUDIO_URLS = {
-  lobby:    "https://archive.org/download/kahoot-lobby-music/Kahoot%20Lobby%20Music.mp3",
-  question: "https://archive.org/download/kahoot-music-collection/Kahoot%20Question%20Music.mp3",
-  timesup:  "https://archive.org/download/kahoot-music-collection/Kahoot%20Times%20Up.mp3",
-  podium:   "https://archive.org/download/kahoot-music-collection/Kahoot%20Podium.mp3"
+  lobby:    "audio/lobby.mp3",
+  question: "audio/question.mp3",
+  timesup:  "audio/timesup.mp3",
+  podium:   "audio/podium.mp3"
 };
 
 window.Music = (() => {
@@ -1278,8 +1278,8 @@ function startTimer(sec,onEnd){
   },1000);
 }
 let _endingQuestion=false;
-window.endQuestion = endQuestion;
-async function endQuestion(){
+window.endQuestion = function(){ endQuestion(true); };
+async function endQuestion(skipped=false){
   if(_endingQuestion)return;
   _endingQuestion=true;
   clearInterval(S.timerInterval);
@@ -1295,15 +1295,15 @@ async function endQuestion(){
   // count distribution
   const counts=new Array(disp.length).fill(0);
   Object.values(answers).forEach(a=>{if(a.answerIdx>=0&&a.answerIdx<counts.length)counts[a.answerIdx]++});
-  // score
+  // score — if skipped, nobody gets points
   const upd={};
   Object.entries(answers).forEach(([pid,a])=>{
     const isC=isPoll?true:Number(a.answerIdx)===Number(q.correct);
     const spd=a.time||0;const mt=q.time||20;
-    const pts=(!isPoll&&isC)?Math.max(Math.round(maxPts*.1),Math.round(maxPts*(1-spd/mt*.5))):0;
+    const pts=skipped?0:((!isPoll&&isC)?Math.max(Math.round(maxPts*.1),Math.round(maxPts*(1-spd/mt*.5))):0);
     const cur=(players[pid]?.score||0)+pts;
     upd['games/'+S.gameCode+'/players/'+pid+'/score']=cur;
-    upd['games/'+S.gameCode+'/players/'+pid+'/lastCorrect']=isPoll||isC;
+    upd['games/'+S.gameCode+'/players/'+pid+'/lastCorrect']=skipped?false:(isPoll||isC);
     upd['games/'+S.gameCode+'/players/'+pid+'/lastPoints']=pts;
   });
   upd['games/'+S.gameCode+'/questionStarted']=false;
