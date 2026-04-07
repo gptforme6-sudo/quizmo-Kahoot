@@ -626,6 +626,14 @@ body{
 .p-total{font-size:0.9rem;color:rgba(255,255,255,0.6)}
 .p-rank-pill{background:rgba(255,255,255,0.12);border-radius:50px;padding:0.4rem 1.2rem;font-size:0.9rem;font-weight:700}
 
+/* player poll results mini-chart */
+.p-poll-results{width:100%;max-width:320px;display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem}
+.p-poll-row{display:flex;align-items:center;gap:0.6rem}
+.p-poll-label{font-size:0.82rem;font-weight:700;min-width:60px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p-poll-bar-wrap{flex:1;height:22px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;position:relative}
+.p-poll-bar{height:100%;border-radius:4px;min-width:4px;transition:width 0.8s cubic-bezier(0.22,1,0.36,1)}
+.p-poll-count{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:0.72rem;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+
 /* ══ PLAYER: FINAL ══ */
 #screen-player-final{align-items:center;justify-content:center}
 .p-final-wrap{text-align:center;position:relative;z-index:2;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:1rem}
@@ -881,6 +889,7 @@ body{
     <div class="p-points-box" id="pr-points">+0</div>
     <div class="p-total">סה"כ: <strong id="pr-total">0</strong> נקודות</div>
     <div class="p-rank-pill">מקום <strong id="pr-rank">1</strong></div>
+    <div class="p-poll-results" id="pr-poll" style="display:none"></div>
   </div>
 </div>
 
@@ -935,11 +944,12 @@ window.SS = id => {
 
 // ══ AUDIO SYSTEM — Kahoot sounds (self-hosted) ══
 const AUDIO_URLS = {
-  lobby:      "audio/lobby.mp3",
-  question:   "audio/question.mp3",
-  timesup:    "audio/timesup.mp3",
-  scoreboard: "audio/scoreboard.mp3",
-  podium:     "audio/podium.mp3"
+  lobby:        "audio/lobby.mp3",
+  countdown321: "audio/countdown321.mp3",
+  question:     "audio/question.mp3",
+  timesup:      "audio/timesup.mp3",
+  scoreboard:   "audio/scoreboard.mp3",
+  podium:       "audio/podium.mp3"
 };
 
 window.Music = (() => {
@@ -951,7 +961,7 @@ window.Music = (() => {
       if(!tracks[key]){
         tracks[key] = new Audio(AUDIO_URLS[key]);
         tracks[key].preload = 'auto';
-        if(key === 'lobby' || key === 'scoreboard') tracks[key].loop = true;
+        if(key === 'lobby' || key === 'scoreboard' || key === 'podium') tracks[key].loop = true;
       }
     }
   }
@@ -986,16 +996,17 @@ window.Music = (() => {
     }
   }
 
-  function playLobby(){ playTrack('lobby'); }          // lobby — loop while players join
-  function playQuestion(){ playTrack('question'); }     // question countdown music
-  function playTimesUp(){ playSFX('timesup'); }         // short stinger when round ends
-  function playScoreboard(){ playTrack('scoreboard'); } // scoreboard between questions
-  function playVictory(){ playTrack('podium'); }        // final podium music
+  function playLobby(){ playTrack('lobby'); }            // lobby — loop while players join
+  function playCountdown(){ playSFX('countdown321'); }   // 3-2-1 pre-question countdown
+  function playQuestion(){ playTrack('question'); }       // question countdown music
+  function playTimesUp(){ playSFX('timesup'); }           // short stinger when round ends
+  function playScoreboard(){ playTrack('scoreboard'); }   // scoreboard between questions
+  function playVictory(){ playTrack('podium'); }          // final podium music (loops)
   function stop(){ stopAll(); }
 
   init();
 
-  return { playLobby, playQuestion, playTimesUp, playScoreboard, playVictory, stop, init };
+  return { playLobby, playCountdown, playQuestion, playTimesUp, playScoreboard, playVictory, stop, init };
 })();
 
 // ══ ADMIN MODAL ══
@@ -1232,11 +1243,12 @@ window.startGame=async()=>{
 // ══ COUNTDOWN ══
 function showCountdown(cb){
   SS('screen-countdown');
-  Music.stop();
   const q=S.quizData.questions[S.currentQ];
   document.getElementById('cd-q').textContent=q.text;
   let n=3;
   document.getElementById('cd-num').textContent=n;
+  // Play countdown sound synced with visual
+  Music.playCountdown();
   const iv=setInterval(()=>{
     n--;
     if(n<=0){clearInterval(iv);cb();}
@@ -1312,8 +1324,8 @@ function startTimer(sec,onEnd){
   },1000);
 }
 let _endingQuestion=false;
-window.endQuestion = function(){ endQuestion(true); };
-async function endQuestion(skipped=false){
+window.endQuestion = function(){ endQuestion(); };
+async function endQuestion(){
   if(_endingQuestion)return;
   _endingQuestion=true;
   clearInterval(S.timerInterval);
@@ -1329,25 +1341,34 @@ async function endQuestion(skipped=false){
   // count distribution
   const counts=new Array(disp.length).fill(0);
   Object.values(answers).forEach(a=>{if(a.answerIdx>=0&&a.answerIdx<counts.length)counts[a.answerIdx]++});
-  // score — if skipped, nobody gets points
+  // score — players who answered get scored normally (even if host skipped)
   const upd={};
-  // Process players who answered
   Object.entries(answers).forEach(([pid,a])=>{
     const isC=isPoll?true:Number(a.answerIdx)===Number(q.correct);
     const spd=a.time||0;const mt=q.time||20;
-    const pts=skipped?0:((!isPoll&&isC)?Math.max(Math.round(maxPts*.1),Math.round(maxPts*(1-spd/mt*.5))):0);
+    const pts=(!isPoll&&isC)?Math.max(Math.round(maxPts*.1),Math.round(maxPts*(1-spd/mt*.5))):0;
     const cur=(players[pid]?.score||0)+pts;
     upd['games/'+S.gameCode+'/players/'+pid+'/score']=cur;
-    upd['games/'+S.gameCode+'/players/'+pid+'/lastCorrect']=skipped?false:(isPoll||isC);
+    upd['games/'+S.gameCode+'/players/'+pid+'/lastCorrect']=isPoll||isC;
     upd['games/'+S.gameCode+'/players/'+pid+'/lastPoints']=pts;
+    upd['games/'+S.gameCode+'/players/'+pid+'/lastTimedOut']=null;
   });
-  // Players who didn't answer get 0 points
+  // Players who didn't answer → 0 points + "Time's Up" on their screen
   Object.keys(players).forEach(pid=>{
     if(!answers[pid]){
       upd['games/'+S.gameCode+'/players/'+pid+'/lastCorrect']=false;
       upd['games/'+S.gameCode+'/players/'+pid+'/lastPoints']=0;
+      upd['games/'+S.gameCode+'/players/'+pid+'/lastTimedOut']=true;
     }
   });
+  // For poll questions, write results to Firebase so players can see them
+  if(isPoll){
+    const pollResults={};
+    disp.forEach((a,i)=>pollResults[i]={text:a,count:counts[i]});
+    upd['games/'+S.gameCode+'/pollResults']=pollResults;
+  } else {
+    upd['games/'+S.gameCode+'/pollResults']=null;
+  }
   upd['games/'+S.gameCode+'/questionStarted']=false;
   await update(ref(db,'/'),upd);
   showResultsScreen(q,disp,counts);
@@ -1555,13 +1576,55 @@ async function submitAnswer(idx){
   SS('screen-player-answered');
 }
 function showPlayerResult(game){
-  get(ref(db,'games/'+S.gameCode+'/players/'+S.playerId)).then(snap=>{
+  get(ref(db,'games/'+S.gameCode+'/players/'+S.playerId)).then(async snap=>{
     if(!snap.exists())return;const p=snap.val();
     S.myScore=p.score||0;
-    document.getElementById('pr-icon').textContent=p.lastCorrect?'✅':'❌';
-    document.getElementById('pr-title').textContent=p.lastCorrect?'נכון! 🎉':'לא נכון 😢';
-    document.getElementById('pr-points').textContent=`+${p.lastPoints||0}`;
+
+    const pollDiv=document.getElementById('pr-poll');
+    pollDiv.style.display='none';pollDiv.innerHTML='';
+
+    // Check if player timed out (didn't answer)
+    if(p.lastTimedOut){
+      document.getElementById('pr-icon').textContent='⏰';
+      document.getElementById('pr-title').textContent='נגמר הזמן!';
+      document.getElementById('pr-points').textContent='+0';
+      // Reset the flag
+      await update(ref(db,'games/'+S.gameCode+'/players/'+S.playerId),{lastTimedOut:null});
+    } else if(p.lastCorrect){
+      document.getElementById('pr-icon').textContent='✅';
+      document.getElementById('pr-title').textContent='נכון! 🎉';
+      document.getElementById('pr-points').textContent=`+${p.lastPoints||0}`;
+    } else {
+      document.getElementById('pr-icon').textContent='❌';
+      document.getElementById('pr-title').textContent='לא נכון 😢';
+      document.getElementById('pr-points').textContent=`+${p.lastPoints||0}`;
+    }
+
     document.getElementById('pr-total').textContent=S.myScore;
+
+    // Show poll results on player device if it's a poll question
+    const pollSnap=await get(ref(db,'games/'+S.gameCode+'/pollResults'));
+    if(pollSnap.exists()){
+      const pollData=pollSnap.val();
+      const maxC=Math.max(...Object.values(pollData).map(r=>r.count||0),1);
+      document.getElementById('pr-icon').textContent='📊';
+      document.getElementById('pr-title').textContent='תוצאות הסקר';
+      document.getElementById('pr-points').style.display='none';
+      pollDiv.style.display='flex';
+      Object.values(pollData).forEach((r,i)=>{
+        const barW=Math.max(5,Math.round((r.count||0)/maxC*100));
+        const row=document.createElement('div');row.className='p-poll-row';
+        row.innerHTML=`<div class="p-poll-label">${r.text||''}</div>
+          <div class="p-poll-bar-wrap">
+            <div class="p-poll-bar" style="width:${barW}%;background:${HEX[i]||HEX[0]}"></div>
+            <div class="p-poll-count">${r.count||0}</div>
+          </div>`;
+        pollDiv.appendChild(row);
+      });
+    } else {
+      document.getElementById('pr-points').style.display='';
+    }
+
     get(ref(db,'games/'+S.gameCode+'/players')).then(ps=>{
       if(!ps.exists())return;
       const sorted=Object.entries(ps.val()).sort((a,b)=>(b[1].score||0)-(a[1].score||0));
